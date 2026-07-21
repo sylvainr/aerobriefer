@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Espaces aériens — aerobriefer</title>
+<style>
+  :root {
+    --bg: #eef1f4;
+    --panel: rgba(255,255,255,0.94);
+    --panel-border: #d3d9e0;
+    --ink: #1e2732;
+    --ink-soft: #566173;
+    --accent: #2b6cb0;
+    --shadow: 0 4px 18px rgba(20,30,45,0.14);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+  }
+  #app { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  /* Titre */
+  #titlebar {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 10px; padding: 8px 18px; box-shadow: var(--shadow);
+    font-size: 15px; font-weight: 600; letter-spacing: .2px; z-index: 20;
+    text-align: center; pointer-events: none; max-width: 60vw;
+  }
+  #titlebar .sub { display:block; font-weight: 400; font-size: 11.5px; color: var(--ink-soft); margin-top: 2px; }
+
+  /* Légende latérale */
+  #legend {
+    position: absolute; top: 14px; right: 14px; width: 320px;
+    max-height: calc(100% - 28px); display: flex; flex-direction: column;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: var(--shadow); z-index: 20; overflow: hidden;
+  }
+  #legend header { padding: 11px 14px 8px; border-bottom: 1px solid var(--panel-border); }
+  #legend header h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--ink-soft); }
+  #classFilters { display: flex; flex-wrap: wrap; gap: 5px 8px; }
+  .classchip {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
+    cursor: pointer; user-select: none; padding: 2px 4px; border-radius: 6px;
+  }
+  .classchip:hover { background: rgba(0,0,0,0.04); }
+  .classchip input { margin: 0; accent-color: var(--accent); }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,.25); display:inline-block; }
+  .classchip.off { opacity: .4; }
+
+  #legendList { overflow-y: auto; padding: 6px 6px 8px; }
+  .as-row {
+    display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px;
+    border-radius: 8px; cursor: pointer; font-size: 12.5px; line-height: 1.3;
+  }
+  .as-row:hover { background: rgba(43,108,176,0.10); }
+  .as-row.hidden { opacity: .38; }
+  .as-row.hidden .as-name { text-decoration: line-through; }
+  .as-row .bar { flex: 0 0 4px; align-self: stretch; border-radius: 3px; min-height: 30px; }
+  .as-row .meta { flex: 1; min-width: 0; }
+  .as-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .as-sub { color: var(--ink-soft); font-size: 11px; margin-top: 1px; }
+  .as-badge { display:inline-block; font-size: 10px; font-weight:700; padding: 0 5px; border-radius: 4px;
+              color:#fff; margin-right: 5px; vertical-align: 1px; }
+
+  #legend footer { padding: 8px 12px; border-top: 1px solid var(--panel-border); font-size: 11px; color: var(--ink-soft); }
+  #legend footer .btn { cursor: pointer; color: var(--accent); font-weight: 600; }
+  #legend footer .btn:hover { text-decoration: underline; }
+
+  /* Contrôles bas-gauche */
+  #controls {
+    position: absolute; left: 14px; bottom: 14px;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: var(--shadow); z-index: 20;
+    padding: 12px 14px; width: 262px; font-size: 12.5px;
+  }
+  #controls .ctl { display: flex; align-items: center; gap: 10px; }
+  #controls label { color: var(--ink-soft); white-space: nowrap; }
+  #controls input[type=range] { flex: 1; accent-color: var(--accent); }
+  #exagVal { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 30px; text-align: right; }
+  #controls .hint { margin-top: 8px; color: var(--ink-soft); font-size: 11px; line-height: 1.4; }
+  #controls .hint b { color: var(--ink); font-weight: 600; }
+
+  /* Tooltip */
+  #tooltip {
+    position: absolute; z-index: 30; pointer-events: none; display: none;
+    background: rgba(24,32,44,0.95); color: #fff; padding: 8px 11px;
+    border-radius: 8px; font-size: 12px; line-height: 1.4; max-width: 260px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  }
+  #tooltip .tt-name { font-weight: 700; margin-bottom: 2px; }
+  #tooltip .tt-line { color: #cdd6e2; }
+  #tooltip .tt-alt { color: #fff; font-weight: 600; margin-top: 2px; }
+
+  #empty {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    color: var(--ink-soft); font-size: 15px; z-index: 5;
+  }
+  @media (max-width: 720px) {
+    #legend { width: 62vw; }
+    #titlebar { max-width: 90vw; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="titlebar">Espaces aériens<span class="sub" id="titlesub"></span></div>
+
+<aside id="legend">
+  <header>
+    <h2>Filtrer par classe</h2>
+    <div id="classFilters"></div>
+  </header>
+  <div id="legendList"></div>
+  <footer>
+    <span class="btn" id="showAll">Tout afficher</span> ·
+    <span class="btn" id="hideAll">Tout masquer</span>
+  </footer>
+</aside>
+
+<div id="controls">
+  <div class="ctl">
+    <label for="exag">Exagération&nbsp;verticale</label>
+    <input id="exag" type="range" min="1" max="10" step="0.5" value="4">
+    <span id="exagVal">×4</span>
+  </div>
+  <div class="hint">
+    Glisser&nbsp;: pivoter · molette&nbsp;: zoom · clic droit&nbsp;: déplacer.<br>
+    Rouge&nbsp;<b>N</b> = nord · règle verticale au centre en pieds AMSL.
+  </div>
+</div>
+
+<div id="tooltip"></div>
+<div id="empty">Aucune donnée d'espace aérien à afficher.</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---- Données injectées par le pipeline Python ------------------------------
+const DATA = /*__AEROBRIEFER_DATA__*/null;
+
+// ---- Constantes ------------------------------------------------------------
+const FT_TO_M = 0.3048;
+const NM_TO_M = 1852;
+const DEG = Math.PI / 180;
+
+const data = DATA || {};
+const center = data.center || { lat: 0, lon: 0 };
+const airspaces = Array.isArray(data.airspaces) ? data.airspaces : [];
+const flight = data.flight || {};
+const aerodromes = Array.isArray(flight.aerodromes) ? flight.aerodromes : [];
+const classColors = data.class_colors || {};
+
+// ---- Projection plan tangent (equirectangulaire) ---------------------------
+const lat0 = center.lat * DEG;
+const cosLat0 = Math.cos(lat0);
+function project(lon, lat) {
+  return [
+    (lon - center.lon) * cosLat0 * 111320, // x est (mètres)
+    (lat - center.lat) * 111320,           // y nord (mètres)
+  ];
+}
+
+// ---- Titre -----------------------------------------------------------------
+const firstIcao = aerodromes.length ? aerodromes[0].icao : '';
+document.getElementById('titlebar').firstChild.textContent =
+  'Espaces aériens' + (firstIcao ? ' — ' + firstIcao : '');
+if (aerodromes.length) {
+  const ad = aerodromes[0];
+  document.getElementById('titlesub').textContent =
+    (ad.name || '') + '  ·  rayon ' + (flight.radius_nm ?? '?') + ' NM  ·  ' + airspaces.length + ' espaces';
+}
+
+// ---- Scène three.js --------------------------------------------------------
+const appEl = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0xeef1f4, 1);
+appEl.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xeef1f4, 60000, 220000);
+
+// Rayon horizontal de référence (mètres) pour cadrer caméra & sol.
+const radiusM = (flight.radius_nm || 20) * NM_TO_M;
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 10, 1_000_000);
+camera.up.set(0, 0, 1); // Z vers le haut (altitude)
+camera.position.set(radiusM * 1.15, -radiusM * 1.55, radiusM * 1.05);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0, radiusM * 0.18);
+controls.maxPolarAngle = Math.PI * 0.495; // ne pas passer sous l'horizon
+controls.update();
+
+// Lumières
+scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+const sun = new THREE.DirectionalLight(0xffffff, 0.75);
+sun.position.set(radiusM * 0.6, -radiusM * 0.4, radiusM * 1.2);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.25);
+fill.position.set(-radiusM, radiusM * 0.5, radiusM * 0.6);
+scene.add(fill);
+
+// Groupes : "world" (échelle 1) et "vol" (exagération verticale sur Z).
+const worldGroup = new THREE.Group();
+const vertGroup = new THREE.Group();  // contient volumes + règle verticale
+scene.add(worldGroup);
+scene.add(vertGroup);
+
+// ---- Sol : grille + cercle de vol ------------------------------------------
+function buildGround() {
+  const extent = Math.max(radiusM * 2.4, 4000);
+  const div = 24;
+  const grid = new THREE.GridHelper(extent, div, 0xbcc6d1, 0xd3dae2);
+  grid.rotation.x = Math.PI / 2;       // passer du plan XZ au plan XY
+  grid.position.z = -1;                 // légèrement sous les volumes
+  grid.material.transparent = true;
+  grid.material.opacity = 0.6;
+  worldGroup.add(grid);
+
+  // Disque de sol neutre
+  const disk = new THREE.Mesh(
+    new THREE.CircleGeometry(radiusM * 1.18, 96),
+    new THREE.MeshBasicMaterial({ color: 0xe6ebf0, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+  );
+  disk.position.z = -2;
+  worldGroup.add(disk);
+
+  // Cercle du vol
+  const segs = 128;
+  const pts = [];
+  for (let i = 0; i <= segs; i++) {
+    const a = (i / segs) * Math.PI * 2;
+    pts.push(new THREE.Vector3(Math.cos(a) * radiusM, Math.sin(a) * radiusM, 0.5));
+  }
+  const circle = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: 0x2b6cb0, transparent: true, opacity: 0.9 })
+  );
+  worldGroup.add(circle);
+}
+
+// ---- Étiquettes texte (sprites canvas) -------------------------------------
+function makeLabel(text, opts = {}) {
+  const fs = opts.fontSize || 42;
+  const pad = opts.pad ?? 14;
+  const color = opts.color || '#16202c';
+  const bg = opts.bg || 'rgba(255,255,255,0.88)';
+  const font = `700 ${fs}px -apple-system, "Segoe UI", Arial, sans-serif`;
+  const measure = document.createElement('canvas').getContext('2d');
+  measure.font = font;
+  const w = Math.ceil(measure.measureText(text).width) + pad * 2;
+  const h = fs + pad * 2;
+  const cv = document.createElement('canvas');
+  const dpr = 2;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.font = font;
+  ctx.textBaseline = 'middle';
+  if (bg) {
+    ctx.fillStyle = bg;
+    roundRect(ctx, 0, 0, w, h, 8); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1;
+    roundRect(ctx, 0.5, 0.5, w - 1, h - 1, 8); ctx.stroke();
+  }
+  ctx.fillStyle = color;
+  ctx.fillText(text, pad, h / 2);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+  const worldH = opts.worldHeight || radiusM * 0.05;
+  sprite.scale.set(worldH * (w / h), worldH, 1);
+  sprite.renderOrder = 10;
+  return sprite;
+}
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// ---- Aérodromes ------------------------------------------------------------
+function buildAerodromes() {
+  aerodromes.forEach((ad, idx) => {
+    const [x, y] = project(ad.lon, ad.lat);
+    const isMain = idx === 0;
+    const h = radiusM * (isMain ? 0.05 : 0.03);
+    const r = radiusM * (isMain ? 0.014 : 0.009);
+    const cone = new THREE.Mesh(
+      new THREE.ConeGeometry(r, h, 20),
+      new THREE.MeshLambertMaterial({ color: isMain ? 0xd11a2a : 0x37516b })
+    );
+    // ConeGeometry pointe vers +Y ; on l'oriente vers +Z, pointe en haut.
+    cone.rotation.x = Math.PI / 2;
+    cone.position.set(x, y, h / 2);
+    worldGroup.add(cone);
+
+    if (isMain || ad.runways?.length) {
+      const label = makeLabel(ad.icao, {
+        fontSize: isMain ? 46 : 38,
+        worldHeight: radiusM * (isMain ? 0.055 : 0.042),
+        color: isMain ? '#8a1220' : '#1e2732',
+      });
+      label.position.set(x, y, h + radiusM * 0.05);
+      worldGroup.add(label);
+    }
+
+    // Pistes (segments orientés selon bearing)
+    (ad.runways || []).forEach((rw) => {
+      const len = (rw.length_m || 600);
+      const brg = (rw.bearing || 0) * DEG; // 0 = nord vrai
+      // vecteur direction : nord=+Y, est=+X
+      const dx = Math.sin(brg) * len / 2;
+      const dy = Math.cos(brg) * len / 2;
+      const seg = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x - dx, y - dy, 1),
+          new THREE.Vector3(x + dx, y + dy, 1),
+        ]),
+        new THREE.LineBasicMaterial({ color: 0x2c2c2c, transparent: true, opacity: 0.8 })
+      );
+      worldGroup.add(seg);
+    });
+  });
+}
+
+// ---- Boussole (nord) -------------------------------------------------------
+function buildCompass() {
+  const arrowLen = radiusM * 0.14;
+  const base = radiusM * 1.06;
+  const arrow = new THREE.ArrowHelper(
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, base, 1),
+    arrowLen, 0xd11a2a, arrowLen * 0.35, arrowLen * 0.22
+  );
+  worldGroup.add(arrow);
+  const n = makeLabel('N', { fontSize: 48, worldHeight: radiusM * 0.06, color: '#d11a2a', bg: null });
+  n.position.set(0, base + arrowLen + radiusM * 0.04, 1);
+  worldGroup.add(n);
+}
+
+// ---- Règle verticale (échelle en pieds AMSL) -------------------------------
+function buildVerticalRuler(maxFt) {
+  if (!(maxFt > 0)) return;
+  const topM = maxFt * FT_TO_M;
+  const axis = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, topM),
+    ]),
+    new THREE.LineBasicMaterial({ color: 0x8894a5, transparent: true, opacity: 0.7 })
+  );
+  vertGroup.add(axis);
+  const step = maxFt > 12000 ? 5000 : 2000;
+  for (let ft = step; ft <= maxFt + 1; ft += step) {
+    const z = ft * FT_TO_M;
+    const tick = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, z), new THREE.Vector3(radiusM * 0.03, 0, z),
+      ]),
+      new THREE.LineBasicMaterial({ color: 0x8894a5 })
+    );
+    vertGroup.add(tick);
+    const lbl = makeLabel(ft.toLocaleString('fr-FR') + ' ft', {
+      fontSize: 30, worldHeight: radiusM * 0.032, color: '#56617f',
+    });
+    lbl.position.set(radiusM * 0.09, 0, z);
+    lbl.userData.rulerLabel = true;
+    lbl.userData.baseZ = z;
+    vertGroup.add(lbl);
+  }
+}
+
+// ---- Volumes d'espaces aériens ---------------------------------------------
+const airspaceMeshes = [];
+function buildAirspaces() {
+  airspaces.forEach((a, i) => {
+    const ring = a.polygon || [];
+    if (ring.length < 3) return;
+
+    const shape = new THREE.Shape();
+    ring.forEach(([lon, lat], k) => {
+      const [x, y] = project(lon, lat);
+      if (k === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+    });
+
+    let lower = Number(a.lower_ft) || 0;
+    let upper = Number(a.upper_ft);
+    if (!(upper > lower)) upper = lower + 100; // épaisseur mini pour ne pas dégénérer
+    const depth = (upper - lower) * FT_TO_M;
+
+    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, steps: 1 });
+    geo.translate(0, 0, lower * FT_TO_M);
+
+    const col = new THREE.Color(a.color || classColors[a.class] || '#888888');
+    const mat = new THREE.MeshLambertMaterial({
+      color: col, transparent: true, opacity: 0.22,
+      side: THREE.DoubleSide, depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+
+    // Arêtes plus lisibles
+    const edgeCol = col.clone().multiplyScalar(0.6);
+    const edges = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geo, 15),
+      new THREE.LineBasicMaterial({ color: edgeCol, transparent: true, opacity: 0.85 })
+    );
+    mesh.add(edges);
+
+    mesh.userData = {
+      index: i, airspace: a, baseOpacity: 0.22,
+      edgeMat: edges.material, baseEdgeOpacity: 0.85,
+      visible: true,
+    };
+    airspaceMeshes.push(mesh);
+    vertGroup.add(mesh);
+  });
+}
+
+// ---- Construction ----------------------------------------------------------
+buildGround();
+buildAerodromes();
+buildCompass();
+if (airspaces.length) {
+  const maxFt = airspaces.reduce((m, a) => Math.max(m, Number(a.upper_ft) || 0), 0);
+  buildVerticalRuler(maxFt);
+  buildAirspaces();
+} else {
+  document.getElementById('empty').style.display = 'flex';
+}
+
+// ---- Exagération verticale -------------------------------------------------
+const exagSlider = document.getElementById('exag');
+const exagVal = document.getElementById('exagVal');
+function applyExag(v) {
+  vertGroup.scale.z = v;
+  exagVal.textContent = '×' + v;
+}
+exagSlider.addEventListener('input', () => applyExag(parseFloat(exagSlider.value)));
+applyExag(parseFloat(exagSlider.value));
+
+// ---- Légende (HTML) --------------------------------------------------------
+const CLASS_LABEL = {
+  A: 'A', B: 'B', C: 'C', D: 'D', E: 'E', F: 'F', G: 'G', UNC: 'R/P/D',
+};
+const classState = {}; // classe -> bool actif
+const rowByIndex = {};
+
+function classOf(a) { return a.class || 'UNC'; }
+function colorOf(a) { return a.color || classColors[classOf(a)] || '#888888'; }
+
+function buildLegend() {
+  // filtres par classe présents
+  const classes = [...new Set(airspaces.map(classOf))].sort();
+  const cf = document.getElementById('classFilters');
+  classes.forEach((cl) => {
+    classState[cl] = true;
+    const chip = document.createElement('label');
+    chip.className = 'classchip';
+    chip.innerHTML =
+      `<input type="checkbox" checked><span class="swatch" style="background:${classColors[cl] || '#888'}"></span>` +
+      `Classe ${CLASS_LABEL[cl] || cl}`;
+    const cb = chip.querySelector('input');
+    cb.addEventListener('change', () => {
+      classState[cl] = cb.checked;
+      chip.classList.toggle('off', !cb.checked);
+      airspaces.forEach((a, i) => { if (classOf(a) === cl) setVisible(i, cb.checked, true); });
+      refreshRows();
+    });
+    cf.appendChild(chip);
+  });
+
+  // liste des espaces, triée par plancher
+  const list = document.getElementById('legendList');
+  const order = airspaces.map((a, i) => i).sort((p, q) =>
+    (airspaces[p].lower_ft - airspaces[q].lower_ft) || (airspaces[p].upper_ft - airspaces[q].upper_ft));
+  order.forEach((i) => {
+    const a = airspaces[i];
+    const row = document.createElement('div');
+    row.className = 'as-row';
+    const cl = classOf(a);
+    row.innerHTML =
+      `<span class="bar" style="background:${colorOf(a)}"></span>` +
+      `<span class="meta">` +
+        `<span class="as-name"><span class="as-badge" style="background:${colorOf(a)}">${CLASS_LABEL[cl] || cl}</span>${escapeHtml(a.name || '(sans nom)')}</span>` +
+        `<span class="as-sub">${escapeHtml(a.type || '')} · ${escapeHtml(a.lower_label || a.lower_ft + ' ft')} → ${escapeHtml(a.upper_label || a.upper_ft + ' ft')}${a.frequency ? ' · ' + escapeHtml(a.frequency) : ''}</span>` +
+      `</span>`;
+    row.addEventListener('click', () => {
+      const mesh = airspaceMeshes[i];
+      setVisible(i, !mesh.userData.visible, false);
+      refreshRows();
+    });
+    row.addEventListener('mouseenter', () => setHighlight(i, true));
+    row.addEventListener('mouseleave', () => setHighlight(i, false));
+    list.appendChild(row);
+    rowByIndex[i] = row;
+  });
+  refreshRows();
+}
+
+function setVisible(i, vis, fromClass) {
+  const mesh = airspaceMeshes[i];
+  if (!mesh) return;
+  mesh.userData.visible = vis;
+  // visible seulement si la classe est active ET non masqué individuellement
+  const clOn = classState[classOf(airspaces[i])] !== false;
+  mesh.visible = vis && clOn;
+}
+function refreshRows() {
+  airspaces.forEach((a, i) => {
+    const row = rowByIndex[i]; if (!row) return;
+    const mesh = airspaceMeshes[i];
+    const clOn = classState[classOf(a)] !== false;
+    const shown = mesh.userData.visible && clOn;
+    row.classList.toggle('hidden', !shown);
+  });
+}
+
+document.getElementById('showAll').addEventListener('click', () => {
+  airspaces.forEach((a, i) => { classState[classOf(a)] = true; setVisible(i, true, false); });
+  document.querySelectorAll('#classFilters input').forEach(cb => cb.checked = true);
+  document.querySelectorAll('#classFilters .classchip').forEach(c => c.classList.remove('off'));
+  refreshRows();
+});
+document.getElementById('hideAll').addEventListener('click', () => {
+  airspaces.forEach((a, i) => setVisible(i, false, false));
+  refreshRows();
+});
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---- Surlignage ------------------------------------------------------------
+let highlighted = -1;
+function setHighlight(i, on) {
+  const mesh = airspaceMeshes[i];
+  if (!mesh) return;
+  if (on) {
+    mesh.material.opacity = 0.5;
+    mesh.material.emissive = new THREE.Color(0xffffff);
+    mesh.material.emissiveIntensity = 0.15;
+    mesh.userData.edgeMat.opacity = 1;
+    mesh.renderOrder = 5;
+  } else {
+    mesh.material.opacity = mesh.userData.baseOpacity;
+    mesh.material.emissiveIntensity = 0;
+    mesh.userData.edgeMat.opacity = mesh.userData.baseEdgeOpacity;
+    mesh.renderOrder = 0;
+  }
+  mesh.material.needsUpdate = true;
+}
+
+// ---- Raycasting / tooltip --------------------------------------------------
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const tooltip = document.getElementById('tooltip');
+let hoverIndex = -1;
+
+function onPointerMove(ev) {
+  pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const targets = airspaceMeshes.filter(m => m.visible);
+  const hits = raycaster.intersectObjects(targets, false);
+  const idx = hits.length ? hits[0].object.userData.index : -1;
+
+  if (idx !== hoverIndex) {
+    if (hoverIndex >= 0 && hoverIndex !== highlighted) setHighlight(hoverIndex, false);
+    hoverIndex = idx;
+    if (idx >= 0) setHighlight(idx, true);
+  }
+
+  if (idx >= 0) {
+    const a = airspaces[idx];
+    tooltip.innerHTML =
+      `<div class="tt-name">${escapeHtml(a.name || '(sans nom)')}</div>` +
+      `<div class="tt-line">Classe ${escapeHtml(CLASS_LABEL[classOf(a)] || classOf(a))} · ${escapeHtml(a.type || '')}</div>` +
+      `<div class="tt-alt">${escapeHtml(a.lower_label || a.lower_ft + ' ft')} → ${escapeHtml(a.upper_label || a.upper_ft + ' ft')}</div>` +
+      (a.frequency ? `<div class="tt-line">Fréq. ${escapeHtml(a.frequency)} MHz</div>` : '');
+    tooltip.style.display = 'block';
+    const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+    let tx = ev.clientX + 14, ty = ev.clientY + 14;
+    if (tx + tw > window.innerWidth - 8) tx = ev.clientX - tw - 14;
+    if (ty + th > window.innerHeight - 8) ty = ev.clientY - th - 14;
+    tooltip.style.left = tx + 'px';
+    tooltip.style.top = ty + 'px';
+  } else {
+    tooltip.style.display = 'none';
+  }
+}
+renderer.domElement.addEventListener('pointermove', onPointerMove);
+renderer.domElement.addEventListener('pointerleave', () => {
+  if (hoverIndex >= 0) setHighlight(hoverIndex, false);
+  hoverIndex = -1; tooltip.style.display = 'none';
+});
+
+if (airspaces.length) buildLegend();
+
+// ---- Resize + boucle de rendu ----------------------------------------------
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// Diagnostic pour tests headless
+window.__aerobriefer = {
+  airspaces: airspaces.length,
+  meshes: airspaceMeshes.length,
+  aerodromes: aerodromes.length,
+  ready: true,
+};
+</script>
+</body>
+</html>
