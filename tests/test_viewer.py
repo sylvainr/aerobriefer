@@ -61,3 +61,18 @@ def test_render_viewer_handles_no_airspaces():
     )
     html = render_viewer(BriefingPackage(context=ctx))
     assert "/*__AEROBRIEFER_DATA__*/null" not in html
+
+
+def test_viewer_data_ground_and_base_layers():
+    """Le sol porte une emprise carrée + des URLs de couches satellite prêtes."""
+    data = viewer_data(_package())
+    ground = data["ground"]
+    assert ground["half_extent_m"] > 0
+    bbox = ground["bbox"]
+    assert bbox["minLon"] < data["center"]["lon"] < bbox["maxLon"]
+    assert bbox["minLat"] < data["center"]["lat"] < bbox["maxLat"]
+    # URLs prêtes (bbox déjà injecté, aucune accolade restante)
+    for layer in ground["layers"].values():
+        assert "label" in layer
+        assert "{" not in layer["url"], "l'URL doit être prête, bbox rempli"
+        assert layer["url"].startswith("https://")

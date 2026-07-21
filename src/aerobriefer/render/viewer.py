@@ -15,11 +15,36 @@ autosuffisant.
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
 from ..domain.context import BriefingContext
 from ..domain.package import BriefingPackage
+
+_M_PER_DEG_LAT = 111320.0
+
+# Couches de fond de carte pour le SOL du viewer (outil en ligne). Modèles d'URL
+# WMS/export : {minLon},{minLat},{maxLon},{maxLat} sont remplis côté client (ou
+# ici). Aucune clé requise.
+BASE_LAYERS: dict[str, dict[str, str]] = {
+    "ign-ortho": {
+        "label": "Satellite IGN (France, HD)",
+        "url": (
+            "https://data.geopf.fr/wms-r/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetMap"
+            "&LAYERS=ORTHOIMAGERY.ORTHOPHOTOS&STYLES=&CRS=EPSG:4326"
+            "&BBOX={minLat},{minLon},{maxLat},{maxLon}&WIDTH=2048&HEIGHT=2048&FORMAT=image/jpeg"
+        ),
+    },
+    "esri": {
+        "label": "Satellite Esri (monde)",
+        "url": (
+            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export"
+            "?bbox={minLon},{minLat},{maxLon},{maxLat}&bboxSR=4326&size=2048,2048"
+            "&format=jpg&f=image"
+        ),
+    },
+}
 
 _TEMPLATE = Path(__file__).parent / "templates" / "viewer.html"
 
@@ -82,6 +107,8 @@ def viewer_data(package: BriefingPackage) -> dict[str, Any]:
         for ad in package.aerodromes
     ]
 
+    ground = _ground(center, context, package)
+
     return {
         "center": {"lat": center.lat, "lon": center.lon},
         "flight": {
@@ -90,7 +117,41 @@ def viewer_data(package: BriefingPackage) -> dict[str, Any]:
         },
         "airspaces": airspaces,
         "class_colors": CLASS_COLORS,
+        "ground": ground,
     }
+
+
+def _ground(center: Any, context: BriefingContext, package: BriefingPackage) -> dict[str, Any]:
+    """Emprise carrée (en mètres, centrée) couvrant le vol ET les espaces, plus
+    les URLs de couches de fond prêtes à charger.
+
+    Le sol du viewer est un carré de côté 2·half_extent_m ; une image satellite de
+    la MÊME emprise (bbox lon/lat correspondant à ce carré en mètres) s'y plaque
+    sans distorsion sensible à cette échelle.
+    """
+    lat0, lon0 = center.lat, center.lon
+    cos_lat = math.cos(math.radians(lat0))
+    reach_m = _radius_nm(context) * 1852.0
+    for airspace in package.airspaces:
+        for p in airspace.polygon:
+            dx = (p.lon - lon0) * _M_PER_DEG_LAT * cos_lat
+            dy = (p.lat - lat0) * _M_PER_DEG_LAT
+            reach_m = max(reach_m, math.hypot(dx, dy))
+    half_extent_m = reach_m * 1.12  # petite marge
+
+    dlat = half_extent_m / _M_PER_DEG_LAT
+    dlon = half_extent_m / (_M_PER_DEG_LAT * cos_lat)
+    bbox = {
+        "minLon": lon0 - dlon,
+        "minLat": lat0 - dlat,
+        "maxLon": lon0 + dlon,
+        "maxLat": lat0 + dlat,
+    }
+    layers = {
+        key: {"label": spec["label"], "url": spec["url"].format(**bbox)}
+        for key, spec in BASE_LAYERS.items()
+    }
+    return {"half_extent_m": round(half_extent_m), "bbox": bbox, "layers": layers}
 
 
 def _radius_nm(context: BriefingContext) -> float:
