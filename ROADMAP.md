@@ -42,7 +42,13 @@ Ce qui reste à polir sur l'existant :
 
 ## Chantiers
 
-### 1. Pistes depuis le SIA  🟢 prêt (recherche faite)
+> État au fil de l'eau : chantiers 1 (pistes SIA) et 3 (modèle avion + go/no-go)
+> FAITS. Chantier 2 : couche données espaces aériens FAITE, viewer 3D en cours.
+> Reste à intégrer le go/no-go avion dans le brief (déroutements) et à faire la
+> carte 2D + l'édition de route dans le viewer.
+
+
+### 1. Pistes depuis le SIA  ✅ FAIT
 
 OurAirports rate les bandes herbe. Le SIA (AIXM 4.5, data.gouv/Etalab) a TOUT :
 LFCY y a bien ses deux pistes (10/28 revêtue **et** 10R/28L herbe), 781 pistes
@@ -55,7 +61,7 @@ France, parsable en stdlib (`xml.etree.iterparse`).
 
 *Court. Nettoie une vraie dette.*
 
-### 2. Espaces aériens + viewer  🟡 recherche faite, à construire
+### 2. Espaces aériens + viewer  🟢 données FAITES, viewers en cours
 
 Source : `france.geojson` (planeur-net, 1608 espaces, polygones + classe +
 plancher/plafond). **Ne pas committer** (licence non déclarée + 7 Mo) → provider
@@ -109,7 +115,7 @@ le moteur est Python — il faut une frontière propre :
 MVP : viewer exporte la route → CLI génère le brief. Intégration serrée ensuite
 (petit serveur local, ou MCP — cf. chantier 5).
 
-### 3. Modèle avion (framework + exemple DR400)  🟡 données en main
+### 3. Modèle avion (framework + exemple DR400)  ✅ FAIT (framework + go/no-go)
 
 **Framework (repo)** : classes de base + machinerie d'interpolation bilinéaire
 (altitude-pression × température), corrections (vent, surface herbe, pente),
