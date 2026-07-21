@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 
 from .geo import Circle, Geometry, Position
+from .route import Route
 from .window import TimeWindow
 
 
@@ -42,6 +43,34 @@ class BriefingContext:
     sont PAS des terrains du vol — elles n'entrent pas dans les dégagements et
     le rendu doit afficher leur distance, car une observation à 40 NM ne décrit
     pas forcément le régime local (brise de mer, brume matinale côtière)."""
+
+    route: Route | None = None
+    """Route de navigation (points tournants + altitudes), pour une nav. La
+    géométrie du contexte est alors un `Corridor` le long de cette route."""
+
+    @classmethod
+    def navigation(
+        cls,
+        *,
+        route: Route,
+        window: TimeWindow,
+        half_width_nm: float = 10.0,
+        origin_icao: str | None = None,
+        destination_icao: str | None = None,
+        alternates_icao: Sequence[str] = (),
+        aircraft_id: str | None = None,
+    ) -> BriefingContext:
+        """Un vol de navigation : couloir le long de la route."""
+        return cls(
+            geometry=route.corridor(half_width_nm),
+            window=window,
+            purpose=Purpose.NAVIGATION,
+            origin_icao=origin_icao,
+            destination_icao=destination_icao,
+            alternates_icao=tuple(alternates_icao),
+            aircraft_id=aircraft_id,
+            route=route,
+        )
 
     @classmethod
     def local(

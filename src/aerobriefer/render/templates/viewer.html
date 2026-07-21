@@ -85,6 +85,15 @@
   #exagVal { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 30px; text-align: right; }
   #controls .hint { margin-top: 8px; color: var(--ink-soft); font-size: 11px; line-height: 1.4; }
   #controls .hint b { color: var(--ink); font-weight: 600; }
+  #groundBlock { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--panel-border); }
+  #controls .ctl.ctl-col { align-items: flex-start; flex-direction: column; gap: 5px; }
+  #groundLayers { display: flex; flex-direction: column; gap: 3px; width: 100%; }
+  .groundopt { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; padding: 1px 0; }
+  .groundopt input { margin: 0; accent-color: var(--accent); }
+  #groundOpacityRow { margin-top: 8px; }
+  #groundOpacityVal { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 34px; text-align: right; }
+  #groundMsg { margin-top: 6px; font-size: 10.5px; color: #b1451f; display: none; line-height: 1.35; }
+  #groundMsg.show { display: block; }
 
   /* Tooltip */
   #tooltip {
@@ -130,6 +139,18 @@
     <input id="exag" type="range" min="1" max="10" step="0.5" value="4">
     <span id="exagVal">×4</span>
   </div>
+  <div id="groundBlock">
+    <div class="ctl ctl-col">
+      <label>Fond de carte</label>
+      <div id="groundLayers"></div>
+    </div>
+    <div class="ctl" id="groundOpacityRow">
+      <label for="groundOpacity">Opacité&nbsp;sol</label>
+      <input id="groundOpacity" type="range" min="0.2" max="1" step="0.05" value="1">
+      <span id="groundOpacityVal">100%</span>
+    </div>
+    <div id="groundMsg"></div>
+  </div>
   <div class="hint">
     Glisser&nbsp;: pivoter · molette&nbsp;: zoom · clic droit&nbsp;: déplacer.<br>
     Rouge&nbsp;<b>N</b> = nord · règle verticale au centre en pieds AMSL.
@@ -166,6 +187,8 @@ const airspaces = Array.isArray(data.airspaces) ? data.airspaces : [];
 const flight = data.flight || {};
 const aerodromes = Array.isArray(flight.aerodromes) ? flight.aerodromes : [];
 const classColors = data.class_colors || {};
+const ground = data.ground || null;
+const groundLayers = (ground && ground.layers) || {};
 
 // ---- Projection plan tangent (equirectangulaire) ---------------------------
 const lat0 = center.lat * DEG;
@@ -227,7 +250,10 @@ const vertGroup = new THREE.Group();  // contient volumes + règle verticale
 scene.add(worldGroup);
 scene.add(vertGroup);
 
-// ---- Sol : grille + cercle de vol ------------------------------------------
+// ---- Sol : grille + cercle de vol + fond satellite -------------------------
+let groundGrid = null;      // grille neutre
+let groundDisk = null;      // disque neutre
+let groundPlane = null;     // plan texturé (satellite), sous les volumes
 function buildGround() {
   const extent = Math.max(radiusM * 2.4, 4000);
   const div = 24;
@@ -237,6 +263,7 @@ function buildGround() {
   grid.material.transparent = true;
   grid.material.opacity = 0.6;
   worldGroup.add(grid);
+  groundGrid = grid;
 
   // Disque de sol neutre
   const disk = new THREE.Mesh(
@@ -245,6 +272,23 @@ function buildGround() {
   );
   disk.position.z = -2;
   worldGroup.add(disk);
+  groundDisk = disk;
+
+  // Plan texturé (satellite) : carré exact [center ± half_extent_m].
+  // La bbox de l'image correspond à ce carré en mètres, nord en haut.
+  // PlaneGeometry (plan XY, normale +Z) + TextureLoader (flipY par défaut)
+  // donnent le bon calage : +y (nord) → haut de l'image, +x (est) → droite.
+  if (ground && Number(ground.half_extent_m) > 0) {
+    const side = ground.half_extent_m * 2;
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(side, side),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, side: THREE.DoubleSide })
+    );
+    plane.position.z = -1.5;   // sous les volumes, au-dessus du disque neutre
+    plane.visible = false;      // activé par le sélecteur de couche
+    worldGroup.add(plane);
+    groundPlane = plane;
+  }
 
   // Cercle du vol
   const segs = 128;
@@ -462,6 +506,113 @@ function applyExag(v) {
 }
 exagSlider.addEventListener('input', () => applyExag(parseFloat(exagSlider.value)));
 applyExag(parseFloat(exagSlider.value));
+
+// ---- Fond de carte (satellite) ---------------------------------------------
+const groundBlock = document.getElementById('groundBlock');
+const groundMsg = document.getElementById('groundMsg');
+const texCache = {};            // clé de couche -> THREE.Texture
+let currentLayer = 'none';
+
+function showNeutralGround() {
+  if (groundDisk) groundDisk.visible = true;
+  if (groundGrid) groundGrid.visible = true;
+  if (groundPlane) groundPlane.visible = false;
+}
+function showSatelliteGround() {
+  if (groundDisk) groundDisk.visible = false;
+  if (groundGrid) groundGrid.visible = false;
+  if (groundPlane) groundPlane.visible = true;
+}
+function setGroundMsg(text) {
+  if (!text) { groundMsg.classList.remove('show'); groundMsg.textContent = ''; }
+  else { groundMsg.textContent = text; groundMsg.classList.add('show'); }
+}
+
+function selectLayer(key) {
+  currentLayer = key;
+  if (key === 'none' || !groundPlane) {
+    showNeutralGround();
+    setGroundMsg('');
+    return;
+  }
+  const layer = groundLayers[key];
+  if (!layer || !layer.url) { showNeutralGround(); return; }
+
+  // Déjà en cache : appliquer directement.
+  if (texCache[key]) {
+    groundPlane.material.map = texCache[key];
+    groundPlane.material.needsUpdate = true;
+    showSatelliteGround();
+    setGroundMsg('');
+    return;
+  }
+
+  setGroundMsg('Chargement de l’imagerie…');
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin('anonymous');
+  loader.load(
+    layer.url,
+    (tex) => {
+      if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      tex.minFilter = THREE.LinearFilter;
+      texCache[key] = tex;
+      if (currentLayer !== key) return;   // l'utilisateur a changé entre-temps
+      groundPlane.material.map = tex;
+      groundPlane.material.needsUpdate = true;
+      showSatelliteGround();
+      setGroundMsg('');
+    },
+    undefined,
+    () => {
+      if (currentLayer !== key) return;
+      showNeutralGround();
+      setGroundMsg('Imagerie satellite indisponible (hors ligne ?). Sol neutre affiché.');
+    }
+  );
+}
+
+function setupGroundLayers() {
+  const keys = Object.keys(groundLayers);
+  if (!ground || keys.length === 0 || !groundPlane) {
+    groundBlock.style.display = 'none';   // anciennes données : pas de fond
+    showNeutralGround();
+    return;
+  }
+  const container = document.getElementById('groundLayers');
+  const defaultKey = groundLayers['ign-ortho'] ? 'ign-ortho' : keys[0];
+
+  const opts = [['none', 'Aucun (sol neutre)']].concat(
+    keys.map(k => [k, (groundLayers[k].label || k)]));
+
+  opts.forEach(([key, label]) => {
+    const row = document.createElement('label');
+    row.className = 'groundopt';
+    const checked = key === defaultKey ? 'checked' : '';
+    row.innerHTML = `<input type="radio" name="groundlayer" value="${key}" ${checked}><span>${escapeHtmlSafe(label)}</span>`;
+    row.querySelector('input').addEventListener('change', () => selectLayer(key));
+    container.appendChild(row);
+  });
+
+  // Opacité du sol satellite
+  const opSlider = document.getElementById('groundOpacity');
+  const opVal = document.getElementById('groundOpacityVal');
+  opSlider.addEventListener('input', () => {
+    const v = parseFloat(opSlider.value);
+    if (groundPlane) { groundPlane.material.opacity = v; groundPlane.material.transparent = v < 1; }
+    opVal.textContent = Math.round(v * 100) + '%';
+  });
+
+  selectLayer(defaultKey);
+}
+
+// escapeHtml est défini plus bas ; version locale sûre pour l'init du sol.
+function escapeHtmlSafe(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+setupGroundLayers();
 
 // ---- Légende (HTML) --------------------------------------------------------
 const CLASS_LABEL = {

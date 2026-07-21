@@ -116,8 +116,43 @@ def viewer_data(package: BriefingPackage) -> dict[str, Any]:
             "aerodromes": aerodromes,
         },
         "airspaces": airspaces,
+        "route": _route(context),
         "class_colors": CLASS_COLORS,
         "ground": ground,
+    }
+
+
+def _route(context: BriefingContext) -> dict[str, Any] | None:
+    """La route de nav pour le viewer : points (lon/lat/altitude) + branches.
+
+    Le viewer trace une polyligne 3D aux altitudes planifiées, ce qui montre d'un
+    coup d'œil quels espaces la trajectoire traverse et à quelle hauteur.
+    """
+    route = context.route
+    if route is None:
+        return None
+    waypoints = [
+        {
+            "name": w.name,
+            "lon": w.position.lon,
+            "lat": w.position.lat,
+            "altitude_ft": w.altitude_ft,
+        }
+        for w in route.waypoints
+    ]
+    legs = [
+        {
+            "from": leg.start.name,
+            "to": leg.end.name,
+            "distance_nm": round(leg.distance_nm, 1),
+            "true_track_deg": round(leg.true_track_deg),
+        }
+        for leg in route.legs()
+    ]
+    return {
+        "waypoints": waypoints,
+        "legs": legs,
+        "total_distance_nm": round(route.total_distance_nm(), 1),
     }
 
 

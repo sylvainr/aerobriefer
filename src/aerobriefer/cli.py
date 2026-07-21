@@ -17,7 +17,9 @@ from zoneinfo import ZoneInfo
 from .assemble import assemble_briefing
 from .data import airports
 from .domain.context import BriefingContext
+from .domain.geo import Position
 from .domain.models import Aerodrome
+from .domain.route import Route, Waypoint
 from .domain.window import TimeWindow, UtcDateTime
 from .providers.base import Provider
 
@@ -33,6 +35,8 @@ def build_context(
     rayon_nm: float,
     zone: str = DEFAULT_ZONE,
     aeronef: str | None = None,
+    route: str | None = None,
+    largeur_nm: float = 10.0,
 ) -> BriefingContext:
     aerodrome = airports.require(icao)
     hour, minute = (int(part) for part in heure.split(":"))
@@ -44,6 +48,20 @@ def build_context(
     )
     window = TimeWindow(start, start + _hours(duree_h))
 
+    if route:
+        # Nav : le terrain `icao` est le DÉPART, la route donne le reste.
+        parsed = parse_route(route, default_first=aerodrome.icao)
+        last = parsed.waypoints[-1].name
+        context = BriefingContext.navigation(
+            route=parsed,
+            window=window,
+            half_width_nm=largeur_nm,
+            origin_icao=aerodrome.icao,
+            destination_icao=last if airports.lookup(last) else None,
+            aircraft_id=aeronef,
+        )
+        return replace(context, observation_stations=_fallback_stations(aerodrome))
+
     context = BriefingContext.local(
         center=aerodrome.position,
         radius_nm=rayon_nm,
@@ -52,6 +70,67 @@ def build_context(
         aircraft_id=aeronef,
     )
     return replace(context, observation_stations=_fallback_stations(aerodrome))
+
+
+def parse_route(spec: str, *, default_first: str | None = None) -> Route:
+    """Parse « LFCY@1500,LFBN@2500 » ou « 45.6,-0.9@1500,LFBN » en `Route`.
+
+    Chaque point : un code OACI (résolu via la base) OU « lat,lon », suivi
+    optionnellement de « @altitude_ft ». Si `default_first` est fourni et que le
+    premier point de `spec` n'est pas le terrain de départ, on l'ajoute en tête.
+    """
+    waypoints: list[Waypoint] = []
+    for token in spec.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        # Un « lat,lon » a été coupé par la virgule : on rattache au précédent.
+        waypoints.append(_parse_waypoint(token, waypoints))
+
+    points = _regroup_coord_pairs(waypoints)
+    if default_first and (not points or points[0].name.upper() != default_first.upper()):
+        head = airports.require(default_first)
+        points.insert(0, Waypoint(name=head.icao, position=head.position))
+    return Route(points)
+
+
+def _parse_waypoint(token: str, _prev: list[Waypoint]) -> Waypoint:
+    name_part, _, alt_part = token.partition("@")
+    altitude = float(alt_part) if alt_part else None
+    name_part = name_part.strip()
+    aerodrome = airports.lookup(name_part)
+    if aerodrome is not None:
+        return Waypoint(name=aerodrome.icao, position=aerodrome.position, altitude_ft=altitude)
+    # sinon on suppose une moitié de coordonnée « lat » ou « lat lon »
+    return Waypoint(name=name_part, position=Position(0.0, 0.0), altitude_ft=altitude)
+
+
+def _regroup_coord_pairs(waypoints: list[Waypoint]) -> list[Waypoint]:
+    """Recolle les « lat,lon » que le split sur la virgule a séparés en deux."""
+    out: list[Waypoint] = []
+    i = 0
+    while i < len(waypoints):
+        wp = waypoints[i]
+        if _is_number(wp.name) and i + 1 < len(waypoints) and _is_number(waypoints[i + 1].name):
+            lat = float(wp.name)
+            lon = float(waypoints[i + 1].name)
+            alt = waypoints[i + 1].altitude_ft or wp.altitude_ft
+            out.append(
+                Waypoint(name=f"{lat:.3f},{lon:.3f}", position=Position(lat, lon), altitude_ft=alt)
+            )
+            i += 2
+        else:
+            out.append(wp)
+            i += 1
+    return out
+
+
+def _is_number(text: str) -> bool:
+    try:
+        float(text)
+        return True
+    except ValueError:
+        return False
 
 
 def _fallback_stations(
@@ -119,6 +198,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--heure", default="10:00", help="HH:MM locale (défaut 10:00)")
     parser.add_argument("--duree", type=float, default=3.0, help="durée en heures (défaut 3)")
     parser.add_argument("--rayon", type=float, default=20.0, help="rayon en NM (défaut 20)")
+    parser.add_argument(
+        "--route",
+        default=None,
+        help="nav : points tournants « LFBN@2500,LFXX@... » (le terrain est le départ)",
+    )
+    parser.add_argument("--largeur", type=float, default=10.0, help="demi-couloir nav en NM")
     parser.add_argument("--zone", default=DEFAULT_ZONE, help=f"fuseau (défaut {DEFAULT_ZONE})")
     parser.add_argument("--aeronef", default=None, help="immatriculation ou modèle")
     parser.add_argument("--pdf", type=Path, default=None, help="chemin du PDF à produire")
@@ -141,6 +226,8 @@ def main(argv: list[str] | None = None) -> int:
         rayon_nm=args.rayon,
         zone=args.zone,
         aeronef=args.aeronef,
+        route=args.route,
+        largeur_nm=args.largeur,
     )
 
     package = assemble_briefing(context, default_providers())
