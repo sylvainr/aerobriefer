@@ -1,0 +1,71 @@
+[project]
+name = "aerobriefer"
+version = "0.1.0"
+description = "Briefing de vol VFR : agrégation NOTAM / météo autour d'une géométrie et d'une fenêtre temporelle"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+providers = ["httpx>=0.27"]
+render = ["jinja2>=3.1", "humanize>=4.0"]
+dev = ["pytest>=8.0", "ruff>=0.15", "mypy>=1.11"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aerobriefer"]
+
+[tool.ruff]
+src = ["src"]
+line-length = 100
+
+[tool.ruff.lint]
+# E/F (erreurs & pyflakes), I (imports triés), UP (pyupgrade), B (bugbear),
+# ANN (annotations : toute fonction doit être typée), TID251 (bannit datetime).
+select = ["E", "F", "I", "UP", "B", "ANN", "TID251"]
+# ANN101/102 (self/cls) sont dépréciés et inutiles ; ANN401 (Any) est trop strict
+# ici — on utilise Any à dessein dans les vues de rendu et les payloads JSON.
+ignore = ["ANN401"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"datetime.datetime".msg = "Utiliser UtcDateTime (aerobriefer.domain.window) : les datetimes naïfs sont interdits dans le domaine."
+"datetime.datetime.now".msg = "Utiliser UtcDateTime.now()."
+"datetime.datetime.utcnow".msg = "utcnow() renvoie un datetime NAÏF. Utiliser UtcDateTime.now()."
+"datetime.datetime.today".msg = "today() renvoie un datetime naïf. Utiliser UtcDateTime.now()."
+"datetime.datetime.fromisoformat".msg = "Utiliser UtcDateTime.parse() : fromisoformat accepte les chaînes sans offset."
+"datetime.datetime.fromtimestamp".msg = "Utiliser UtcDateTime.of(datetime.fromtimestamp(ts, tz=timezone.utc))."
+
+[tool.ruff.lint.per-file-ignores]
+# Seul module autorisé à manipuler datetime nu : c'est lui qui porte l'invariant.
+"src/aerobriefer/domain/window.py" = ["TID251"]
+# Les tests : datetime nu autorisé (prouver le rejet), et annotations non exigées
+# (le typage des tests apporte peu et alourdit).
+"tests/*" = ["TID251", "ANN"]
+
+[tool.ruff.format]
+# Chaînes en guillemets doubles, indentation espaces — style par défaut de ruff.
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/aerobriefer"]
+# Rigueur : toute fonction doit être typée et vérifiée.
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+warn_return_any = true
+
+[[tool.mypy.overrides]]
+# Dépendances sans stubs : on ne bloque pas dessus.
+module = ["avwx.*", "humanize.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+markers = [
+    "network: test frappant une API réelle ; désactivable par -m 'not network'",
+]

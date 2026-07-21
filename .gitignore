@@ -1,0 +1,25 @@
+# Environnements & caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Cache HTTP de développement (images Aeroweb © Météo-France incluses —
+# NE JAMAIS committer : les CGU interdisent la rediffusion).
+.cache/
+
+# Briefings générés : contiennent des données horodatées ET des images
+# Météo-France embarquées. Artefacts reproductibles, jamais versionnés.
+briefing_*.html
+briefing_*.pdf
+exemple_briefing.pdf
+
+# Secrets — par prudence, si jamais un .env apparaît.
+.env
+*.env
+
+# Divers OS/éditeur
+.DS_Store
+*.swp

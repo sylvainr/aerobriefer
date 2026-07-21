@@ -1,0 +1,708 @@
+<meta charset="utf-8">
+<title>Briefing {{ stations | join(' / ') if stations else 'VFR' }}</title>
+<style>
+  /* Feuille emportée en vol : noir sur blanc, aucun aplat sombre qui viderait
+     une cartouche d'encre. Les seuls remplissages sont des gris très clairs. */
+  @page {
+    size: A4;
+    margin: 12mm 12mm 16mm 12mm;
+    /* Pied répété sur CHAQUE page du PDF : contexte du vol à gauche, pagination
+       à droite. Injecté par le renderer — c'est une valeur CSS, sans guillemet
+       parasite. (Ces marges @page ne s'affichent qu'à l'impression / en PDF ;
+       la version navigateur garde le <footer> de fin.) */
+    @bottom-left {
+      content: "{{ page_footer }}";
+      font: 7pt "Helvetica Neue", Arial, sans-serif; color: #555;
+    }
+    @bottom-right {
+      content: "page " counter(page) " / " counter(pages);
+      font: 7pt "Helvetica Neue", Arial, sans-serif; color: #555;
+    }
+  }
+
+  html { font-size: 10pt; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #000; background: #fff;
+    line-height: 1.35; margin: 0;
+  }
+  /* À l'écran seulement : de l'air sur les côtés et une largeur de lecture
+     confortable, posée sur un fond gris. L'impression / le PDF gardent leurs
+     marges @page. */
+  @media screen {
+    html { background: #ececec; }
+    body {
+      max-width: 1180px; margin: 24px auto; padding: 32px 40px;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, .15);
+    }
+  }
+  h1, h2, h3 { margin: 0 0 2mm; line-height: 1.2; }
+  h1 { font-size: 17pt; letter-spacing: .5px; }
+  h2 {
+    font-size: 12pt; text-transform: uppercase; letter-spacing: 1px;
+    border-bottom: 1.2pt solid #000; padding-bottom: 1mm; margin-top: 6mm;
+  }
+  h3 { font-size: 10.5pt; }
+  p { margin: 0 0 1.5mm; }
+  .muted { color: #444; }
+  .small { font-size: 8.5pt; }
+  .mono {
+    font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+    font-size: 9.5pt;
+  }
+
+  /* -- en-tête ------------------------------------------------------- */
+  .head { border-bottom: 2pt solid #000; padding-bottom: 3mm; margin-bottom: 4mm; }
+  .head-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6mm; }
+  .head-facts { margin-top: 2mm; display: flex; flex-wrap: wrap; gap: 2mm 6mm; }
+  .fact { font-size: 9pt; }
+  .fact b { display: block; font-size: 7.5pt; text-transform: uppercase;
+            letter-spacing: .6px; color: #444; font-weight: 600; }
+
+  /* -- bandeau d'incomplétude ---------------------------------------- */
+  /* Rule : un briefing amputé qui a l'air complet est le pire résultat
+     possible. Ce bandeau est en tête de première page, impossible à rater. */
+  .banner {
+    border: 2.5pt solid #000; padding: 3mm; margin-bottom: 4mm;
+    background: #f0f0f0; break-inside: avoid;
+  }
+  .banner h2 {
+    border: 0; margin: 0 0 1.5mm; padding: 0; font-size: 13pt;
+  }
+  .banner ul { margin: 0; padding-left: 5mm; }
+  .banner li { margin-bottom: 1mm; }
+  .banner-degraded { border-width: 1pt; background: #f7f7f7; }
+
+  /* -- cartouches de traçabilité ------------------------------------- */
+  .prov { font-size: 8pt; color: #333; margin-top: 1mm; }
+  .raw-fr { border-left: 2pt solid var(--c-info); }
+  .raw-en { background: #f4f4f4; color: #333; }
+  .relation { font-size: 8pt; color: #12232e; background: #eef2f6; padding: 0 1.4mm; border-radius: 1mm; }
+  .stale { color: #fff; background: var(--c-blocking); padding: 0 1.2mm; font-weight: 700; }
+  /* Catégories de vol — code couleur standard aéronautique. Toujours doublées
+     du texte (VFR/MVFR/IFR/LIFR) : lisibles en noir et blanc et sans couleur. */
+  .cat {
+    display: inline-block; padding: 0 1.4mm; border-radius: 1mm;
+    font-size: 7.5pt; font-weight: 700; letter-spacing: .4px; color: #fff;
+  }
+  .cat-vfr  { background: #1f6b3a; }  /* vert    */
+  .cat-mvfr { background: #35618e; }  /* bleu    */
+  .cat-ifr  { background: #b3261e; }  /* rouge   */
+  .cat-lifr { background: #6b1f6b; }  /* magenta */
+  .metar-raw .raw-cell { font-size: 8pt; }
+  .xwind { margin-top: 1.5mm; }
+  .xarrow { font-size: 13pt; font-weight: 700; vertical-align: middle; color: #b3261e; }
+  .warn { border-color: var(--c-major) !important; background: #fdf1e4 !important; }
+  .banner { border-color: var(--c-blocking); background: #fdecea; }
+  h1 { color: #12232e; }
+  h2 { border-bottom-color: #12232e; }
+  .age { font-weight: 700; }
+  .warn {
+    border: 1.5pt solid #000; padding: 2mm 3mm; margin: 2mm 0;
+    background: #f0f0f0; font-size: 9pt; line-height: 1.35;
+    break-inside: avoid;
+  }
+  .aptname { font-weight: 400; font-size: 0.82em; color: #333; }
+  .stale {
+    border: 1.2pt solid #000; padding: 0 1mm; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+  }
+  .stale-row { background: #ededed; }
+  /* Échéances de contexte (±2 h hors fenêtre de vol) : grisées, en retrait. */
+  .pad-row { background: #f4f4f4; color: #777; }
+  .pad-row .mono { color: #777; }
+  .pad-tag { font-size: 7pt; color: #999; text-transform: uppercase; letter-spacing: .4px; }
+  /* Hachures : visible même photocopié en noir et blanc. */
+  .block-stale {
+    border-left: 3pt solid #000;
+    background: repeating-linear-gradient(
+      45deg, #fff, #fff 3px, #ececec 3px, #ececec 6px);
+  }
+
+  /* -- blocs --------------------------------------------------------- */
+  .block { border: .8pt solid #000; padding: 2.5mm; margin-bottom: 3mm; break-inside: avoid; }
+  .block-head { display: flex; justify-content: space-between;
+                align-items: baseline; gap: 3mm; margin-bottom: 1.5mm; }
+  pre.raw {
+    margin: 0; padding: 2mm; border: .6pt dashed #666; background: #fafafa;
+    white-space: pre-wrap; word-wrap: break-word;
+    font-family: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+    font-size: 10pt; font-weight: 600;
+  }
+  /* Le brut reste en Z : c'est ce que le pilote compare à la radio. */
+  .raw-note { font-size: 7.5pt; color: #444; margin-top: .8mm; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+  th, td { border: .5pt solid #999; padding: 1mm 1.5mm; text-align: left; }
+  th { background: #eee; font-size: 7.5pt; text-transform: uppercase; letter-spacing: .4px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* -- NOTAM --------------------------------------------------------- */
+  :root {
+    --c-blocking: #b3261e;   /* rouge — réservé aux alertes (rafales, périmé) */
+    --c-major:    #c25e00;   /* orange — avertissements cartes */
+    --c-minor:    #8a6d00;   /* ambre */
+    --c-info:     #35618e;   /* bleu */
+    --c-ok:       #1f6b3a;   /* vert — groupe TAF dans la fenêtre de vol */
+  }
+
+  /* Corps des NOTAM : réduit. Un NOTAM est dense et répétitif ; à 10pt il
+     mangeait des pages entières pour peu d'information utile. */
+  .notam pre.raw { font-size: 7.6pt; line-height: 1.25; padding: 1.4mm; }
+  .notam h3 { font-size: 9pt; }
+
+  /* Tableau des groupes TAF décodés. */
+  table.decoded { margin-top: 1.5mm; font-size: 8.2pt; }
+  table.decoded th { background: #eef2f6; color: #1f3a56; font-size: 7pt; }
+  /* Le surlignage doit rester visible par-dessus le fond rayé d'un bloc périmé,
+     d'où !important et un repère typographique en plus de la couleur — la
+     couleur seule ne doit jamais porter une information à elle seule. */
+  .row-active td { background: #d6ecd9 !important; font-weight: 700; }
+  .row-active td:first-child { box-shadow: inset 2.5pt 0 0 var(--c-ok); }
+  .legend-active { background: #d6ecd9; padding: 0 1mm; font-weight: 700; }
+  .row-transient td { font-style: italic; color: #444; }
+  .gust { color: var(--c-blocking); }
+  .chg {
+    display: inline-block; padding: 0 1.2mm; border-radius: 1mm;
+    font-size: 7pt; font-weight: 700; letter-spacing: .3px; color: #fff;
+  }
+  .chg-fm { background: var(--c-info); }
+  .chg-becm { background: var(--c-major); }
+  .chg-temp, .chg-prob { background: var(--c-minor); }
+  .notam { break-inside: avoid; page-break-inside: avoid; }
+  .badge {
+    border: 1pt solid #000; padding: 0 1.2mm; font-size: 7.5pt;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+    white-space: nowrap;
+  }
+  /* Badge de rubrique SOURCE : neutre. Aucune couleur de gravité — la rubrique
+     décrit un SUJET (obstacles, balisage…), pas un danger, et lui coller un
+     rouge réintroduirait le jugement qu'on vient justement de retirer. */
+  .badge-cat { background: #12232e; color: #fff; border-color: #12232e; }
+  .badge-sigmet { background: #b3261e; color: #fff; border-color: #b3261e; }
+  .sigmet { border-left: 3pt solid #b3261e; }
+  /* « depuis 5 jours » : mis en avant, c'est l'info de nouveauté demandée. */
+  .since { font-size: 8.5pt; font-weight: 700; color: #12232e; }
+
+  /* -- cartes -------------------------------------------------------- */
+  /* Chacune sur sa page, à taille lisible. */
+  /* Macro-sections : chacune démarre sur une page neuve, avec un titre plein.
+     Une feuille de briefing se lit par blocs — météo d'un côté, NOTAM de
+     l'autre — pas en flux continu où le premier NOTAM colle au dernier TAF. */
+  .macro { break-before: page; page-break-before: always; }
+  .macro-title {
+    font-size: 22pt; letter-spacing: 2px; margin: 0 0 1mm;
+    border-bottom: 3pt solid #12232e; padding-bottom: 2mm;
+  }
+  .macro-sub { font-size: 9pt; color: #444; margin: 0 0 3mm; }
+  .macro h2:first-of-type, section:first-of-type h2 { margin-top: 3mm; }
+
+  .chart-page { break-before: page; page-break-before: always; break-inside: avoid; }
+  .chart-page img {
+    display: block; width: 100%; height: auto;
+    max-height: 225mm; object-fit: contain; border: .6pt solid #000;
+  }
+  .chart-missing { border: 2pt solid #000; padding: 6mm; text-align: center; background: #f0f0f0; }
+  .frame-count { font-size: 9pt; font-weight: 400; color: #555; }
+
+  /* -- lecteur animé (HTML interactif) ------------------------------- */
+  .player-controls {
+    display: flex; align-items: center; gap: 10px; margin: 2mm 0;
+  }
+  .play-btn {
+    font-size: 14px; width: 34px; height: 30px; cursor: pointer;
+    border: 1pt solid #12232e; background: #12232e; color: #fff; border-radius: 3px;
+  }
+  .frame-slider { flex: 1; }
+  .frame-label { font-weight: 700; min-width: 130px; }
+  .frames { position: relative; }
+  /* À l'écran : une frame à la fois, les autres masquées par le JS. */
+  @media screen {
+    .frames .frame { display: none; margin: 0; }
+    .frames .frame.is-current { display: block; }
+    .print-only { display: none; }
+  }
+  /* À l'impression / PDF : le JS ne pilote pas la vue. On réaffiche TOUTES les
+     frames empilées (une par page) et on masque les commandes interactives. */
+  @media print {
+    .no-print { display: none !important; }
+    .frames .frame { display: block !important; break-before: page; }
+    .frames .frame:first-child { break-before: avoid; }
+  }
+
+  /* -- pied ---------------------------------------------------------- */
+  .foot {
+    margin-top: 6mm; padding-top: 2mm; border-top: 1.5pt solid #000;
+    font-size: 8pt; break-inside: avoid;
+  }
+  .foot .disclaimer { font-weight: 700; }
+</style>
+
+{# =================== EN-TÊTE =================== #}
+<header class="head">
+  <div class="head-top">
+    <div>
+      <h1>BRIEFING VFR{% if stations %} — {{ stations | join(' / ') }}{% set nom = aerodrome_names.get(stations[0] | upper) if stations else None %}{% if nom %} · {{ nom }}{% endif %}{% endif %}</h1>
+      {% if observation_stations %}
+      <p class="note">
+        {{ stations | join(' / ') }} n'observe pas : météo issue des stations voisines —
+        {% for s in observation_stations %}{{ s.icao }}{% if aerodrome_names.get(s.icao) %} {{ aerodrome_names.get(s.icao) }}{% endif %} ({{ s.distance_nm }}&nbsp;NM){% if not loop.last %}, {% endif %}{% endfor %}.
+        Une observation distante ne décrit pas forcément le régime local (brise de mer, brume côtière).
+      </p>
+      {% endif %}
+      <p class="small muted">{{ purpose_label }} · heures locales = {{ display_timezone }}</p>
+    </div>
+    <div class="small" style="text-align:right; white-space:nowrap">
+      <div><b>Dossier assemblé</b></div>
+      <div class="mono">{{ assembled_dual }}</div>
+    </div>
+  </div>
+
+  <div class="head-facts">
+    <div class="fact"><b>Fenêtre — début</b><span class="mono">{{ window_start_dual }}</span></div>
+    <div class="fact"><b>Fenêtre — fin</b><span class="mono">{{ window_end_dual }}</span></div>
+    <div class="fact"><b>Durée</b><span class="mono">{{ window_duration_h }} h</span></div>
+    <div class="fact"><b>Aéronef</b><span class="mono">{{ context.aircraft_id or '—' }}</span></div>
+    {% if context.origin_icao %}
+    <div class="fact"><b>Départ</b><span class="mono">{{ context.origin_icao }}</span></div>
+    {% endif %}
+    {% if context.destination_icao %}
+    <div class="fact"><b>Destination</b><span class="mono">{{ context.destination_icao }}</span></div>
+    {% endif %}
+    {% if context.alternates_icao %}
+    <div class="fact"><b>Dégagements</b><span class="mono">{{ context.alternates_icao | join(', ') }}</span></div>
+    {% endif %}
+  </div>
+</header>
+
+{# =================== BANDEAU D'ANOMALIES =================== #}
+{% if not is_complete %}
+<section class="banner">
+  <h2>⚠ BRIEFING INCOMPLET — NE PAS UTILISER TEL QUEL</h2>
+  <p>Une ou plusieurs sources critiques n'ont pas répondu. Les rubriques
+     correspondantes sont ABSENTES de ce dossier : leur silence ici ne signifie
+     pas « rien à signaler ». Compléter impérativement au briefing officiel.</p>
+  <ul>
+    {% for f in critical_failures %}
+    <li><b>{{ f.source }}</b> — {{ f.reason }}
+        <span class="small mono">(échec à {{ f.occurred_at.strftime('%d/%m %H:%M') }}Z)</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if other_failures %}
+<section class="banner banner-degraded">
+  <h2>Sources non critiques en échec</h2>
+  <ul>
+    {% for f in other_failures %}
+    <li><b>{{ f.source }}</b> — {{ f.reason }}
+        <span class="small mono">({{ f.occurred_at.strftime('%d/%m %H:%M') }}Z)</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{# =================== SYNTHÈSE =================== #}
+<section>
+  <h2>Synthèse</h2>
+  <table>
+    <tr>
+      <th>Statut</th><th>NOTAM</th><th>METAR</th><th>TAF</th>
+      <th>Prévisions</th><th>Cartes</th><th>Données périmées</th>
+    </tr>
+    <tr>
+      <td>{{ 'COMPLET' if is_complete else 'INCOMPLET' }}</td>
+      <td class="num">{{ notam_count }}</td>
+      <td class="num">{{ metars | length }}</td>
+      <td class="num">{{ tafs | length }}</td>
+      <td class="num">{{ forecasts | length }}</td>
+      <td class="num">{{ charts | length }}</td>
+      <td class="num{% if stale_count %} stale-row{% endif %}">{{ stale_count }}</td>
+    </tr>
+  </table>
+  <p class="small muted" style="margin-top:1.5mm">
+    Péremption jugée par type, selon la cadence d'émission : METAR 90 min, TAF 8 h, prévisions 4 h, NOTAM 3 h, radar/satellite 45 min, TEMSI/WINTEM 6 h, fronts 12 h.
+    {% if category_counts %}
+    NOTAM par rubrique (source SIA) : {% for label, count in category_counts %}{{ label }} {{ count }}{% if not loop.last %} · {% endif %}{% endfor %}.
+    {% endif %}
+    {% if missing_chart_kinds %}
+    <b>Aucune carte ne couvre le créneau pour :
+    {{ missing_chart_kinds | join(', ') | upper }}</b> — ces produits ont une portée
+    de quelques heures seulement. Rebriefer le matin du vol.<br>
+    {% endif %}
+    {% if unembedded_charts %}
+    <b>{{ unembedded_charts }} carte(s) non embarquée(s)</b> — non consultables hors ligne.
+    {% endif %}
+  </p>
+  {% if aerodromes %}
+  <table style="margin-top:2mm">
+    <tr><th>Terrain</th><th>Nom</th><th>Alt.</th><th>Pistes</th></tr>
+    {% for a in aerodromes %}
+    <tr>
+      <td class="mono">{{ a.icao }}</td>
+      <td>{{ aerodrome_names.get(a.icao | upper, a.name) }}</td>
+      <td class="num">{{ a.elevation_ft }} ft</td>
+      <td>{% for r in a.runways %}{{ r.ident }} · {{ r.length_m }} m{% if r.surface %} ({{ r.surface }}){% endif %}{% if not loop.last %} — {% endif %}{% else %}—{% endfor %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</section>
+
+{# =================== MACRO-SECTION MÉTÉO =================== #}
+<section class="macro macro-meteo">
+  <h1 class="macro-title">MÉTÉO</h1>
+  <p class="macro-sub">Observations, prévisions de terrain et cartes. Sources indiquées bloc par bloc.</p>
+</section>
+
+{# =================== SIGMET (phénomènes dangereux) — en tête, sécurité === #}
+<section>
+  <h2>SIGMET</h2>
+  {% if sigmets %}
+  <p class="small muted">Phénomènes dangereux en route touchant la zone et la fenêtre de vol.</p>
+  {% for s in sigmets %}
+  <div class="block sigmet{% if s.source.is_stale %} block-stale{% endif %}">
+    <div class="block-head">
+      <h3>{{ s.value.hazard }}{% if s.value.qualifier %} · {{ s.value.qualifier }}{% endif %}
+        {% if s.value.fir %}<span class="aptname">{{ s.value.fir }}</span>{% endif %}</h3>
+      <div class="small"><span class="badge badge-sigmet">SIGMET</span></div>
+    </div>
+    <p class="small mono">Validité {{ s.validity_local }}<span class="muted"> · {{ s.validity_zulu }} UTC</span>
+      {% if s.value.lower_ft is not none or s.value.upper_ft is not none %}
+       · {{ s.value.lower_ft if s.value.lower_ft is not none else 'SFC' }} → {{ s.value.upper_ft if s.value.upper_ft is not none else 'UNL' }} ft{% endif %}
+    </p>
+    <pre class="raw">{{ s.value.raw_text }}</pre>
+    <p class="prov">Source <b>{{ s.source.source }}</b> · récupéré {{ s.source.retrieved_dual }}</p>
+  </div>
+  {% endfor %}
+  {% else %}
+  <p><b>Aucun SIGMET actif</b> touchant la zone et le créneau à l'assemblage du dossier.
+  Absence de phénomène signalé — à revérifier avant le départ.</p>
+  {% endif %}
+</section>
+
+{# =================== METAR =================== #}
+<section>
+  <h2>METAR</h2>
+  {% if metars %}
+  {# Table 1 : le BRUT, tel qu'à la radio, une station par ligne. Le code OACI
+     préfixe, sans le nom : le brut se lit en un bloc compact. #}
+  <table class="metar-raw">
+    <tr><th>Station</th><th>METAR brut (Z)</th><th>Âge</th></tr>
+    {% for m in metars %}
+    <tr{% if m.source.is_stale %} class="stale-row"{% endif %}>
+      <td class="mono">{{ m.value.station }}</td>
+      <td class="mono raw-cell">{{ m.value.raw_text }}</td>
+      <td class="num">{{ m.source.age_label }}{% if m.source.is_stale %} <span class="stale">PÉRIMÉ</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="raw-note">Texte brut non converti — heures en Z, comme à la radio. Source {{ metars[0].source.source }}.</p>
+
+  {# Table 2 : le DÉCODÉ, toutes stations dans une seule table pour comparer d'un
+     coup d'œil. La catégorie de vol est colorée. #}
+  <table class="metar-decoded" style="margin-top:3mm">
+    <tr>
+      <th>Station</th><th>Cat.</th><th>Vent</th><th>Visi</th><th>Plafond</th>
+      <th>T / Td</th><th>QNH</th><th>Phéno.</th>
+    </tr>
+    {% for m in metars %}
+    <tr{% if m.source.is_stale %} class="stale-row"{% endif %}>
+      <td>{{ m.value.station }}{% set nom = aerodrome_names.get(m.value.station | upper) %}{% if nom %} <span class="aptname">{{ nom }}</span>{% endif %}</td>
+      <td>{% if m.value.flight_category %}<span class="cat cat-{{ m.value.flight_category | lower }}">{{ m.value.flight_category }}</span>{% else %}—{% endif %}</td>
+      <td>{% if m.value.wind_speed_kt is not none %}{{ '%03d' % m.value.wind_dir_deg if m.value.wind_dir_deg is not none else 'VRB' }}° / {{ m.value.wind_speed_kt }} kt{% if m.value.wind_gust_kt %} <b class="gust">raf. {{ m.value.wind_gust_kt }}</b>{% endif %}{% else %}—{% endif %}</td>
+      <td>{{ (m.value.visibility_m ~ ' m') if m.value.visibility_m is not none else '—' }}</td>
+      <td>{{ (m.value.ceiling_ft ~ ' ft') if m.value.ceiling_ft is not none else '—' }}</td>
+      <td>{{ m.value.temperature_c if m.value.temperature_c is not none else '—' }} / {{ m.value.dewpoint_c if m.value.dewpoint_c is not none else '—' }} °C</td>
+      <td>{{ m.value.qnh_hpa if m.value.qnh_hpa is not none else '—' }}</td>
+      <td>{{ m.value.conditions | join(', ') if m.value.conditions else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="raw-note">
+    Décodé. Catégorie de vol :
+    <span class="cat cat-vfr">VFR</span> <span class="cat cat-mvfr">MVFR</span>
+    <span class="cat cat-ifr">IFR</span> <span class="cat cat-lifr">LIFR</span>
+    — établie par la source (plafond et visibilité), pas recalculée.
+  </p>
+
+  {% if crosswind_estimate %}
+  {# Dérivé des vents METAR ci-dessus → sa place est ici, dans la section METAR. #}
+  <h3 style="margin-top:4mm">Vent traversier estimé — {{ crosswind_estimate.icao }} (pistes {{ crosswind_estimate.runways }})</h3>
+  <table class="xwind">
+    <tr>
+      <th>Station voisine</th><th>Vent observé</th><th>QFU favorable</th>
+      <th>Face / arrière</th><th>Traversier</th>
+    </tr>
+    {% for r in crosswind_estimate.rows %}
+    <tr>
+      <td class="mono">{{ r.station }}{% if r.distance_nm is not none %} <span class="aptname">{{ r.distance_nm }} NM</span>{% endif %}</td>
+      <td class="mono">{{ r.wind }}</td>
+      <td class="mono"><b>{{ r.qfu }}</b></td>
+      <td class="num">{% if r.tailwind %}<span class="gust">arrière {{ -r.headwind }} kt</span>{% else %}face {{ r.headwind }} kt{% endif %}</td>
+      <td class="num">
+        <b>{{ r.crosswind }} kt</b>
+        <span class="xarrow" title="{{ 'de la droite' if r.from_right else 'de la gauche' }}">{{ r.arrow }}</span>
+        <span class="aptname">{{ 'droite' if r.from_right else 'gauche' }}</span>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="raw-note">
+    <b>Estimation indicative, dérivée des METAR ci-dessus.</b> {{ crosswind_estimate.icao }} n'a
+    pas de METAR propre : on applique le vent des stations voisines à ses pistes pour donner une
+    fourchette. Le vent réel sur place peut différer (relief, brise de mer). La flèche pointe dans
+    le sens où le vent pousse l'avion. Confirmer au sol avant l'usage.
+  </p>
+  {% endif %}
+  {% else %}
+  <p><b>Aucun METAR dans ce dossier.</b> Absence de donnée — ne pas lire comme « conditions normales ».</p>
+  {% endif %}
+</section>
+
+{# =================== TAF =================== #}
+<section>
+  <h2>TAF</h2>
+  {% for t in tafs %}
+  <div class="block{% if t.source.is_stale %} block-stale{% endif %}">
+    <div class="block-head">
+      <h3>{{ t.value.station }}{% set nom = aerodrome_names.get(t.value.station | upper) %}{% if nom %} <span class="aptname">· {{ nom }}</span>{% endif %}</h3>
+      <div class="small">
+        <span class="age">âge {{ t.source.age_label }}</span>
+        {% if t.source.is_stale %}<span class="stale" title="seuil {{ t.source.freshness_limit }}">périmé &gt; {{ t.source.freshness_limit }}</span>{% endif %}
+      </div>
+    </div>
+    <pre class="raw">{{ t.value.raw_text }}</pre>
+    <p class="raw-note">
+      Texte brut non converti — heures en Z. Validité
+      {{ t.value.validity.start.strftime('%d/%m %H:%M') }}Z —
+      {{ t.value.validity.end.strftime('%d/%m %H:%M') }}Z.
+    </p>
+    {% if t.periods %}
+    <table class="decoded">
+      <tr>
+        <th>GROUPE</th><th>DU — AU (locale)</th><th>VENT</th><th>RAFALES</th>
+        <th>VISI</th><th>PLAFOND</th><th>NUAGES</th><th>PHÉNO.</th>
+      </tr>
+      {% for row in t.periods %}
+      {% set p = row.p %}
+      <tr class="{% if row.in_window %}row-active{% endif %}{% if p.is_transient %} row-transient{% endif %}">
+        <td><span class="chg chg-{{ p.change_type[:4] | lower }}">{{ p.change_type }}</span></td>
+        <td class="mono">{{ row.from_local }} — {{ row.to_local }}</td>
+        <td>{% if p.wind_speed_kt is not none %}{{ '%03d' % p.wind_dir_deg if p.wind_dir_deg is not none else 'VRB' }}° / {{ p.wind_speed_kt }} kt{% else %}—{% endif %}</td>
+        <td>{% if p.wind_gust_kt %}<b class="gust">{{ p.wind_gust_kt }} kt</b>{% else %}—{% endif %}</td>
+        <td>{% if p.visibility_m %}{{ p.visibility_m }} m{% else %}—{% endif %}</td>
+        <td>{% if p.ceiling_ft %}{{ p.ceiling_ft }} ft{% else %}—{% endif %}</td>
+        <td class="mono">{{ p.clouds | join(' ') if p.clouds else '—' }}</td>
+        <td>{{ p.conditions | join(', ') if p.conditions else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="raw-note">
+      Décodé par <b>avwx</b> — confort de lecture en heure locale ({{ display_timezone }}) ;
+      le brut ci-dessus, en Z, fait foi. Ligne <span class="legend-active">surlignée</span>
+      = groupe recouvrant la fenêtre de vol. <b>TEMPO</b> et <b>PROB</b> n'engagent que
+      par intermittence.
+    </p>
+    {% endif %}
+    <p class="prov">
+      Source <b>{{ t.source.source }}</b>
+      {% if t.source.issued_dual %} · émis {{ t.source.issued_dual }}{% endif %}
+      · récupéré {{ t.source.retrieved_dual }}
+    </p>
+  </div>
+  {% else %}
+  <p><b>Aucun TAF dans ce dossier.</b> Absence de donnée — ne pas lire comme « conditions normales ».</p>
+  {% endfor %}
+</section>
+
+{# =================== PRÉVISIONS HORAIRES =================== #}
+{% if forecasts %}
+<section>
+  <h2>Prévisions horaires</h2>
+  {% set fsrc = forecasts[0].source %}
+  <p class="small muted" style="margin-bottom:1.5mm">
+    Prévisions de modèle au point {{ stations[0] if stations else '' }}, source
+    <b>{{ fsrc.source }}</b> (Institut météorologique norvégien){% if fsrc.issued_dual %} ·
+    tour de modèle {{ fsrc.issued_dual }}{% endif %} · récupéré {{ fsrc.retrieved_dual }}.
+    Le vent est un vent moyen de modèle — pour les rafales, se référer aux TAF ci-dessus.
+  </p>
+  <table>
+    <tr>
+      <th>Échéance (locale)</th><th>Vent</th><th>Rafales</th><th>T</th>
+      <th>Nuages</th><th>Base</th><th>Précip.</th><th>QNH</th><th>Âge</th>
+    </tr>
+    {% for f in forecasts %}
+    <tr class="{% if not f.in_window %}pad-row{% endif %}{% if f.source.is_stale %} stale-row{% endif %}">
+      <td class="mono">{{ f.valid_local }}{% if not f.in_window %} <span class="pad-tag">hors créneau</span>{% endif %}</td>
+      <td>{% if f.value.wind_speed_kt is not none %}{{ f.value.wind_dir_deg | round | int if f.value.wind_dir_deg is not none else 'VRB' }}° / {{ f.value.wind_speed_kt | round | int }} kt{% else %}—{% endif %}</td>
+      <td class="num">{{ (f.value.wind_gust_kt | round | int) ~ ' kt' if f.value.wind_gust_kt is not none else '—' }}</td>
+      <td class="num">{{ (f.value.temperature_c | round(1)) ~ ' °C' if f.value.temperature_c is not none else '—' }}</td>
+      <td class="num">{{ (f.value.cloud_cover_pct | round | int) ~ ' %' if f.value.cloud_cover_pct is not none else '—' }}</td>
+      <td class="num">{{ (f.value.cloud_base_ft | round | int) ~ ' ft' if f.value.cloud_base_ft is not none else '—' }}</td>
+      <td class="num">{{ (f.value.precipitation_mm | round(1)) ~ ' mm' if f.value.precipitation_mm is not none else '—' }}</td>
+      <td class="num">{{ (f.value.qnh_hpa | round | int) if f.value.qnh_hpa is not none else '—' }}</td>
+      <td class="num">{{ f.source.age_label }}{% if f.source.is_stale %} <span class="stale">périmé</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="prov">Source <b>{{ fsrc.source }}</b> · licence CC-BY 4.0 — {{ forecasts | length }} échéance(s) dans la fenêtre de vol.</p>
+</section>
+{% endif %}
+
+{# =================== MACRO-SECTION NOTAM =================== #}
+<section class="macro macro-notam">
+  <h1 class="macro-title">NOTAM</h1>
+  <p class="macro-sub">
+    {{ notam_count }} NOTAM concernant la zone et la fenêtre de vol. Source
+    <b>SOFIA-Briefing (SIA / DGAC)</b>. Classés par date d'entrée en vigueur.
+  </p>
+</section>
+
+<section>
+  <h2>NOTAM ({{ notam_count }})</h2>
+  {% if notams %}
+  <p class="small muted">
+    Classés par <b>date d'entrée en vigueur</b>, la plus récente d'abord — c'est
+    le meilleur repère de « nouveauté » disponible, la source ne datant pas la
+    parution. La pastille indique la <b>rubrique attribuée par le SIA</b>
+    (aire de mouvement, obstacles, réglementation…), reprise telle quelle.
+  </p>
+  {% endif %}
+  {% for n in notams %}
+  <div class="block notam{% if n.source.is_stale %} block-stale{% endif %}">
+    <div class="block-head">
+      <h3 class="mono">{{ n.identifier }}{% if n.affected_icao %} · {{ n.affected_icao }}{% set nom = aerodrome_names.get(n.affected_icao | upper) %}{% if nom %} <span class="aptname">{{ nom }}</span>{% endif %}{% endif %}</h3>
+      <div class="small">
+        <span class="badge badge-cat">{{ n.category_label }}</span>
+        <span class="since">{{ n.validity_span }}</span>
+      </div>
+    </div>
+    <p class="small mono">Validité {{ n.validity_local }}<span class="muted"> · {{ n.validity_zulu }} UTC</span>
+      {% if n.q_code %} · Q {{ n.q_code }}{% endif %}
+      {% if n.limits %} · {{ n.limits }}{% endif %}
+    </p>
+    {% if n.decoded_text %}
+    <pre class="raw raw-fr">{{ n.decoded_text }}</pre>
+    <p class="raw-note">Version française publiée par le SIA. Le texte OACI de référence est ci-dessous.</p>
+    <pre class="raw raw-en">{{ n.raw_text }}</pre>
+    <p class="raw-note">Texte OACI (anglais) — c'est lui qui fait foi réglementairement.</p>
+    {% else %}
+    <pre class="raw">{{ n.raw_text }}</pre>
+    <p class="raw-note">Texte OACI (anglais). Aucune version française fournie par la source.</p>
+    {% endif %}
+    <p class="prov">Source <b>{{ n.source.source }}</b> · récupéré {{ n.source.retrieved_dual }}</p>
+  </div>
+  {% else %}
+  <p><b>Aucun NOTAM dans ce dossier.</b> Vérifier la rubrique des sources en
+     échec ci-dessus : une liste vide peut traduire une panne de collecte.</p>
+  {% endfor %}
+</section>
+
+{# =================== CARTES =================== #}
+{# Un GROUPE par type de carte. Plusieurs échéances → lecteur animé (slider +
+   lecture). En impression / PDF, le JS ne pilote rien : @media print réaffiche
+   toutes les images empilées, une par page. #}
+{% for g in chart_groups %}
+<section class="chart-page chart-group" data-animated="{{ 'true' if g.animated else 'false' }}">
+  <h2>{{ g.kind_label }}{% if g.area %} — {{ g.area }}{% endif %}{% if g.flight_level %} — {{ g.flight_level }}{% endif %}
+    {% if g.animated %}<span class="frame-count">{{ g.frames | length }} échéances</span>{% endif %}</h2>
+
+  {% if not g.any_covers_window %}
+  <p class="warn"><b>AUCUNE ÉCHÉANCE DE CETTE CARTE NE COUVRE LA FENÊTRE DE VOL.</b>
+  Elles renseignent sur la tendance, pas sur les conditions du vol. REBRIEFER avant le départ.</p>
+  {% endif %}
+
+  {% if g.animated %}
+  <div class="player">
+    <div class="player-controls no-print">
+      <button type="button" class="play-btn" aria-label="Lecture/pause">▶</button>
+      <input type="range" class="frame-slider" min="0" max="{{ g.frames | length - 1 }}" value="0">
+      <span class="frame-label mono"></span>
+    </div>
+    <div class="frames">
+      {% for c in g.frames %}
+      <figure class="frame" data-index="{{ loop.index0 }}"
+              data-label="{{ c.valid_label }}{% if not c.covers_window %} · hors créneau{% endif %}">
+        {% if c.data_uri %}
+        <img src="{{ c.data_uri }}" alt="{{ g.kind_label }} {{ c.valid_label }}">
+        {% else %}
+        <div class="chart-missing"><b>CARTE NON EMBARQUÉE</b><p class="small mono">{{ c.url }}</p></div>
+        {% endif %}
+        <figcaption class="small print-only">Échéance <b class="mono">{{ c.valid_label }}</b>{% if not c.covers_window %} — hors créneau{% endif %}</figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </div>
+  <p class="prov">Source <b>{{ g.frames[0].source.source }}</b> · {{ g.frames | length }} échéances · récupérées {{ g.frames[0].source.retrieved_dual }}</p>
+
+  {% else %}
+  {% set c = g.frames[0] %}
+  <p class="small">
+    {% if c.valid_dual %}Validité <b class="mono">{{ c.valid_dual }}</b>{% endif %}
+    {% if c.issued_dual %} · émise <span class="mono">{{ c.issued_dual }}</span>{% endif %}
+    · âge <span class="age">{{ c.source.age_label }}</span>
+    {% if c.source.is_stale %}<span class="stale">périmé &gt; {{ c.source.freshness_limit }}</span>{% endif %}
+  </p>
+  {% if not c.covers_window %}
+  <p class="warn"><b>CETTE CARTE NE COUVRE PAS LA FENÊTRE DE VOL.</b>
+  Son échéance tombe hors du créneau : tendance seulement. REBRIEFER avant le départ.</p>
+  {% endif %}
+  {% if c.data_uri %}
+  <img src="{{ c.data_uri }}" alt="{{ g.kind_label }}">
+  {% else %}
+  <div class="chart-missing"><b>CARTE NON EMBARQUÉE — INDISPONIBLE HORS LIGNE</b>
+    <p class="small mono" style="margin-top:2mm">{{ c.url }}</p></div>
+  {% endif %}
+  <p class="prov">Source <b>{{ c.source.source }}</b> · récupérée {{ c.source.retrieved_dual }}</p>
+  {% endif %}
+</section>
+{% endfor %}
+
+{# =================== PIED =================== #}
+<footer class="foot">
+  <p class="disclaimer">
+    AIDE À LA PRÉPARATION DU VOL — ce document ne remplace PAS le briefing
+    officiel réglementaire et n'a aucune valeur légale. Le commandant de bord
+    reste seul responsable de la consultation des sources officielles.
+  </p>
+  <p>
+    Généré le <span class="mono">{{ generated_dual }}</span> ·
+    dossier assemblé <span class="mono">{{ assembled_dual }}</span> ·
+    heures locales : {{ display_timezone }} ·
+    péremption jugée par type de donnée, selon sa cadence d'émission.
+  </p>
+</footer>
+
+{# Lecteur animé des cartes multi-échéances. Progressive enhancement : sans JS
+   (ou à l'impression), toutes les frames restent affichées via @media print. #}
+<script>
+(function () {
+  document.querySelectorAll('.chart-group[data-animated="true"]').forEach(function (group) {
+    var frames = Array.prototype.slice.call(group.querySelectorAll('.frame'));
+    if (frames.length < 2) return;
+    var slider = group.querySelector('.frame-slider');
+    var label = group.querySelector('.frame-label');
+    var btn = group.querySelector('.play-btn');
+    var idx = 0, timer = null;
+
+    function show(i) {
+      idx = (i + frames.length) % frames.length;
+      frames.forEach(function (f, k) { f.classList.toggle('is-current', k === idx); });
+      slider.value = idx;
+      label.textContent = frames[idx].getAttribute('data-label') || '';
+    }
+    function stop() { if (timer) { clearInterval(timer); timer = null; btn.textContent = '▶'; } }
+    function play() {
+      if (timer) { stop(); return; }
+      btn.textContent = '❚❚';
+      timer = setInterval(function () { show(idx + 1); }, 700);
+    }
+
+    slider.addEventListener('input', function () { stop(); show(parseInt(slider.value, 10)); });
+    btn.addEventListener('click', play);
+    show(0);
+  });
+})();
+</script>

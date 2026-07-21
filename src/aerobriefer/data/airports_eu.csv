@@ -1,0 +1,1669 @@
+icao,name,lat,lon,elev_ft,country,type
+EBAM,Amougies Airfield,50.740101,3.4849,49,BE,small_airport
+EBAR,Arlon-Sterpenich Ultralight Airfield,49.661981,5.885953,1138,BE,small_airport
+EBAV,Avernas-le-Bauduin Ultralight Airfield,50.706147,5.067739,394,BE,small_airport
+EBAW,Antwerp International Airport (Deurne),51.190667,4.463153,39,BE,medium_airport
+EBBE,Beauvechain Air Base,50.758598,4.76833,370,BE,medium_airport
+EBBL,Kleine Brogel Air Base,51.168301,5.47,200,BE,medium_airport
+EBBN,Büllingen Airfield,50.415001,6.27639,2067,BE,small_airport
+EBBR,Brussels Airport,50.901402,4.48444,175,BE,large_airport
+EBBT,Brasschaat Airfield,51.34259,4.503451,76,BE,small_airport
+EBBX,Jehonville Air Base,49.891483,5.227405,1514,BE,small_airport
+EBBY,Baisy-Thy Ultralight Airfield,50.56814,4.435219,525,BE,small_airport
+EBBZ,Buzet Aerodrome,50.542335,4.382472,522,BE,small_airport
+EBCF,Cerfontaine Airfield,50.152802,4.38722,955,BE,small_airport
+EBCI,Brussels South Charleroi Airport,50.461963,4.459562,614,BE,large_airport
+EBCV,Chièvres Air Base,50.575802,3.831,194,BE,medium_airport
+EBDT,Schaffen Airfield,51.004032,5.064697,100,BE,small_airport
+EBFN,Koksijde Air Base,51.090302,2.65278,20,BE,medium_airport
+EBFS,Florennes Air Base,50.2433013916,4.64583015442,935,BE,medium_airport
+EBGB,Grimbergen Airfield,50.948546,4.39181,70,BE,small_airport
+EBGG,Overboelare Airfield,50.7556,3.86389,56,BE,small_airport
+EBHN,Hoevenen Airfield,51.306099,4.38722,10,BE,small_airport
+EBIS,Ath/Isieres Airfield,50.663636,3.804681,98,BE,small_airport
+EBKH,Balen-Keiheuvel Airfield,51.180957,5.221124,131,BE,small_airport
+EBKT,Kortrijk-Wevelgem International Airport,50.818878,3.209551,55,BE,medium_airport
+EBLE,Leopoldsburg Airfield,51.12,5.307222,207,BE,small_airport
+EBLG,Liège Airport,50.638574,5.443897,659,BE,medium_airport
+EBMB,Melsbroek Air Base,50.913419,4.491005,184,BE,small_airport
+EBMG,Matagne-la-Petite Ultralight Airfield,50.104208,4.636063,787,BE,small_airport
+EBML,Maillen Ultralight Airfield,50.375033,4.926489,886,BE,small_airport
+EBMO,Moorsele Airfield,50.851285,3.147669,66,BE,small_airport
+EBNM,Namur-Suarlée Airfield,50.489705,4.769697,594,BE,small_airport
+EBOS,Ostend-Bruges International Airport,51.1998,2.874673,13,BE,large_airport
+EBSG,Saint-Ghislain Airfield,50.458009,3.821,75,BE,small_airport
+EBSH,Saint Hubert Airfield,50.0359,5.40425,1930,BE,small_airport
+EBSL,Zutendaal Air Base,50.949352,5.593549,312,BE,small_airport
+EBSM,Verrebroek Private Airstrip,51.268281,4.175453,10,BE,small_airport
+EBSP,Spa-La Sauvenière Airfield,50.482006,5.913434,1581,BE,small_airport
+EBST,Sint-Truiden / Brustem Airfield,50.790772,5.19958,246,BE,small_airport
+EBSU,Saint Hubert Air Base,50.034401,5.44081,1930,BE,small_airport
+EBTN,Goetsenhoven Airfield,50.7817,4.95778,246,BE,small_airport
+EBTX,Theux (Verviers) Airfield,50.551099,5.853996,1099,BE,small_airport
+EBTY,Maubray Airfield,50.531639,3.496185,161,BE,small_airport
+EBUL,Ursel Air Base,51.144199,3.47556,95,BE,small_airport
+EBWE,Weelde Air Base,51.394798,4.96019,105,BE,small_airport
+EBZH,Kiewit Airfield Hasselt,50.970375,5.375331,141,BE,small_airport
+EBZR,Oostmalle Airfield,51.269092,4.762428,53,BE,small_airport
+EBZU,Zuienkerke Sport Aviation Airfield,51.25555,3.139858,16,BE,small_airport
+EBZW,Genk Zwartberg Airfield,51.0154,5.52647,278,BE,small_airport
+EDAB,Bautzen Airfield,51.193611,14.519722,568,DE,small_airport
+EDAC,Leipzig–Altenburg Airport,50.981945,12.506389,640,DE,medium_airport
+EDAD,Dessau Airfield,51.8318,12.184011,187,DE,small_airport
+EDAE,Eisenhüttenstadt Airfield,52.197199,14.585696,149,DE,small_airport
+EDAG,Großrückerswalde Airfield,50.644169,13.126389,2198,DE,small_airport
+EDAH,Heringsdorf Airport,53.8787,14.1523,94,DE,medium_airport
+EDAI,Sonderlandeplatz Segeletz,52.826668,12.541944,140,DE,small_airport
+EDAJ,Gera-Leumnitz Airfield,50.881668,12.135833,1015,DE,small_airport
+EDAK,Großenhain Airfield,51.308056,13.555556,417,DE,small_airport
+EDAM,Merseburg Airfield,51.362564,11.94113,340,DE,small_airport
+EDAN,Neustadt-Glewe Airfield,53.362444,11.613764,115,DE,small_airport
+EDAO,Nordhausen Airfield,51.493475,10.837562,689,DE,small_airport
+EDAP,Cottbus-Neuhausen Airfield,51.684723,14.423056,279,DE,small_airport
+EDAQ,Halle-Oppin Airfield,51.552223,12.053889,350,DE,small_airport
+EDAR,Pirna-Pratzschwitz Airfield,50.979603,13.908445,402,DE,small_airport
+EDAS,Finsterwalde-Heinrichsruh Airfield,51.634641,13.67505,384,DE,small_airport
+EDAT,Nardt Airfield,51.451111,14.199444,382,DE,small_airport
+EDAU,Riesa-Göhlis Airport,51.29361,13.356111,322,DE,small_airport
+EDAV,Eberswalde-Finow Airfield,52.826313,13.701324,116,DE,small_airport
+EDAW,Roitzschjora Airfield,51.577778,12.494444,289,DE,small_airport
+EDAX,Müritz Airpark,53.306389,12.752222,220,DE,small_airport
+EDAY,Strausberg Airfield,52.580555,13.916667,262,DE,small_airport
+EDAZ,Schönhagen Airfield,52.204631,13.159526,152,DE,small_airport
+EDBA,Arnstadt-Alkersleben Airfield,50.841873,11.069934,1145,DE,small_airport
+EDBC,Cochstedt Airport,51.8564,11.4203,599,DE,small_airport
+EDBE,Brandenburg-Mühlenfeld Airfield,52.4375,12.59,100,DE,small_airport
+EDBF,Fehrbellin Airfield,52.793493,12.760324,135,DE,small_airport
+EDBG,Burg Airfield,52.241772,11.85619,173,DE,small_airport
+EDBH,Stralsund-Barth Airport,54.338253,12.710515,23,DE,small_airport
+EDBI,Zwickau Airfield,50.701668,12.453889,1050,DE,small_airport
+EDBJ,Jena-Schöngleina Airfield,50.915345,11.714201,1228,DE,small_airport
+EDBK,Kyritz Airfield,52.918888,12.425278,130,DE,small_airport
+EDBL,Laucha Airfield,51.245834,11.693333,738,DE,small_airport
+EDBM,Magdeburg City Airfield,52.073612,11.626389,268,DE,small_airport
+EDBN,Neubrandenburg Trollenhagen Airport,53.6022,13.306,228,DE,medium_airport
+EDBO,Oehna Airfield,51.899734,13.052809,287,DE,small_airport
+EDBP,Pinnow Airfield,53.615276,11.561111,144,DE,small_airport
+EDBQ,Bronkow Airfield,51.672075,13.960104,423,DE,small_airport
+EDBR,Rothenburg/Görlitz Airfield,51.363335,14.95,515,DE,medium_airport
+EDBS,Sömmerda-Dermsdorf Airfield,51.198414,11.191764,451,DE,small_airport
+EDBT,Allstedt Airfield,51.380554,11.446667,932,DE,small_airport
+EDBU,Pritzwalk-Sommersberg Airfield,53.180019,12.184553,289,DE,small_airport
+EDBV,Stralsund Airfield,54.335835,13.043333,49,DE,small_airport
+EDBW,Werneuchen Airfield,52.631668,13.766944,262,DE,small_airport
+EDBX,Görlitz Airfield,51.15889,14.950278,778,DE,small_airport
+EDBY,Schmoldow Airfield,53.972761,13.343377,105,DE,small_airport
+EDBZ,Schwarzheide/Schipkau Airfield,51.491929,13.879366,331,DE,small_airport
+EDCA,Anklam Otto Lilienthal Airfield,53.832801,13.668607,16,DE,small_airport
+EDCB,Ballenstedt Airfield,51.745834,11.229722,535,DE,small_airport
+EDCE,Müncheberg-Eggersdorf Airfield,52.482791,14.090738,223,DE,small_airport
+EDCG,Rügen Airport,54.38347,13.325542,69,DE,small_airport
+EDCH,Sprossen (Zeitz) Airfield,51.043407,12.231895,673,DE,small_airport
+EDCI,Klix Airfield,51.271819,14.505708,486,DE,small_airport
+EDCJ,Chemnitz/Jahnsdorf Airfield,50.747501,12.8375,1198,DE,small_airport
+EDCK,Köthen Airport,51.723745,11.948826,305,DE,small_airport
+EDCL,Klietz-Scharlibbe Airfield,52.709442,12.073333,95,DE,small_airport
+EDCM,Kamenz Airfield,51.296944,14.1275,495,DE,small_airport
+EDCO,Obermehler-Schlotheim Airfield,51.267776,10.634722,909,DE,small_airport
+EDCP,Peenemünde Airport,54.15778,13.774444,7,DE,small_airport
+EDCQ,Aschersleben Airfield,51.766945,11.498333,525,DE,small_airport
+EDCR,Rerik-Zweedorf Airfield,54.081944,11.649167,30,DE,small_airport
+EDCS,Saarmund Airfield,52.308334,13.100556,174,DE,small_airport
+EDCT,Taucha Airfield,51.395,12.536944,492,DE,small_airport
+EDCU,Güstrow Airfield,53.805279,12.230556,46,DE,small_airport
+EDCV,Pasewalk Airfield,53.50528,13.948333,72,DE,small_airport
+EDCW,Wismar Airfield,53.914444,11.499444,43,DE,small_airport
+EDCX,Purkshof Airfield,54.161667,12.248611,66,DE,small_airport
+EDCY,Spremberg-Welzow Airfield,51.575558,14.136944,375,DE,small_airport
+EDDB,Berlin Brandenburg Airport,52.361738,13.502341,157,DE,large_airport
+EDDC,Dresden Airport,51.134123,13.767831,755,DE,large_airport
+EDDE,Erfurt-Weimar Airport,50.978281,10.960713,1036,DE,large_airport
+EDDF,Frankfurt Main Airport,50.026706,8.55835,364,DE,large_airport
+EDDG,Münster Osnabrück Airport,52.133816,7.688482,160,DE,large_airport
+EDDH,Hamburg Helmut Schmidt Airport,53.630402,9.98823,53,DE,large_airport
+EDDK,Cologne Bonn Airport,50.865898,7.14274,302,DE,large_airport
+EDDL,Düsseldorf Airport,51.289501,6.76678,147,DE,large_airport
+EDDM,Munich Airport,48.353802,11.7861,1487,DE,large_airport
+EDDN,Nuremberg Airport,49.498699,11.078056,1046,DE,large_airport
+EDDP,Leipzig/Halle Airport,51.420657,12.232705,465,DE,large_airport
+EDDR,Saarbrücken Airport,49.214545,7.109735,1058,DE,medium_airport
+EDDS,Stuttgart Airport,48.689899,9.22196,1276,DE,large_airport
+EDDV,Hannover Airport,52.461102,9.68508,183,DE,large_airport
+EDDW,Bremen Airport,53.046786,8.78932,14,DE,large_airport
+EDEB,Bad Langensalza Airfield,51.129166,10.622222,650,DE,small_airport
+EDEG,Gotha-Ost Airfield,50.970001,10.727778,991,DE,small_airport
+EDEH,Herrenteich Airfield,49.345001,8.487778,308,DE,small_airport
+EDEL,Langenlonsheim Airfield,49.908333,7.907778,295,DE,small_airport
+EDEM,Mosenberg Airfeld,51.062746,9.42201,1296,DE,small_airport
+EDEN,Bad Hersfeld Airfield,50.844055,9.707218,,DE,small_airport
+EDEP,Heppenheim Glider Field,49.621944,8.624444,361,DE,small_airport
+EDEQ,Mühlhausen Airfield,51.213055,10.548611,814,DE,small_airport
+EDER,Wasserkuppe Airfield,50.498807,9.954166,2956,DE,small_airport
+EDEW,Walldürn Airfield,49.581669,9.402222,1312,DE,small_airport
+EDFA,Anspach-Taunus Airfield,50.288334,8.533889,1102,DE,small_airport
+EDFB,Reichelsheim Airfield,50.337973,8.878984,397,DE,small_airport
+EDFC,Aschaffenburg Airfield,49.938806,9.062777,410,DE,small_airport
+EDFD,Bad Neustadt/Saale-Grasberg Airfield,50.306062,10.227284,997,DE,small_airport
+EDFE,Frankfurt-Egelsbach Airport,49.96,8.643043,384,DE,medium_airport
+EDFG,Gelnhausen Airfield,50.196738,9.167061,446,DE,small_airport
+EDFH,Frankfurt-Hahn Airport,49.946353,7.261734,1649,DE,large_airport
+EDFI,Hirzenhain Airfield,50.787777,8.392778,1706,DE,small_airport
+EDFJ,Lager Hammelburg Airfield,50.098517,9.883901,1132,DE,small_airport
+EDFK,Bad Kissingen Airfield,50.210556,10.068889,653,DE,small_airport
+EDFL,Gießen-Lützellinden Airfield,50.544794,8.592753,755,DE,small_airport
+EDFM,Mannheim-City Airport,49.473057,8.514167,308,DE,medium_airport
+EDFN,Marburg-Schönstadt Airfield,50.874443,8.815,833,DE,small_airport
+EDFO,Michelstadt-Odenwald Airfield,49.678466,8.971614,1142,DE,small_airport
+EDFP,Ober-Mörlen Airfield,50.3622,8.71164,822,DE,small_airport
+EDFQ,Allendorf-Eder Airfield,51.035268,8.681002,1158,DE,small_airport
+EDFR,Rothenburg ob der Tauber Airfield,49.388941,10.218564,1309,DE,small_airport
+EDFS,Schweinfurt South Airfield,50.010834,10.251111,686,DE,small_airport
+EDFT,Lauterbach Airfield,50.683666,9.4117,1211,DE,small_airport
+EDFU,Mainbullau Airfield,49.695042,9.18236,1503,DE,small_airport
+EDFV,Worms Airfield,49.606945,8.368333,295,DE,small_airport
+EDFW,Würzburg-Schenkenturm Airfield,49.81778,9.8975,991,DE,small_airport
+EDFX,Hockenheim Airfield,49.325279,8.528611,315,DE,small_airport
+EDFY,Limburg-Elz Airfield,50.426945,8.011111,699,DE,small_airport
+EDFZ,Mainz-Finthen Airfield,49.967499,8.147222,760,DE,medium_airport
+EDGA,Ailertchen Airfield,50.593056,7.945,1542,DE,small_airport
+EDGB,Breitscheid Airfield,50.676388,8.169444,1834,DE,small_airport
+EDGE,Eisenach-Kindel Airport,50.991604,10.47973,1112,DE,medium_airport
+EDGF,Fulda-Jossa Airfield,50.475278,9.443221,1558,DE,small_airport
+EDGH,Hettstadt Airfield,49.798611,9.836667,1050,DE,small_airport
+EDGI,Ingelfingen-Bühlhof Airfield,49.321667,9.663056,1375,DE,small_airport
+EDGJ,Ochsenfurt Airfield,49.673611,10.071389,814,DE,small_airport
+EDGK,Korbach Airfield,51.25222,8.873611,1280,DE,small_airport
+EDGM,Mosbach-Lohrbach Airfield,49.398888,9.123889,1818,DE,small_airport
+EDGP,Oppenheim Airfield,49.841667,8.376667,279,DE,small_airport
+EDGQ,Schameder Airfield,51.000266,8.30914,1788,DE,small_airport
+EDGR,Gießen-Reiskirchen Airfield,50.566376,8.869164,702,DE,small_airport
+EDGS,Siegerland Airport,50.707699,8.08297,1966,DE,medium_airport
+EDGT,Bottenhorn Airfield,50.795277,8.458333,1657,DE,small_airport
+EDGU,Unterschüpf Airfield,49.515835,9.669444,1155,DE,small_airport
+EDGW,Flugplatz „Graner Berg“,51.30722,9.175278,1027,DE,small_airport
+EDGX,Walldorf Airfield,49.303055,8.658889,344,DE,small_airport
+EDGZ,Weinheim/Bergstraße Airfield,49.566763,8.61145,318,DE,small_airport
+EDHB,Grube Airfield,54.244446,11.024722,7,DE,small_airport
+EDHC,Lüchow-Rehbeck Airfield,53.017158,11.144729,49,DE,small_airport
+EDHD,Eichsfeld Airfield,51.40755,10.1453,1195,DE,small_airport
+EDHE,Uetersen-Heist Airfield,53.645477,9.703503,23,DE,small_airport
+EDHF,Itzehoe Hungriger Wolf Airfield,53.992009,9.576409,89,DE,small_airport
+EDHG,Lüneburg Airfield,53.24832,10.458705,161,DE,small_airport
+EDHI,Hamburg-Finkenwerder Airport,53.535278,9.835556,23,DE,medium_airport
+EDHK,Kiel-Holtenau Airport,54.37957,10.145266,102,DE,medium_airport
+EDHL,Lübeck Blankensee Airport,53.805401,10.7192,53,DE,medium_airport
+EDHM,Hartenholm Airfield,53.915001,10.035556,108,DE,small_airport
+EDHN,Neumünster Airport,54.079445,9.941389,72,DE,small_airport
+EDHO,Ahrenlohe Airfield,53.70031,9.742119,33,DE,small_airport
+EDHS,Stade Airfield,53.561111,9.499167,63,DE,small_airport
+EDHU,Lauenbrück Airfield,53.2075,9.573333,98,DE,small_airport
+EDHW,Wahlstedt Airfield,53.969444,10.221667,128,DE,small_airport
+EDJA,Memmingen Allgau Airport,47.988092,10.238248,2077,DE,large_airport
+EDJG,Grabenstätt Airfield,47.852757,12.55037,1765,DE,small_airport
+EDKA,Aachen-Merzbrück Airport,50.823055,6.186389,623,DE,small_airport
+EDKB,Bonn-Hangelar Airfield,50.76889,7.163333,197,DE,small_airport
+EDKD,Altena-Hegenscheid Airfield,51.312459,7.704134,1552,DE,small_airport
+EDKF,Bergneustadt-Auf dem Dümpel Airfield,51.05209,7.70683,1604,DE,small_airport
+EDKH,Hünsborn Airfield,50.928612,7.899167,1306,DE,small_airport
+EDKI,Betzdorf-Kirchen Airfield,50.817223,7.830556,1125,DE,small_airport
+EDKL,Leverkusen Airfield,51.015278,7.005556,157,DE,small_airport
+EDKM,Meschede-Schüren Airfield,51.302776,8.239167,1434,DE,small_airport
+EDKN,Wipperfürth-Neye Airfield,51.124168,7.373611,863,DE,small_airport
+EDKO,Brilon-Hochsauerland Airfield,51.402833,8.643043,1509,DE,small_airport
+EDKP,Plettenberg-Hüinghausen Airfield,51.191878,7.79098,981,DE,small_airport
+EDKR,Schmallenberg-Rennefeld Airfield,51.1615,8.260667,1530,DE,small_airport
+EDKU,Attendorn-Finnentrop Airfield,51.145832,7.936667,1040,DE,small_airport
+EDKV,Dahlemer Binz Airfield,50.40611,6.530256,1896,DE,small_airport
+EDKW,Werdohl-Küntrop Airfield,51.297222,7.818333,1037,DE,small_airport
+EDKZ,Meinerzhagen Airfield,51.099399,7.596896,1549,DE,small_airport
+EDLA,Arnsberg-Menden Airfield,51.483891,7.898333,794,DE,small_airport
+EDLB,Borkenberge Airfield,51.779999,7.288056,157,DE,small_airport
+EDLC,Kamp-Lintfort Airfield,51.529167,6.536111,85,DE,small_airport
+EDLD,Dinslaken-Schwarze Heide Airfield,51.616018,6.861262,217,DE,small_airport
+EDLE,Essen-Mülheim Airport,51.402302,6.93733,424,DE,small_airport
+EDLF,Grefrath-Niershorst Airfield,51.333889,6.359444,105,DE,small_airport
+EDLG,Goch-Asperden Airfield,51.690834,6.104167,52,DE,small_airport
+EDLH,Hamm-Lippewiesen Airfield,51.68972,7.816111,190,DE,small_airport
+EDLI,Bielefeld Airport,51.964722,8.544444,454,DE,medium_airport
+EDLJ,Detmold Airfield,51.940834,8.904722,650,DE,small_airport
+EDLK,Krefeld-Egelsberg Airfield,51.384998,6.587778,141,DE,small_airport
+EDLM,Marl-Loemühle Airfield,51.647202,7.16333,240,DE,small_airport
+EDLN,Mönchengladbach Airport,51.230278,6.504444,125,DE,medium_airport
+EDLO,Oerlinghausen Airfield,51.93222,8.661667,558,DE,small_airport
+EDLP,Paderborn Lippstadt Airport,51.612527,8.617459,699,DE,large_airport
+EDLQ,Beelen Airfield,51.931667,8.081667,,DE,small_airport
+EDLR,Paderborn-Haxterberg Airfield,51.688332,8.775278,801,DE,small_airport
+EDLS,Stadtlohn-Vreden Airfield,51.995834,6.840556,157,DE,small_airport
+EDLT,Münster-Telgte Airfield,51.944745,7.773621,177,DE,small_airport
+EDLU,Oelde Bergeler Airfield,51.830601,8.17472,269,DE,small_airport
+EDLV,Weeze (Niederrhein) Airport,51.601362,6.141228,106,DE,large_airport
+EDLW,Dortmund Airport,51.518299,7.61224,425,DE,large_airport
+EDLX,Wesel-Römerwardt Airfield,51.662777,6.595833,72,DE,small_airport
+EDLY,Borken-Hoxfeld Airfield,51.853333,6.814722,157,DE,small_airport
+EDLZ,Soest-Bad Sassendorf Airfield,51.578056,8.214722,394,DE,small_airport
+EDMA,Augsburg Airport,48.425278,10.931667,1516,DE,medium_airport
+EDMB,Biberach an der Riß Airfield,48.112359,9.764013,1903,DE,small_airport
+EDMC,Blaubeuren Airfield,48.419724,9.798333,2218,DE,small_airport
+EDMD,Dachau-Gröbenried Airfield,48.228675,11.422134,1608,DE,small_airport
+EDME,Eggenfelden Airfield,48.396111,12.723611,1342,DE,small_airport
+EDMF,Fürstenzell Airfield,48.518055,13.345833,1345,DE,small_airport
+EDMG,Günzburg-Donauried Airfield,48.486668,10.283333,1457,DE,small_airport
+EDMH,Gunzenhausen-Reutberg Airfield,49.112226,10.782165,1591,DE,small_airport
+EDMI,Illertissen Airfield,48.235,10.1377,1680,DE,small_airport
+EDMJ,Jesenwang Airfield,48.174366,11.125363,1860,DE,small_airport
+EDMK,Kempten-Durach Airfield,47.691944,10.338056,2339,DE,small_airport
+EDML,Landshut Airfield,48.512019,12.034865,1312,DE,medium_airport
+EDMN,Mindelheim-Mattsies Airfield,48.106945,10.525,1857,DE,small_airport
+EDMO,Oberpfaffenhofen Airport,48.081402,11.2831,1947,DE,medium_airport
+EDMP,Vilsbiburg Airfield,48.426109,12.345278,1450,DE,small_airport
+EDMQ,Donauwörth-Genderkingen Airfield,48.703062,10.852323,1312,DE,small_airport
+EDMS,Straubing Airport,48.900833,12.516667,1047,DE,small_airport
+EDMT,Tannheim Airfield,48.009998,10.098611,1903,DE,small_airport
+EDMU,Gundelfingen Airfield,48.569343,10.358541,1447,DE,small_airport
+EDMV,Vilshofen Airfield,48.634998,13.195556,991,DE,small_airport
+EDMW,Deggendorf Airfield,48.830276,12.879722,1030,DE,small_airport
+EDMY,Mühldorf Airfield,48.279575,12.500453,1325,DE,small_airport
+EDNA,Ampfing-Waldkraiburg Airfield,48.263611,12.411667,1362,DE,small_airport
+EDNB,Arnbruck Airfield,49.124722,12.985556,1716,DE,small_airport
+EDNC,Beilngries Airfield,49.021389,11.484722,1211,DE,small_airport
+EDND,Dinkelsbühl-Sinbronn Airfield,49.06508,10.403516,1598,DE,small_airport
+EDNE,Erbach Airfield,48.34222,9.916111,1558,DE,small_airport
+EDNF,Elsenthal Grafe Airfield,48.822498,13.3675,1417,DE,small_airport
+EDNG,Giengen/Brenz Airfield,48.634253,10.216484,1696,DE,small_airport
+EDNH,Bad Wörishofen (Nord) Airfield,48.016124,10.615025,2034,DE,small_airport
+EDNI,Berching Airfield,49.131043,11.443205,1266,DE,small_airport
+EDNJ,Neuburg-Egweil Airfield,48.781944,11.215278,1345,DE,small_airport
+EDNK,Kirchdorf/Inn Airfield,48.238335,12.976667,1138,DE,small_airport
+EDNL,Leutkirch-Unterzeil Airfield,47.858891,10.014167,2100,DE,small_airport
+EDNM,Nittenau-Bruck Airfield,49.2225,12.296667,1161,DE,small_airport
+EDNO,Nördlingen Airfield,48.870556,10.505,1385,DE,small_airport
+EDNP,Pfarrkirchen Airfield,48.420277,12.864722,1266,DE,small_airport
+EDNQ,Bopfingen Airfield,48.848057,10.333889,2028,DE,small_airport
+EDNR,Regensburg-Oberhub Airfield,49.141945,12.081944,1299,DE,small_airport
+EDNS,Schwabmünchen Airfield,48.179169,10.702778,1804,DE,small_airport
+EDNT,Treuchtlingen-Bubenheim Airfield,48.996113,10.884167,1345,DE,small_airport
+EDNU,Thannhausen Airfield,48.290001,10.441944,1611,DE,small_airport
+EDNV,Vogtareuth Airfield,47.94611,12.204722,1535,DE,small_airport
+EDNW,Weißenhorn Airfield,48.289444,10.140278,1644,DE,small_airport
+EDNX,Schleissheim Airfield,48.239166,11.559334,1594,DE,small_airport
+EDNY,Bodensee Airport Friedrichshafen,47.671299,9.51149,1367,DE,large_airport
+EDNZ,Zell-Haidberg Airfield,50.136944,11.794444,2083,DE,small_airport
+EDOA,Auerbach Airfield,50.497305,12.377987,1880,DE,small_airport
+EDOB,Bad Berka Airfield,50.904446,11.260278,1001,DE,small_airport
+EDOC,Gardelegen Airfield,52.529641,11.349421,230,DE,small_airport
+EDOD,Reinsdorf Airfield,51.900833,13.194444,335,DE,small_airport
+EDOE,Böhlen Airfield,51.21389,12.363611,430,DE,small_airport
+EDOF,Bad Frankenhausen Airfield,51.372501,11.141389,761,DE,small_airport
+EDOG,Torgau-Beilrode Airfield,51.570907,13.051641,,DE,small_airport
+EDOH,Langhennersdorf Airfield,50.948334,13.261667,1266,DE,small_airport
+EDOI,Bienenfarm Airfield,52.661667,12.745833,120,DE,small_airport
+EDOJ,Lüsse Airfield,52.142706,12.67144,217,DE,small_airport
+EDOK,Rudolstadt-Groschwitz Airfield,50.732777,11.236111,1535,DE,small_airport
+EDOL,Oschersleben Glider Field,52.038055,11.205556,344,DE,small_airport
+EDOM,Klein Mühlingen Airfield,51.947498,11.769722,171,DE,small_airport
+EDON,Neuhardenberg Marxwalde Airfield,52.613056,14.242778,39,DE,small_airport
+EDOQ,Oschatz Airfield,51.296772,13.078687,502,DE,small_airport
+EDOR,Stölln-Rhinow Airfield,52.740833,12.39,138,DE,small_airport
+EDOS,Pennewitz Airfield,50.669692,11.051087,1506,DE,small_airport
+EDOT,Greiz-Obergrochlitz Airfield,50.643977,12.174568,1266,DE,small_airport
+EDOU,Weimar-Umpferstedt Airfield,50.965085,11.399796,984,DE,small_airport
+EDOV,Stendal-Borstel Airfield,52.628887,11.818611,184,DE,small_airport
+EDOW,Waren-Vielist Airfield,53.568333,12.652778,282,DE,small_airport
+EDOX,Renneritz Airfield,51.595112,12.237911,308,DE,small_airport
+EDOZ,Schönebeck-Zackmünde Airfield,51.997129,11.789789,167,DE,small_airport
+EDPA,Aalen Heidenheim Elchingen Airfield,48.777779,10.264722,1916,DE,small_airport
+EDPB,Bad Ditzenbach Airfield,48.562778,9.728889,2362,DE,small_airport
+EDPC,Bad Endorf/Jolling Airfield,47.926899,12.2872,1690,DE,small_airport
+EDPD,Dingolfing Airfield,48.656727,12.498794,1165,DE,small_airport
+EDPE,Eichstätt Airfield,48.876945,11.182222,1713,DE,small_airport
+EDPF,Schwandorf Airfield,49.339722,12.188056,1270,DE,small_airport
+EDPG,Griesau Airfield,48.953888,12.421389,1060,DE,small_airport
+EDPH,Schwabach-Heidenberg Airfield,49.268019,11.012606,1181,DE,small_airport
+EDPI,Moosburg auf der Kippe Airfield,48.456588,11.941624,1375,DE,small_airport
+EDPJ,Laichingen Jakob Laur Airfield,48.496944,9.640278,2434,DE,small_airport
+EDPK,Schönberg Airfield,48.047779,12.500556,1946,DE,small_airport
+EDPM,Donzdorf Airfield,48.678177,9.845909,2274,DE,small_airport
+EDPO,Neumarkt-Oberpfalz Airfield,49.285557,11.443056,1394,DE,small_airport
+EDPQ,Schmidgaden Airfield,49.429443,12.098056,1247,DE,small_airport
+EDPS,Flugplatz Sonnen,48.682777,13.694722,2674,DE,small_airport
+EDPT,Gerstetten Airfield,48.620277,10.058333,1975,DE,small_airport
+EDPU,Bartholomä-Amalienhof Airfield,48.746666,10.005,2092,DE,small_airport
+EDPW,Thalmässing-Waizenhofen Airfield,49.064167,11.209167,1893,DE,small_airport
+EDPY,Ellwangen Airfield,48.961483,10.234494,1650,DE,small_airport
+EDQA,Bamberg-Breitenau Airfield,49.920403,10.914233,811,DE,medium_airport
+EDQB,Bad Windsheim Airfield,49.509998,10.366389,1220,DE,small_airport
+EDQC,Coburg-Brandensteinsebene Airfield,50.262501,10.995556,1490,DE,small_airport
+EDQD,Bayreuth Airport,49.985001,11.64,1601,DE,medium_airport
+EDQE,Burg Feuerstein Airport,49.794167,11.133611,1673,DE,small_airport
+EDQF,Ansbach-Petersdorf Airfield,49.361111,10.669444,1371,DE,small_airport
+EDQG,Giebelstadt Airport,49.6480560303,9.966388702390002,981,DE,small_airport
+EDQH,Herzogenaurach Airfield,49.582708,10.878339,1070,DE,small_airport
+EDQI,Lauf-Lillinghof Airfield,49.605162,11.283581,1788,DE,small_airport
+EDQK,Kulmbach Airfield,50.134921,11.459069,1660,DE,small_airport
+EDQL,Lichtenfels Airfield,50.148609,11.048056,853,DE,small_airport
+EDQM,Hof-Plauen Airport,50.288544,11.852876,1959,DE,medium_airport
+EDQN,Neustadt/Aisch Airfield,49.587502,10.5775,1198,DE,small_airport
+EDQO,Ottengrüner Heide Airfield,50.225834,11.731667,1880,DE,small_airport
+EDQP,Rosenthal-Plössen Airfield,49.863335,11.787778,1496,DE,small_airport
+EDQR,Ebern-Sendelbach Airfield,50.040004,10.822537,827,DE,small_airport
+EDQS,Suhl-Goldlauter Airfield,50.632047,10.726013,1923,DE,small_airport
+EDQT,Haßfurt-Schweinfurt Airfield,50.0182,10.529165,719,DE,small_airport
+EDQW,Weiden in der Oberpfalz Airfield,49.678902,12.1164,1329,DE,small_airport
+EDQX,Hetzleser Berg Airfield,49.642341,11.162574,1765,DE,small_airport
+EDQY,Coburg-Steinrücken Airfield,50.230556,10.995833,1184,DE,small_airport
+EDQZ,Pegnitz-Zipser Berg Airfield,49.76238,11.574619,1791,DE,small_airport
+EDRA,Bad Neuenahr-Ahrweiler Airfield,50.557779,7.137144,673,DE,small_airport
+EDRB,Bitburg Airport,49.945278,6.565,1220,DE,small_airport
+EDRC,Marpingen Glider Airfield,49.453,7.039,1155,DE,small_airport
+EDRD,Neumagen-Dhron Airfield,49.843056,6.916111,879,DE,small_airport
+EDRF,Bad Dürkheim Airfield,49.4728,8.195737,351,DE,small_airport
+EDRG,Idar-Oberstein/Göttschied Airfield,49.732224,7.336111,1575,DE,small_airport
+EDRH,Hoppstädten-Weiersbach Airfield,49.610558,7.186667,1093,DE,small_airport
+EDRI,Linkenheim Airfield,49.141666,8.394722,325,DE,small_airport
+EDRJ,Saarlouis-Düren Airfield,49.3125,6.674444,1119,DE,small_airport
+EDRK,Koblenz-Winningen Airfield,50.325558,7.528611,640,DE,small_airport
+EDRL,Flugplatz Lachen-Speyerdorf,49.330833,8.209722,394,DE,small_airport
+EDRM,Traben-Trarbach/Mont Royal Airfield,49.967777,7.111944,919,DE,small_airport
+EDRN,Nannhausen Airfield,49.96992,7.478357,1224,DE,small_airport
+EDRO,Schweighofen Airfield,49.031884,7.990508,492,DE,small_airport
+EDRP,Pirmasens-Pottschütthöhe Airfield,49.264442,7.488333,1247,DE,small_airport
+EDRS,Bad Sobernheim-Domberg Airfield,49.790833,7.666111,810,DE,small_airport
+EDRT,Trier-Föhren Airfield,49.863888,6.7875,666,DE,small_airport
+EDRV,Wershofen/Eifel Airfield,50.451902,6.784086,1581,DE,small_airport
+EDRW,Dierdorf-Wienau Airfield,50.566113,7.653333,951,DE,small_airport
+EDRX,Bexbach Glider Field,49.34,7.253333,,DE,small_airport
+EDRY,Speyer Airfield,49.304722,8.451389,312,DE,small_airport
+EDRZ,Zweibrücken Airport,49.2094,7.40056,1132,DE,small_airport
+EDSA,Albstadt-Degerfeld Airfield,48.249722,9.0625,2881,DE,small_airport
+EDSB,Karlsruhe Baden-Baden Airport,48.7794,8.0805,408,DE,large_airport
+EDSE,Göppingen-Bezgenriet Airfield,48.658611,9.624167,,DE,small_airport
+EDSG,Grabenstetten Airfield,48.53611,9.436944,2329,DE,small_airport
+EDSH,Backnang-Heiningen Airfield,48.919724,9.455278,965,DE,small_airport
+EDSI,Binningen Glider Field,47.798772,8.718553,1594,DE,small_airport
+EDSK,Kehl-Sundheim Airfield,48.561111,7.843333,453,DE,small_airport
+EDSL,Blumberg Airfield,47.843676,8.564344,2290,DE,small_airport
+EDSN,Neuhausen ob Eck Airfield,47.976665,8.903889,2638,DE,small_airport
+EDSO,Gruibingen-Nortel Airfield,48.6212,9.6557,2318,DE,small_airport
+EDSP,Poltringen Airfield,48.547282,8.945918,1315,DE,small_airport
+EDSR,Radolfzell-Stahlringen Airfield,47.802587,8.979378,,DE,small_airport
+EDST,Hahnweide Airfield,48.631841,9.429201,1146,DE,small_airport
+EDSW,Altdorf-Wallburg Airfield,48.269883,7.841942,623,DE,small_airport
+EDSX,Völkleshofen-Lichtenberg Airfield,49.009332,9.354601,1301,DE,small_airport
+EDSZ,Rottweil-Zepfenhan Airfield,48.186604,8.722801,2444,DE,small_airport
+EDTB,Baden-Oos Airfield,48.791943,8.185833,404,DE,small_airport
+EDTC,Bruchsal Airfield,49.13484,8.56412,,DE,small_airport
+EDTD,Donaueschingen-Villingen Airfield,47.973331,8.522222,2231,DE,medium_airport
+EDTF,Freiburg im Breisgau Airfield,48.022778,7.8325,801,DE,small_airport
+EDTG,Bremgarten Airfield,47.903186,7.617416,696,DE,small_airport
+EDTH,Heubach Airfield,48.802996,9.927714,1424,DE,small_airport
+EDTL,Lahr Airport,48.369301,7.82772,511,DE,medium_airport
+EDTM,Mengen-Hohentengen Airfield,48.05389,9.372778,1818,DE,medium_airport
+EDTN,Nabern-Teck Airfield,48.612778,9.477222,1214,DE,small_airport
+EDTO,Offenburg-Baden Airfield,48.448134,7.92356,509,DE,small_airport
+EDTP,Pfullendorf Airfield,47.90889,9.250556,2303,DE,small_airport
+EDTQ,Pattonville Airfield,48.864166,9.224722,920,DE,small_airport
+EDTR,Herten-Rheinfelden Airfield,47.56028,7.748333,925,DE,small_airport
+EDTS,Schwenningen am Neckar Airfield,48.065834,8.571389,2169,DE,small_airport
+EDTU,Bad Saulgau Airfield,48.029446,9.507222,1903,DE,small_airport
+EDTW,Winzeln-Schramberg Airfield,48.279167,8.428333,2310,DE,small_airport
+EDTX,Schwäbisch Hall-Weckrieden Airfield,49.124443,9.781111,1299,DE,small_airport
+EDTY,Adolf Würth Airport,49.118332,9.783889,1299,DE,medium_airport
+EDTZ,Konstanz Airfield,47.681435,9.139258,1302,DE,small_airport
+EDUA,Flugplatz Stechow-Ferchesar,52.650555,12.487778,148,DE,small_airport
+EDUF,Falkenberg-Lönnewitz Airfield,51.547779,13.228056,312,DE,small_airport
+EDUO,Oberrißdorf Airfield,51.542895,11.595243,738,DE,small_airport
+EDUW,Tutow-Betriebs Airfield,53.917731,13.22026,26,DE,small_airport
+EDUZ,Zerbst Airfield,52.000832,12.148611,289,DE,medium_airport
+EDVA,Bad Gandersheim Airfield,51.854168,10.025556,791,DE,small_airport
+EDVC,Celle-Arloh Airfield,52.688163,10.11278,207,DE,small_airport
+EDVE,Braunschweig-Wolfsburg Airport,52.319199,10.5561,295,DE,medium_airport
+EDVF,Blomberg-Borkhausen Airfield,51.917221,9.111667,535,DE,small_airport
+EDVG,Mengeringhausen Airfield,51.376387,8.981111,1190,DE,small_airport
+EDVH,Hodenhagen Airfield,52.761865,9.61056,79,DE,small_airport
+EDVI,Höxter-Holzminden Airfield,51.806667,9.378333,934,DE,small_airport
+EDVJ,Salzgitter-Schäferstuhl Airfield,52.030682,10.362468,741,DE,small_airport
+EDVK,Kassel Airport,51.418395,9.391638,820,DE,large_airport
+EDVL,Hölleberg Airfield,51.610881,9.398375,837,DE,small_airport
+EDVM,Hildesheim Airfield,52.179819,9.945803,292,DE,small_airport
+EDVN,Northeim Airfield,51.70639,10.039722,404,DE,small_airport
+EDVR,Rinteln Airfield,52.175278,9.053333,180,DE,small_airport
+EDVT,Ithwiesen Airfield,51.952,9.662,1264,DE,small_airport
+EDVU,Uelzen Airfield,52.9837,10.465422,246,DE,small_airport
+EDVW,Bad Pyrmont Airfield,51.966667,9.291667,1178,DE,small_airport
+EDVY,Porta Westfalica Airfield,52.221367,8.859765,148,DE,small_airport
+EDWC,Damme Airfield,52.487558,8.185151,151,DE,small_airport
+EDWE,Emden Airport,53.391109,7.2275,3,DE,small_airport
+EDWF,Flugplatz Leer-Papenburg,53.271942,7.441667,3,DE,small_airport
+EDWG,Wangerooge Airport,53.782544,7.919584,7,DE,small_airport
+EDWH,Oldenburg-Hatten Airfield,53.06889,8.313611,26,DE,small_airport
+EDWI,JadeWeser Airport,53.50222,8.052222,19,DE,small_airport
+EDWJ,Juist Airport,53.681421,7.056398,7,DE,small_airport
+EDWK,Karlshöfen Airfield,53.332779,9.028333,20,DE,small_airport
+EDWL,Langeoog Airport,53.742379,7.496345,7,DE,small_airport
+EDWM,Weser-Wümme Airfield,53.05389,9.208611,59,DE,small_airport
+EDWN,Nordhorn-Lingen Airfield,52.4575,7.182222,89,DE,small_airport
+EDWO,Atterheide Airfield,52.286388,7.969722,287,DE,small_airport
+EDWP,Wiefelstede-Conneforde Airfield,53.321388,8.073333,33,DE,small_airport
+EDWQ,Ganderkesee Atlas Airfield,53.03611,8.505556,95,DE,small_airport
+EDWR,Borkum Airport,53.59639,6.709167,3,DE,small_airport
+EDWS,Norden-Norddeich Airport,53.633057,7.190278,3,DE,small_airport
+EDWU,Varrelbusch Airfield,52.908333,8.040556,128,DE,small_airport
+EDWV,Verden-Scharnhorst Airfield,52.965279,9.282778,144,DE,small_airport
+EDWX,Westerstede-Felde Airfield,53.288612,7.930556,30,DE,small_airport
+EDWY,Norderney Airport,53.706944,7.23,7,DE,small_airport
+EDWZ,Baltrum Airport,53.72485,7.373257,7,DE,small_airport
+EDXA,Flugplatz Achmer,52.37722,7.913333,177,DE,small_airport
+EDXB,Heide-Büsum Airport,54.153332,8.901667,7,DE,small_airport
+EDXC,Schleswig-Kropp Airfield,54.425497,9.541883,52,DE,small_airport
+EDXD,Bohmte-Bad Essen Airfield,52.351391,8.328333,148,DE,small_airport
+EDXE,Rheine-Eschendorf Airfield,52.276389,7.492778,131,DE,small_airport
+EDXF,Flensburg-Schäferhaus Airport,54.773335,9.378889,131,DE,small_airport
+EDXG,Melle-Grönegau Airfield,52.200832,8.380556,236,DE,small_airport
+EDXH,Helgoland-Düne Airport,54.18528,7.915833,8,DE,small_airport
+EDXI,Nienburg-Holzbalge Airfield,52.709721,9.1625,82,DE,small_airport
+EDXJ,Husum-Schwesing Airport,54.5099983215,9.138333320620001,62,DE,small_airport
+EDXK,Leck Airfield,54.790905,8.963439,23,DE,small_airport
+EDXL,Barßel Airfield,53.164444,7.793889,10,DE,small_airport
+EDXM,Sankt Michaelisdonn Airfield,53.978263,9.14521,125,DE,small_airport
+EDXN,Nordholz-Spieka Airfield,53.767223,8.643611,72,DE,small_airport
+EDXO,Sankt Peter-Ording Airport,54.308887,8.686944,7,DE,small_airport
+EDXP,Harlesiel Airfield,53.706669,7.820278,7,DE,small_airport
+EDXQ,Rotenburg (Wümme) Airfield,53.128334,9.348611,98,DE,small_airport
+EDXR,Rendsburg-Schachtholm Airfield,54.220001,9.599444,23,DE,small_airport
+EDXS,Seedorf Airfield,53.335556,9.259444,72,DE,small_airport
+EDXT,Sierksdorf/Hof Altona Airfield,54.066743,10.742183,79,DE,small_airport
+EDXU,Hüttenbusch Airfield,53.286667,8.947222,10,DE,small_airport
+EDXW,Westerland Sylt Airport,54.9132,8.34047,51,DE,medium_airport
+EDXY,Wyk auf Föhr Airport,54.684444,8.528333,26,DE,small_airport
+EDXZ,Kührstedt-Bederkesa Airfield,53.568054,8.789444,26,DE,small_airport
+EG34,Ledbury Airfield,52.0019,-2.47416,150,GB,small_airport
+EG3L,Milfield Glider Field,55.591636,-2.087231,,GB,small_airport
+EG74,Bruntingthorpe Aerodrome,52.492972,-1.12509,467,GB,small_airport
+EGAA,Belfast International Airport,54.6575012207,-6.2158298492399995,268,GB,large_airport
+EGAB,Enniskillen/St Angelo Airport,54.398274,-7.651179,155,GB,medium_airport
+EGAC,George Best Belfast City Airport,54.618099,-5.8725,15,GB,medium_airport
+EGAD,Newtownards Airport,54.5811,-5.69194,9,GB,small_airport
+EGAE,City of Derry Airport,55.042801,-7.16111,22,GB,medium_airport
+EGAH,Halley Research Station,-75.567406,-25.516435,103,AQ,small_airport
+EGAR,Rothera Research Station,-67.5675,-68.127403,9,AQ,small_airport
+EGAT,Sky Blu Airstrip,-74.849722,-71.566666,4740,AQ,small_airport
+EGBB,Birmingham Airport,52.453899,-1.74803,327,GB,large_airport
+EGBD,Derby Airfield,52.859699,-1.6175,175,GB,small_airport
+EGBF,Bedford Aerodrome,52.23071,-0.463825,270,GB,small_airport
+EGBG,Leicester Airport,52.606574,-1.030226,469,GB,small_airport
+EGBJ,Gloucestershire Airport,51.894199,-2.16722,101,GB,medium_airport
+EGBK,Sywell Aerodrome,52.305302,-0.793056,429,GB,small_airport
+EGBM,Tatenhill Airfield,52.81431,-1.767942,439,GB,small_airport
+EGBN,Nottingham City Airport,52.919998,-1.07917,138,GB,medium_airport
+EGBO,Wolverhampton Halfpenny Green Airport,52.517502,-2.25944,283,GB,small_airport
+EGBP,Cotswold Airport,51.668528,-2.056599,433,GB,small_airport
+EGBS,Shobdon Airfield,52.241699,-2.88111,318,GB,small_airport
+EGBT,Turweston Aerodrome,52.040798,-1.09556,448,GB,small_airport
+EGBW,Wellesbourne Mountford Airfield,52.189353,-1.614089,159,GB,small_airport
+EGCA,Coal Aston Airfield,53.304809,-1.42886,750,GB,small_airport
+EGCB,Manchester Barton Aerodrome,53.471699,-2.38972,73,GB,small_airport
+EGCC,Manchester Airport,53.349375,-2.279521,257,GB,large_airport
+EGCF,Sandtoft Airfield,53.559358,-0.859043,11,GB,small_airport
+EGCG,Strubby Airfield,53.310956,0.173017,45,GB,small_airport
+EGCJ,Sherburn-in-Elmet Airfield,53.788458,-1.216877,26,GB,small_airport
+EGCK,Caernarfon Airport,53.101819,-4.337614,1,GB,small_airport
+EGCL,Fenland Airfield,52.739201,-0.029722,8,GB,small_airport
+EGCS,Sturgate Airfield,53.381242,-0.6848,58,GB,small_airport
+EGCT,Tilstock Airfield,52.932363,-2.647435,301,GB,small_airport
+EGCV,Sleap Airfield,52.834809,-2.770312,275,GB,small_airport
+EGCW,Welshpool Airport,52.628601,-3.15333,233,GB,small_airport
+EGDC,Royal Marines Base Chivenor,51.0872,-4.15034,27,GB,medium_airport
+EGDJ,Upavon Aerodrome,51.28657,-1.782239,574,GB,small_airport
+EGDM,MoD Boscombe Down,51.152199,-1.74741,407,GB,medium_airport
+EGDN,Netheravon Airfield,51.2472,-1.75425,456,GB,small_airport
+EGDO,Predannack Airfield,50.001202,-5.23083,295,GB,small_airport
+EGDR,RNAS Culdrose,50.08610153198242,-5.255710124969482,267,GB,medium_airport
+EGDW,RNAS Merryfield,50.964283,-2.938443,151,GB,small_airport
+EGDX,MOD St Athan,51.405229,-3.433254,163,GB,medium_airport
+EGDY,RNAS Yeovilton,51.009399,-2.63882,75,GB,medium_airport
+EGEC,Campbeltown Airport,55.437199,-5.68639,42,GB,medium_airport
+EGED,Eday Airport,59.19060134887695,-2.7722198963165283,10,GB,medium_airport
+EGEF,Fair Isle Airport,59.534721,-1.628509,223,GB,small_airport
+EGEH,Whalsay Airstrip,60.376835,-0.927229,100,GB,small_airport
+EGEI,Broadford Airstrip,57.253131,-5.827755,24,GB,small_airport
+EGEL,Coll Airport,56.601898,-6.61778,21,GB,small_airport
+EGEN,North Ronaldsay Airport,59.3675003052,-2.43443989754,40,GB,small_airport
+EGEO,Oban Airport,56.463501,-5.39967,20,GB,small_airport
+EGEP,Papa Westray Airport,59.351012,-2.900353,91,GB,small_airport
+EGER,Stronsay Airport,59.1553,-2.64139,39,GB,small_airport
+EGES,Sanday Airport,59.250301,-2.57667,68,GB,small_airport
+EGET,Lerwick / Tingwall Airport,60.1922,-1.24361,43,GB,small_airport
+EGEW,Westray Airport,59.350475,-2.950062,29,GB,small_airport
+EGEY,Colonsay Airstrip,56.057499,-6.24306,44,GB,small_airport
+EGFA,Aberporth Airport,52.1152992249,-4.556940078739999,428,GB,small_airport
+EGFD,Llanbedr Airfield,52.811699,-4.12358,30,GB,small_airport
+EGFE,Haverfordwest Airport,51.833099365234375,-4.9611101150512695,159,GB,medium_airport
+EGFF,Cardiff International Airport,51.396702,-3.34333,220,GB,large_airport
+EGFH,Swansea Airport,51.601366,-4.071006,299,GB,medium_airport
+EGFP,Pembrey West Wales Airport,51.713902,-4.31222,15,GB,small_airport
+EGGD,Bristol Airport,51.382326,-2.716453,622,GB,large_airport
+EGGP,Liverpool John Lennon Airport,53.334863,-2.849637,80,GB,large_airport
+EGGW,London Luton Airport,51.874699,-0.368333,526,GB,large_airport
+EGHA,Compton Abbas Aerodrome,50.967201,-2.15361,811,GB,small_airport
+EGHC,Land's End Airport,50.102798,-5.67056,398,GB,small_airport
+EGHE,St. Mary's Airport,49.913375,-6.291894,116,GB,small_airport
+EGHF,Solent Airport,50.814201,-1.20333,32,GB,small_airport
+EGHG,Yeovil/Westland Aerodrome,50.939999,-2.65861,202,GB,small_airport
+EGHH,Bournemouth Airport,50.780483,-1.839576,38,GB,medium_airport
+EGHI,Southampton Airport,50.950298,-1.3568,44,GB,medium_airport
+EGHJ,Bembridge Airport,50.678101,-1.10944,53,GB,small_airport
+EGHL,Lasham Airfield,51.18744,-1.031663,618,GB,medium_airport
+EGHN,Isle of Wight/Sandown Airport,50.653099,-1.18222,55,GB,small_airport
+EGHO,Thruxton Aerodrome,51.210602,-1.6,319,GB,small_airport
+EGHP,Popham Airfield,51.194688,-1.233071,550,GB,small_airport
+EGHQ,Cornwall Airport Newquay,50.440601,-4.99541,390,GB,medium_airport
+EGHR,Goodwood Aerodrome,50.859832,-0.760073,98,GB,small_airport
+EGHS,Henstridge Airfield,50.985001,-2.35722,184,GB,small_airport
+EGHU,Eaglescott Airfield,50.928651,-3.988446,655,GB,small_airport
+EGHY,Truro Aerodrome,50.2784,-5.14229,127,GB,small_airport
+EGJA,Alderney Airport,49.706104,-2.21472,290,GG,medium_airport
+EGJB,Guernsey Airport,49.435001,-2.60197,336,GG,medium_airport
+EGJJ,Jersey Airport,49.207901,-2.19551,277,JE,medium_airport
+EGKA,Brighton City Airport,50.835602,-0.297222,7,GB,medium_airport
+EGKB,London Biggin Hill Airport,51.33079910279999,0.0324999988079,598,GB,medium_airport
+EGKE,Challock Airfield,51.208302,0.829167,600,GB,small_airport
+EGKH,Headcorn Aerodrome,51.156898,0.641667,72,GB,small_airport
+EGKK,London Gatwick Airport,51.148744,-0.185739,202,GB,large_airport
+EGKL,Deanland Lewes Airfield,50.881093,0.154345,69,GB,small_airport
+EGKR,Redhill Aerodrome,51.2136,-0.138611,222,GB,small_airport
+EGLA,Bodmin Airfield,50.499698638916016,-4.665830135345459,650,GB,small_airport
+EGLC,London City Airport,51.505299,0.055278,19,GB,medium_airport
+EGLD,Denham Aerodrome,51.588299,-0.513056,249,GB,small_airport
+EGLF,Farnborough Airport,51.275799,-0.776333,238,GB,medium_airport
+EGLJ,Chalgrove Airfield,51.676102,-1.08083,240,GB,small_airport
+EGLK,Blackbushe Airport,51.323898,-0.8475,325,GB,medium_airport
+EGLL,London Heathrow Airport,51.470748,-0.459909,83,GB,large_airport
+EGLM,White Waltham Airfield,51.500801,-0.774444,131,GB,small_airport
+EGLP,Brimpton Airfield,51.383456,-1.172096,210,GB,small_airport
+EGLS,Old Sarum Airfield,51.0989,-1.78417,285,GB,small_airport
+EGMA,Fowlmere Airfield,52.077499,0.061667,124,GB,small_airport
+EGMC,London Southend Airport,51.570562,0.693627,49,GB,medium_airport
+EGMD,Lydd London Ashford Airport,50.956246,0.939074,13,GB,medium_airport
+EGMF,Farthing Corner / Stoneacre Farm Airfield,51.332788,0.601058,420,GB,small_airport
+EGMJ,Little Gransden Airfield,52.165977,-0.149222,250,GB,small_airport
+EGML,Damyns Hall Aerodrome,51.527561,0.244189,59,GB,small_airport
+EGMT,Thurrock Airfield,51.537505,0.367634,20,GB,small_airport
+EGNC,Carlisle Lake District Airport,54.9375,-2.80917,190,GB,medium_airport
+EGNE,Retford Gamston Airport,53.280602,-0.951389,91,GB,small_airport
+EGNF,Netherthorpe Airfield,53.317182,-1.195573,250,GB,small_airport
+EGNG,Bagby Thirsk Airfield,54.211226,-1.292417,161,GB,small_airport
+EGNH,Blackpool Airport,53.771702,-3.02861,34,GB,medium_airport
+EGNI,Skegness (Ingoldmells) Aerodrome,53.1716,0.329375,8,GB,small_airport
+EGNJ,Humberside Airport,53.576152,-0.34954,121,GB,medium_airport
+EGNL,Barrow Walney Island Airport,54.1286111,-3.2675,173,GB,medium_airport
+EGNM,Leeds Bradford Airport,53.865898,-1.66057,681,GB,large_airport
+EGNO,Warton Aerodrome,53.745098,-2.88306,55,GB,medium_airport
+EGNR,Hawarden Airport,53.178101,-2.97778,45,GB,medium_airport
+EGNS,Isle of Man Airport,54.083081,-4.623871,52,IM,large_airport
+EGNT,Newcastle International Airport,55.037958,-1.689577,266,GB,large_airport
+EGNU,Full Sutton Airfield,53.980598,-0.864722,86,GB,small_airport
+EGNV,Teesside International Airport,54.509201,-1.42941,120,GB,medium_airport
+EGNW,Wickenby Aerodrome,53.3167,-0.349722,63,GB,small_airport
+EGNX,East Midlands Airport,52.8311,-1.32806,306,GB,large_airport
+EGNY,Beverley/Linley Hill Airfield,53.898384,-0.36139,3,GB,small_airport
+EGOE,Tern Hill Airfield,52.872775,-2.532692,272,GB,small_airport
+EGOM,RAF Spadeadam,55.0499992371,-2.54999995232,1066,GB,medium_airport
+EGOQ,RAF Mona,53.258598,-4.37355,202,GB,small_airport
+EGOS,RAF Shawbury,52.798199,-2.66804,249,GB,medium_airport
+EGOV,Anglesey Airport,53.2481,-4.53534,37,GB,medium_airport
+EGOW,RAF Woodvale,53.5816,-3.05552,37,GB,small_airport
+EGPA,Kirkwall Airport,58.957903,-2.905077,50,GB,medium_airport
+EGPB,Sumburgh Airport,59.878899,-1.29556,20,GB,medium_airport
+EGPC,Wick John O'Groats Airport,58.4589,-3.09306,126,GB,medium_airport
+EGPD,Aberdeen International Airport,57.2019,-2.19778,215,GB,large_airport
+EGPE,Inverness Airport,57.5425,-4.0475,31,GB,medium_airport
+EGPF,Glasgow Airport,55.871899,-4.43306,26,GB,large_airport
+EGPG,Cumbernauld Airport,55.974701,-3.97556,350,GB,small_airport
+EGPH,Edinburgh Airport,55.950145,-3.372288,135,GB,large_airport
+EGPI,Islay Airport,55.682708,-6.257525,56,GB,medium_airport
+EGPJ,Fife Airport,56.1833,-3.22028,399,GB,small_airport
+EGPK,Glasgow Prestwick Airport,55.501499,-4.577182,65,GB,large_airport
+EGPL,Benbecula Airport,57.481098,-7.36278,19,GB,medium_airport
+EGPN,Dundee Airport,56.452499,-3.02583,17,GB,medium_airport
+EGPO,Stornoway Airport,58.215599,-6.33111,26,GB,medium_airport
+EGPR,Barra Airport,57.0228,-7.44306,5,GB,medium_airport
+EGPS,Longside Airfield,57.516836,-1.864586,150,GB,small_airport
+EGPT,Perth/Scone Airport,56.439201,-3.37222,397,GB,small_airport
+EGPU,Tiree Airport,56.499199,-6.86917,38,GB,medium_airport
+EGPW,Unst Airfield,60.7472,-0.85385,62,GB,small_airport
+EGQL,Leuchars Station Airfield,56.37398,-2.868862,38,GB,medium_airport
+EGQS,RAF Lossiemouth,57.7052,-3.33917,42,GB,medium_airport
+EGSA,Shipdham Airfield,52.629398,0.928056,210,GB,small_airport
+EGSC,Cambridge City Airport,52.205002,0.175,47,GB,medium_airport
+EGSF,Peterborough Business Airport,52.468102,-0.251111,26,GB,small_airport
+EGSG,Stapleford Aerodrome,51.6525,0.155833,183,GB,small_airport
+EGSH,Norwich Airport,52.6758,1.28278,118,GB,medium_airport
+EGSI,Marshland Airfield,52.643611,0.295,-6,GB,small_airport
+EGSJ,Seething Airfield,52.510997,1.416864,130,GB,small_airport
+EGSL,Andrewsfield Aerodrome,51.895,0.449167,286,GB,small_airport
+EGSM,Beccles Airfield,52.435299,1.61833,80,GB,small_airport
+EGSO,Crowfield Airfield,52.173045,1.110649,201,GB,small_airport
+EGSP,Peterborough/Sibson Airfield,52.5571,-0.386982,130,GB,small_airport
+EGSQ,Clacton Airfield,51.785,1.13,37,GB,small_airport
+EGSR,Earls Colne Airfield,51.914398,0.6825,226,GB,small_airport
+EGSS,London Stansted Airport,51.884998,0.235,348,GB,large_airport
+EGST,Elmsett Airfield,52.075454,0.977654,246,GB,small_airport
+EGSU,Duxford Aerodrome,52.090801,0.131944,125,GB,small_airport
+EGSV,Old Buckenham Airfield,52.497501,1.05194,194,GB,small_airport
+EGSW,Newmarket Heath Airfield,52.235147,0.350643,100,GB,small_airport
+EGSX,North Weald Airfield,51.721699,0.154167,321,GB,small_airport
+EGTB,Wycombe Air Park,51.61177,-0.808316,515,GB,small_airport
+EGTC,Cranfield Airport,52.072201,-0.616667,360,GB,medium_airport
+EGTD,Dunsfold Aerodrome,51.117199,-0.535833,172,GB,small_airport
+EGTE,Exeter International Airport,50.734261,-3.413984,102,GB,medium_airport
+EGTF,Fairoaks Airport,51.348099,-0.558889,80,GB,small_airport
+EGTH,Old Warden Airfield,52.084591,-0.3201,110,GB,small_airport
+EGTK,London Oxford Airport,51.836899,-1.32,270,GB,medium_airport
+EGTO,Rochester Airport,51.351898,0.503333,436,GB,small_airport
+EGTP,Perranporth Airfield,50.330617,-5.179317,330,GB,small_airport
+EGTR,Elstree Airfield,51.6558,-0.325833,332,GB,small_airport
+EGTU,Dunkeswell Airfield,50.860956,-3.233929,839,GB,small_airport
+EGTW,Oaksey Park Airfield,51.632198,-2.01472,250,GB,small_airport
+EGUB,RAF Benson,51.614366,-1.095991,226,GB,medium_airport
+EGUD,RAF Abingdon,51.690614,-1.316568,259,GB,small_airport
+EGUL,RAF Lakenheath,52.40954,0.561161,32,GB,medium_airport
+EGUN,RAF Mildenhall,52.3619,0.486406,33,GB,medium_airport
+EGUW,Wattisham Airfield,52.127451,0.956189,284,GB,medium_airport
+EGVA,RAF Fairford,51.683568,-1.789172,286,GB,medium_airport
+EGVL,RAF Little Rissington,51.866475,-1.694984,730,GB,small_airport
+EGVN,RAF Brize Norton,51.75,-1.58362,288,GB,medium_airport
+EGVO,RAF Odiham,51.2341,-0.942825,405,GB,medium_airport
+EGVP,Middle Wallop Airfield,51.143876,-1.568935,297,GB,small_airport
+EGWC,RAF Cosford,52.640524,-2.305326,272,GB,medium_airport
+EGWE,RAF Henlow,52.0182,-0.30385,206,GB,small_airport
+EGWN,RAF Halton,51.790699,-0.737972,370,GB,small_airport
+EGWU,RAF Northolt,51.553001,-0.418167,124,GB,medium_airport
+EGXC,RAF Coningsby,53.092999,-0.166014,25,GB,medium_airport
+EGXE,RAF Leeming,54.297191,-1.538944,132,GB,medium_airport
+EGXG,Leeds East Airport,53.834747,-1.194678,29,GB,medium_airport
+EGXH,RAF Honington,52.342602,0.772939,174,GB,medium_airport
+EGXT,RAF Wittering,52.612598,-0.476453,273,GB,medium_airport
+EGXW,RAF Waddington,53.166199,-0.523811,231,GB,medium_airport
+EGXY,RAF Syerston,53.0228,-0.911111,228,GB,small_airport
+EGXZ,RAF Topcliffe,54.204116,-1.380265,92,GB,medium_airport
+EGYD,RAF Cranwell,53.027308,-0.493104,218,GB,medium_airport
+EGYE,RAF Barkston Heath,52.960616,-0.559428,367,GB,medium_airport
+EGYM,RAF Marham,52.648395,0.550692,75,GB,medium_airport
+EGYP,Mount Pleasant Airport / RAF Mount Pleasant,-51.822642,-58.445777,244,FK,large_airport
+EGZL,Feshiebridge Glider Field,57.103667,-3.891667,873,GB,small_airport
+EHAL,Ameland Airport Ballum,53.453612,5.678396,11,NL,small_airport
+EHAM,Amsterdam Airport Schiphol,52.308601,4.76389,-11,NL,large_airport
+EHBD,Kempen Airport Budel,51.255299,5.60139,114,NL,medium_airport
+EHBK,Maastricht Aachen Airport,50.911087,5.769401,375,NL,large_airport
+EHDL,Deelen Air Base,52.0606,5.87306,158,NL,medium_airport
+EHDR,Drachten Airfield,53.117933,6.127324,14,NL,small_airport
+EHEH,Eindhoven Airport,51.4500999451,5.37452983856,74,NL,large_airport
+EHGG,Groningen Airport Eelde,53.119107,6.577652,17,NL,large_airport
+EHGR,Gilze Rijen Air Base,51.567402,4.93183,49,NL,medium_airport
+EHHO,Hoogeveen Airfield,52.730801,6.51611,40,NL,small_airport
+EHHV,Hilversum Airfield,52.191898,5.14694,3,NL,small_airport
+EHKD,De Kooy Airfield / Den Helder Naval Air Station,52.923401,4.78062,3,NL,medium_airport
+EHLE,Lelystad Airport,52.453188,5.514622,-13,NL,medium_airport
+EHLW,Leeuwarden Air Base,53.228599548339844,5.760560035705566,3,NL,medium_airport
+EHMZ,Midden-Zeeland Airfield,51.512199,3.73111,6,NL,small_airport
+EHOW,Oostwold Airfield,53.208775,7.033053,1,NL,small_airport
+EHRD,Rotterdam The Hague Airport,51.956902,4.43722,-15,NL,large_airport
+EHSE,Breda International Airport,51.554901,4.553003,30,NL,small_airport
+EHST,Stadskanaal Airfield,52.9986,7.02278,14,NL,small_airport
+EHTE,Teuge Airport,52.242764,6.050004,17,NL,small_airport
+EHTL,Terlet Glidersite,52.057201,5.92444,276,NL,small_airport
+EHTW,Twente Airport,52.275833,6.889167,114,NL,medium_airport
+EHTX,Texel International Airport,53.114962,4.830552,2,NL,small_airport
+EHVK,Volkel Air Base,51.657222,5.707778,72,NL,medium_airport
+EHWO,Woensdrecht Air Base,51.4491,4.34203,63,NL,medium_airport
+LE83,Aeródromo forestal de Mojados,41.465728,-4.713068,2329,ES,small_airport
+LE84,Jayena Airfield,36.930698,-3.83538,3654,ES,small_airport
+LEAB,Albacete Airport / Los Llanos Air Base,38.948502,-1.86352,2302,ES,medium_airport
+LEAL,Alicante-Elche Miguel Hernández Airport,38.2822,-0.558156,142,ES,large_airport
+LEAM,Almería Airport,36.843899,-2.3701,70,ES,medium_airport
+LEAP,Ampuriabrava Airfield,42.260309,3.109619,2,ES,small_airport
+LEAS,Asturias Airport,43.563599,-6.03462,416,ES,large_airport
+LEAX,La Axarquía-Leoni Benabu Airfield,36.801666,-4.135556,118,ES,small_airport
+LEBA,Córdoba Airport,37.841999,-4.84888,297,ES,medium_airport
+LEBB,Bilbao Airport,43.301102,-2.91061,138,ES,large_airport
+LEBE,Beas de Segura Airfield,38.271949,-2.952914,1780,ES,small_airport
+LEBG,Burgos Airport,42.357601,-3.62076,2962,ES,medium_airport
+LEBL,Josep Tarradellas Barcelona-El Prat Airport,41.2971,2.07846,12,ES,large_airport
+LEBZ,Badajoz Airport,38.8913,-6.82133,609,ES,medium_airport
+LECA,La Nava - Corral De Ayllón Airfield,41.410801,-3.44833,3280,ES,small_airport
+LECD,La Cerdanya Airfield,42.386398,1.86667,3586,ES,small_airport
+LECF,Calaf-Sallavinera Airfield,41.744202,1.55694,2355,ES,small_airport
+LECH,Castellón-Costa Azahar Airport,40.213889,0.073333,1182,ES,medium_airport
+LECI,Santa Cilia de Jaca Airfield,42.569199,-0.727778,2241,ES,small_airport
+LECN,Castellon de la Plana Aerodrome,39.99836,0.026355,20,ES,small_airport
+LECO,A Coruña Airport,43.302101,-8.37726,326,ES,medium_airport
+LECT,El Castaño Airfield,39.013604,-4.387141,2116,ES,small_airport
+LECU,Madrid-Cuatro Vientos Airport,40.370701,-3.78514,2269,ES,medium_airport
+LEDA,Lleida-Alguaire Airport,41.728185,0.535023,1152,ES,medium_airport
+LEDE,Córdoba-Villarrubia Airfield,37.836632,-4.896426,307,ES,small_airport
+LEEM,El Manantío Airfield,38.777508,-6.991124,876,ES,small_airport
+LEEV,E. Castellanos-Villacastín Airfield,40.783901,-4.46278,3304,ES,small_airport
+LEFM,Fuentemilanos Airfield,40.889137,-4.240165,3307,ES,small_airport
+LEGA,Armilla Air Base,37.133202,-3.63569,2297,ES,medium_airport
+LEGC,Altarejos-Guadalcanal Private Airfield,38.1717,-5.73953,1928,ES,small_airport
+LEGE,Girona-Costa Brava Airport,41.904639,2.761774,468,ES,large_airport
+LEGR,F.G.L. Airport Granada-Jaén Airport,37.188702,-3.77736,1860,ES,medium_airport
+LEGT,Getafe Air Base,40.294102,-3.72383,2034,ES,medium_airport
+LEGU,Aeródromo de Guadalupe,39.345699,-5.19735,1408,ES,small_airport
+LEGY,Garray Airfield,41.820004,-2.476387,3360,ES,small_airport
+LEHC,Huesca-Pirineos Airport,42.076099,-0.316667,1769,ES,small_airport
+LEIB,Ibiza Airport,38.872898,1.37312,24,ES,large_airport
+LEIG,Igualada/Odena Airfield,41.585602,1.65306,1080,ES,small_airport
+LEIZ,La Perdiz - Torre De Juan Abad Airfield,38.5131,-3.36433,2753,ES,small_airport
+LEJO,Madrigalejo Del Monte Airfield,42.134399,-3.73103,3030,ES,small_airport
+LEJR,Jerez Airport,36.744598,-6.06011,93,ES,medium_airport
+LEJU,La Juliana Airfield,37.294998,-6.1625,148,ES,small_airport
+LELA,La Calderera Airfield,38.747898,-3.51456,2467,ES,small_airport
+LELC,San Javier Airport,37.775002,-0.812389,11,ES,medium_airport
+LELH,Alhama De Murcia Airfield,37.748901,-1.30216,669,ES,small_airport
+LELL,Sabadell Airfield,41.520901,2.10508,485,ES,small_airport
+LELM,Almansa Airfield,38.895,-1.11318,2248,ES,small_airport
+LELN,León Airport,42.590709,-5.653406,3006,ES,medium_airport
+LELO,Logroño-Agoncillo Airport,42.460953,-2.322235,1161,ES,medium_airport
+LELT,Lillo Airfield,39.7169,-3.32056,2272,ES,small_airport
+LEMD,Adolfo Suárez Madrid–Barajas Airport,40.493407,-3.572249,1998,ES,large_airport
+LEMF,Mafé - Gibraleón Airfield,37.3643,-6.92094,86,ES,small_airport
+LEMG,Málaga-Costa del Sol Airport,36.6749,-4.49911,53,ES,large_airport
+LEMH,Menorca Airport,39.862598,4.21865,302,ES,large_airport
+LEMI,Region of Murcia International Airport,37.802852,-1.124884,644,ES,large_airport
+LEMO,Moron Air Base,37.17490005493164,-5.615940093994141,285,ES,medium_airport
+LEMP,Los Martínez Del Puerto Airfield,37.836817,-1.097667,534,ES,small_airport
+LEMR,La Morgal Airfield,43.429199,-5.83056,541,ES,small_airport
+LEMS,Manresa Airfield,41.765301,1.86167,897,ES,small_airport
+LEMT,Casarrubios Del Monte Airfield,40.235001,-4.02639,2050,ES,small_airport
+LEMU,Muchamiel Airfield,38.440601,-0.475278,427,ES,small_airport
+LEMX,La Mancha-Toledo Airfield,39.562099,-3.25075,2195,ES,small_airport
+LENA,Benabarre Airfield,42.0228,0.482222,2450,ES,small_airport
+LENE,La Caminera Airfield,38.669727,-3.303194,2510,ES,small_airport
+LENN,La Centenera,38.11489,-4.11547,2169,ES,small_airport
+LEOC,Ocaña Airfield,39.9375,-3.50333,2405,ES,small_airport
+LEOS,Aeródromo de los Oteros,42.333056,-5.451944,2620,ES,small_airport
+LEOT,Ontur Airfield,38.615681,-1.526477,2200,ES,small_airport
+LEPA,Palma de Mallorca Airport,39.551701,2.73881,27,ES,large_airport
+LEPI,Casas de los Pinos Airfield,39.298199,-2.37872,2370,ES,small_airport
+LEPP,Pamplona Airport,42.77,-1.64633,1504,ES,medium_airport
+LEPR,Palma del Río Airfield,37.714384,-5.215226,410,ES,small_airport
+LEPZ,Los Pozuelos De Calatrava Airfield,38.912201,-4.19111,1850,ES,small_airport
+LERE,Aeródromo Requena El Rebollar,39.474701,-1.03444,2340,ES,small_airport
+LERI,Alcantarilla Air Base,37.951099,-1.23032,250,ES,medium_airport
+LERL,Ciudad Real International Airport,38.856479,-3.969944,2120,ES,medium_airport
+LERM,Robledillo De Mohernando Airfield,40.865299,-3.24778,3097,ES,small_airport
+LERO,Rozas Airfield,43.11598,-7.463635,1444,ES,small_airport
+LERP,Aeródromo de Herrera de Pisuerga,42.5923,-4.2902,2958,ES,small_airport
+LERS,Reus Airport,41.147509,1.168354,233,ES,large_airport
+LERT,Rota Naval Station Airport,36.645198822,-6.34946012497,86,ES,medium_airport
+LESA,Salamanca Airport,40.952099,-5.50199,2595,ES,medium_airport
+LESB,Son Bonet Airfield,39.5989,2.70278,153,ES,small_airport
+LESE,San Enrique Airfield,38.730801,-4.31306,2263,ES,small_airport
+LESL,Sant Lluis Airfield,39.861878,4.251739,197,ES,small_airport
+LESO,San Sebastián Airport,43.356499,-1.79061,16,ES,medium_airport
+LESS,Sotos Airfield,40.204201,-2.14389,3170,ES,small_airport
+LEST,Santiago-Rosalía de Castro Airport,42.896301,-8.41514,1213,ES,large_airport
+LESU,Pirineus - la Seu d'Urgel Airport,42.3386,1.40917,2625,ES,medium_airport
+LETC,Matilla De Los Caños Airfield,41.530602,-4.925,2300,ES,small_airport
+LETE,Morante Airfield,39.0369,-6.69056,703,ES,small_airport
+LETF,Tomás Fernández Espada Airfield,36.871793,-5.648775,328,ES,small_airport
+LETI,El Tietar Airfield,40.2439,-4.79444,1401,ES,small_airport
+LETL,Teruel Airport,40.410269,-1.217366,3380,ES,medium_airport
+LETO,Madrid–Torrejón Airport / Torrejón Air Base,40.487875,-3.456808,2026,ES,medium_airport
+LETP,Santo Tome Del Puerto Airfield,41.204201,-3.59472,3638,ES,small_airport
+LETZ,Torozos Airfield,41.785301,-4.86473,2784,ES,small_airport
+LEVB,El Carrascal Airfield,41.824699,-4.89306,2788,ES,small_airport
+LEVC,Valencia Airport,39.489162,-0.480961,240,ES,large_airport
+LEVD,Valladolid Airport,41.7061,-4.85194,2776,ES,medium_airport
+LEVE,Aeródromo Virgen de La Estrella,38.4205555556,-6.3569444444,1837,ES,small_airport
+LEVF,Villaframil Airfield,43.552502,-7.08778,80,ES,small_airport
+LEVT,Vitoria Airport,42.882801,-2.72447,1682,ES,medium_airport
+LEVX,Vigo Airport,42.2318,-8.62677,856,ES,medium_airport
+LEXJ,Seve Ballesteros-Santander Airport,43.427101,-3.82001,16,ES,medium_airport
+LEZG,Zaragoza Airport,41.666199,-1.04155,863,ES,large_airport
+LEZL,Seville Airport,37.417999,-5.89311,112,ES,large_airport
+LF50,Aérodrome privé de Soucelles,47.580399,-0.412269,255,FR,small_airport
+LF51,Plan-de-Dieu-Orange Airfield,44.18,4.91889,312,FR,small_airport
+LFAB,Dieppe-Saint-Aubin Airport,49.884662,1.08101,344,FR,small_airport
+LFAC,Calais Marck Airport,50.962101,1.95476,12,FR,medium_airport
+LFAD,Compiègne Margny Airfield,49.431242,2.801514,315,FR,small_airport
+LFAE,Eu Mers-Le Tréport Airfield,50.068168,1.424748,328,FR,small_airport
+LFAF,Laon-Chambry Airfield,49.595798,3.63167,256,FR,small_airport
+LFAG,Péronne Saint-Quentin Airfield,49.868871,3.029566,295,FR,medium_airport
+LFAI,Nangis-Les Loges Aerodrome,48.596199,3.00679,428,FR,small_airport
+LFAJ,Argentan Airfield,48.709456,0.002856,581,FR,small_airport
+LFAK,Dunkerque-Les Moëres Airfield,51.039559,2.549129,-3,FR,small_airport
+LFAL,La Flèche-Thorée-les-Pins Airfield,47.69261,-0.002198,120,FR,small_airport
+LFAM,Berck-sur-Mer Airfield,50.4231,1.59194,30,FR,small_airport
+LFAO,Bagnoles-Couterne Airfield,48.545799,-0.387444,718,FR,small_airport
+LFAP,Rethel-Perthes Airfield,49.48097,4.363304,410,FR,small_airport
+LFAQ,Albert Bray airport,49.970049,2.693939,364,FR,small_airport
+LFAR,Montdidier Airfield,49.672118,2.567811,358,FR,small_airport
+LFAS,Falaise-Mont d'Eraines Airfield,48.9272,-0.144722,512,FR,small_airport
+LFAT,Le Touquet-Côte d'Opale Airport,50.518284,1.621656,36,FR,medium_airport
+LFAU,Aérodrome de Vauville,49.622775,-1.830688,456,FR,small_airport
+LFAV,Valenciennes-Denain Airfield,50.327823,3.461061,165,FR,medium_airport
+LFAW,Villerupt Aerodrome,49.410424,5.889301,1299,FR,small_airport
+LFAX,Mortagne-au-Perche Airfield,48.539157,0.532043,886,FR,small_airport
+LFAY,Amiens Glisy Airfield,49.873004,2.387074,208,FR,medium_airport
+LFBA,Agen La Garenne airport,44.174171,0.59309,204,FR,medium_airport
+LFBC,Cazaux (BA 120) Air Base,44.533298,-1.125,84,FR,medium_airport
+LFBD,Bordeaux–Mérignac Airport,44.82865,-0.715356,162,FR,large_airport
+LFBE,Bergerac Dordogne-Périgord airport,44.825298,0.518611,171,FR,medium_airport
+LFBF,Toulouse-Francazal (BA 101) Air Base,43.545601,1.3675,535,FR,medium_airport
+LFBG,Cognac-Châteaubernard (BA 709) Air Base,45.658298,-0.3175,102,FR,medium_airport
+LFBH,La Rochelle Île de Ré Airport,46.179199,-1.19528,74,FR,medium_airport
+LFBI,Poitiers-Biard Airport,46.5877,0.306666,423,FR,medium_airport
+LFBJ,Aérodrome de Saint-Junien,45.903301,0.92,902,FR,small_airport
+LFBK,Montluçon-Guéret Airport,46.222599,2.36396,1497,FR,medium_airport
+LFBL,Limoges Airport,45.862801,1.17944,1300,FR,medium_airport
+LFBM,Mont-de-Marsan (BA 118) Air Base,43.911701,-0.5075,203,FR,medium_airport
+LFBN,Niort - Marais Poitevin Airport,46.313477,-0.394529,203,FR,medium_airport
+LFBO,Toulouse-Blagnac Airport,43.629101,1.36382,499,FR,large_airport
+LFBP,Pau Pyrénées Airport,43.380001,-0.418611,616,FR,medium_airport
+LFBR,Aérodrome de Muret - Lherm,43.448898,1.26333,622,FR,small_airport
+LFBS,Biscarrosse Parentis airfield,44.3694,-1.13056,98,FR,small_airport
+LFBT,Tarbes-Lourdes-Pyrénées Airport,43.178699,-0.006439,1260,FR,medium_airport
+LFBU,Angoulême Brie-Champniers airport,45.729198,0.221456,436,FR,medium_airport
+LFBX,Périgueux-Bassillac Airport,45.198101,0.815556,328,FR,medium_airport
+LFBY,Dax Seyresse Airfield,43.689201,-1.06889,106,FR,small_airport
+LFBZ,Biarritz Pays Basque airport,43.468372,-1.523223,245,FR,medium_airport
+LFCA,Aérodrome de Châtellerault-Targé,46.781399,0.551944,207,FR,small_airport
+LFCB,Aérodrome de Bagnères de Luchon,42.799999,0.6,2028,FR,small_airport
+LFCC,Cahors Lalbenque airport,44.351398,1.47528,912,FR,medium_airport
+LFCD,Aérodrome d'Andernos,44.755,-1.065,66,FR,small_airport
+LFCE,Guéret Saint-Laurent Airfield,46.176071,1.953831,1207,FR,small_airport
+LFCF,Aérodrome de Figeac - Livernon,44.673302,1.78917,1086,FR,small_airport
+LFCG,Aérodrome de Saint-Girons - Antichan,43.007801,1.10315,1368,FR,medium_airport
+LFCH,Aérodrome d'Arcachon-La Teste-de-Buch,44.596401,-1.11083,52,FR,medium_airport
+LFCI,Albi Le Sequestre airport,43.913898,2.11306,564,FR,medium_airport
+LFCJ,Aérodrome de Jonzac Neulles,45.4842,-0.421389,128,FR,small_airport
+LFCK,Castres Mazamet Airport,43.556301,2.28918,788,FR,medium_airport
+LFCL,Toulouse-Lasbordes Airfield,43.58677,1.49924,460,FR,small_airport
+LFCM,Millau-Larzac Airfield,43.9893,3.183,2606,FR,small_airport
+LFCN,Nogaro Airfield,43.769699,-0.032778,304,FR,small_airport
+LFCO,Oloron Herrere Airfield,43.163503,-0.561494,984,FR,small_airport
+LFCP,Pons Avy Airfield,45.57,-0.515,117,FR,small_airport
+LFCQ,Aérodrome de Graulhet-Montdragon,43.771099,2.01083,581,FR,small_airport
+LFCR,Rodez–Aveyron Airport,44.407902,2.48267,1910,FR,medium_airport
+LFCS,Aérodrome de Bordeaux-Léognan-Saucats,44.700298,-0.595556,190,FR,small_airport
+LFCT,Aérodrome de Thouars,46.961899,-0.152778,341,FR,small_airport
+LFCU,Ussel-Thalamy Airfield,45.535738,2.424474,2428,FR,small_airport
+LFCV,Aérodrome de Villefranche de Rouergue,44.369491,2.025722,1096,FR,small_airport
+LFCW,Villeneuve-sur-Lot Airfield,44.3969,0.758889,190,FR,small_airport
+LFCX,Aérodrome de Castelsarrasin Moissac,44.086423,1.127191,243,FR,small_airport
+LFCY,Royan-Médis Airport,45.628101,-0.9725,72,FR,medium_airport
+LFCZ,Aérodrome de Mimizan,44.145928,-1.16432,164,FR,small_airport
+LFDA,Aire-sur-l'Adour Airfield,43.7094,-0.245278,259,FR,small_airport
+LFDB,Aérodrome Morin - Védrines,44.0257,1.37804,351,FR,small_airport
+LFDC,Aérodrome de Montendre-Marcillac,45.274399,-0.452222,148,FR,small_airport
+LFDE,Aérodrome d'Égletons,45.421398,2.06889,1857,FR,small_airport
+LFDF,Aérodrome de Sainte-Foy-la-Grande,44.8536,0.176667,282,FR,small_airport
+LFDG,Aérodrome de Gaillac - Lisle-sur-Tarn,43.8839,1.87556,446,FR,small_airport
+LFDH,Auch Gers Airfield,43.683606,0.599747,411,FR,medium_airport
+LFDI,Libourne-Artigues-de-Lussac Airfield,44.98347,-0.138359,157,FR,small_airport
+LFDJ,Aérodrome de Pamiers - Les Pujols,43.090599,1.69583,1115,FR,small_airport
+LFDK,Soulac Sur Mer Airfield,45.494999,-1.08222,7,FR,small_airport
+LFDL,Loudun Airfield,47.035941,0.100619,315,FR,small_airport
+LFDM,Marmande – Virazeil Airfield,44.499049,0.200511,110,FR,small_airport
+LFDN,Rochefort-Saint-Agnant (BA 721) Airport,45.887798,-0.983056,60,FR,medium_airport
+LFDP,St Pierre d'Oléron Airfield,45.959202,-1.31611,20,FR,small_airport
+LFDQ,Castelnau Magnoac Airfield,43.2794,0.521667,992,FR,small_airport
+LFDR,La Réole Floudes Airfield,44.5681,-0.056111,43,FR,small_airport
+LFDS,Sarlat Domme Airfield,44.791707,1.247068,978,FR,small_airport
+LFDT,Aérodrome de Tarbes Laloubère,43.215269,0.077304,1076,FR,small_airport
+LFDU,Lesparre St Laurent Medoc Airfield,45.1978,-0.882222,105,FR,small_airport
+LFDV,Couhé Vérac Airfield,46.2728,0.190556,499,FR,small_airport
+LFDW,Chauvigny Airfield,46.583599,0.6425,440,FR,small_airport
+LFDX,Fumel Montayral Airfield,44.460921,1.006708,692,FR,small_airport
+LFDY,Bordeaux Yvrac Airfield,44.876049,-0.480416,240,FR,small_airport
+LFEA,Aérodrome de Belle Île,47.325256,-3.201255,171,FR,small_airport
+LFEB,Dinan-Trélivan Airfield,48.443351,-2.103142,394,FR,small_airport
+LFEC,Ouessant Airport,48.4632,-5.06358,142,FR,small_airport
+LFED,Pontivy Airfield,48.05674,-2.920818,407,FR,small_airport
+LFEF,Amboise Dierre Airfield,47.339771,0.945861,180,FR,small_airport
+LFEG,Argenton-sur-Creuse Airfield,46.59626,1.601572,663,FR,small_airport
+LFEH,Aubigny-sur-Nère Airfield,47.47993,2.393271,630,FR,small_airport
+LFEI,Briare Châtillon Airfield,47.614399,2.78194,539,FR,small_airport
+LFEJ,Châteauroux Villers Airfield,46.840863,1.619951,541,FR,small_airport
+LFEK,Issoudun Le Fay Airfield,46.887981,2.039903,531,FR,small_airport
+LFEL,Le Blanc Airfield,46.6208,1.0875,377,FR,small_airport
+LFEM,Montargis Vimory Airfield,47.960602,2.68583,308,FR,small_airport
+LFEN,Tours Sorigny Airfield,47.266071,0.698691,299,FR,small_airport
+LFEP,Pouilly-Maconge Airfield,47.221401,4.56111,1411,FR,small_airport
+LFEQ,Quiberon Airfield,47.482201,-3.1,37,FR,small_airport
+LFER,Redon Bains-sur-Oust Airfield,47.699402,-2.03667,223,FR,small_airport
+LFES,Guiscriff Scaer Airfield,48.052502,-3.66472,574,FR,small_airport
+LFET,Til Châtel Airfield,47.546293,5.210438,938,FR,small_airport
+LFEU,Bar-le-Duc Airfield,48.867519,5.185068,909,FR,small_airport
+LFEV,Gray Saint-Adrien Airfield,47.431659,5.61775,679,FR,small_airport
+LFEW,Saulieu-Liernais Airfield,47.239263,4.265928,1722,FR,small_airport
+LFEX,Nancy Azelot Airfield,48.59347,6.241035,961,FR,small_airport
+LFEY,Île d'Yeu Airport,46.717641,-2.392544,79,FR,small_airport
+LFEZ,Nancy-Malzéville Airfield,48.7244,6.20778,1253,FR,small_airport
+LFFB,Buno-Bonnevaux Airfield,48.350074,2.424431,420,FR,small_airport
+LFFC,Mantes-Chérence Airfield,49.078814,1.68829,512,FR,small_airport
+LFFD,Saint-André-de-l'Eure Airfield,48.897669,1.250839,489,FR,small_airport
+LFFE,Enghien-Moisselles Airfield,49.046016,2.353976,335,FR,small_airport
+LFFG,La Ferté-Gaucher Airfield,48.757019,3.278098,538,FR,small_airport
+LFFH,Château-Thierry-Belleau Airfield,49.066753,3.355465,728,FR,small_airport
+LFFI,Ancenis Airfield,47.4081,-1.1775,111,FR,small_airport
+LFFJ,Joinville Mussey Airfield,48.385086,5.143468,1024,FR,small_airport
+LFFK,Fontenay Le Comte Airfield,46.441399,-0.792778,85,FR,small_airport
+LFFL,Bailleau Armenonville Airfield,48.5158,1.64,509,FR,small_airport
+LFFN,Brienne-le-Château Airfield,48.430396,4.472487,381,FR,small_airport
+LFFO,Beauvoir Fromentine Airfield,46.890422,-2.088475,10,FR,small_airport
+LFFP,Pithiviers Airfield,48.155176,2.187563,384,FR,small_airport
+LFFQ,Cerny-La Ferté Alais Airfield,48.498571,2.336891,453,FR,small_airport
+LFFR,Bar-sur-Seine Airfield,48.065907,4.412368,938,FR,small_airport
+LFFT,Neufchâteau Airfield,48.35895,5.719615,1224,FR,small_airport
+LFFU,Châteauneuf Sur Cher Airfield,46.871101,2.37694,551,FR,small_airport
+LFFV,Vierzon-Méreau Airfield,47.194052,2.065412,430,FR,small_airport
+LFFW,Montaigu St Georges Airfield,46.933102,-1.32556,184,FR,small_airport
+LFFX,Tournus Cuisery Airfield,46.56206,4.975629,689,FR,small_airport
+LFFY,Étrépagny Airfield,49.305273,1.637907,308,FR,small_airport
+LFFZ,Sézanne-Saint-Remy Airfield,48.70957,3.763304,354,FR,small_airport
+LFGA,Colmar Houssen airport,48.109901,7.35901,628,FR,medium_airport
+LFGB,Mulhouse-Habsheim Airfield,47.741299,7.43221,788,FR,small_airport
+LFGC,Strasbourg Neuhof Airfield,48.553263,7.776604,456,FR,small_airport
+LFGE,Avallon Airfield,47.50377,3.901034,781,FR,small_airport
+LFGF,Beaune-Challanges Airfield,47.005901,4.89342,656,FR,small_airport
+LFGG,Belfort Chaux Airfield,47.700732,6.831265,1368,FR,small_airport
+LFGH,Cosne-sur-Loire Airfield,47.36092,2.915862,581,FR,small_airport
+LFGI,Dijon Darois Airfield,47.385278,4.946944,1586,FR,small_airport
+LFGJ,Dole Tavaux Airport,47.038955,5.427589,645,FR,medium_airport
+LFGK,Joigny Airfield,47.994462,3.392715,732,FR,small_airport
+LFGL,Lons-le-Saunier Courlaoux Airfield,46.675046,5.46911,761,FR,small_airport
+LFGM,Montceau-les-Mines Pouilloux Airfield,46.60318,4.338162,1030,FR,small_airport
+LFGN,Paray-le-Monial Airfield,46.465798,4.13454,997,FR,small_airport
+LFGO,Pont-sur-Yonne Airfield,48.291587,3.245745,236,FR,small_airport
+LFGP,Saint-Florentin - Chéu Airfield,47.98019,3.775583,351,FR,small_airport
+LFGQ,Semur-en-Auxois Airfield,47.480998,4.342976,1053,FR,small_airport
+LFGR,Doncourt-lès-Conflans Airfield,49.152165,5.933447,804,FR,small_airport
+LFGS,Longuyon Villette Airfield,49.483617,5.571939,1148,FR,small_airport
+LFGT,Sarrebourg Buhl Airfield,48.716875,7.074316,873,FR,small_airport
+LFGU,Sarreguemines Neunkirch Airfield,49.128101,7.10833,853,FR,small_airport
+LFGW,Verdun-Le Rozelier Airfield,49.122398,5.46905,1230,FR,medium_airport
+LFGX,Champagnole-Crotenay Airfield,46.763032,5.819664,1745,FR,small_airport
+LFGY,Saint-Dié-Remomeix Airfield,48.266475,7.007447,1184,FR,small_airport
+LFGZ,Nuits-Saint-Georges Airfield,47.142032,4.968538,797,FR,small_airport
+LFHA,Issoire-Le Broc Airfield,45.514999,3.2675,1240,FR,small_airport
+LFHC,Aérodrome de Pérouges - Meximieux,45.869701,5.18722,702,FR,small_airport
+LFHD,Pierrelatte Airfield,44.397601,4.717646,197,FR,small_airport
+LFHE,Aérodrome de Romans - Saint-Paul,45.066101,5.10333,594,FR,small_airport
+LFHF,Ruoms Airfield,44.444611,4.332755,361,FR,small_airport
+LFHG,Saint-Chamond L'Horme Airfield,45.491892,4.534375,1296,FR,small_airport
+LFHH,Vienne Reventin Airfield,45.462434,4.828147,719,FR,small_airport
+LFHI,Morestel Airfield,45.686905,5.452244,804,FR,small_airport
+LFHJ,Lyon Corbas Airfield,45.654202,4.91361,650,FR,small_airport
+LFHL,Langogne-Lespéron Airfield,44.703589,3.88485,3339,FR,small_airport
+LFHM,Megève Altiport,45.823005,6.649406,4823,FR,small_airport
+LFHN,Bellegarde-Vouvray Airfield,46.123336,5.804858,1624,FR,small_airport
+LFHO,Aubenas-South Ardèche Airport,44.544367,4.372194,923,FR,medium_airport
+LFHP,Le Puy-Loudes Airfield,45.0807,3.76289,2731,FR,small_airport
+LFHQ,Saint-Flour-Coltines Airfield,45.076401,2.99361,3218,FR,small_airport
+LFHR,Brioude Beaumont Airfield,45.319888,3.361615,1483,FR,small_airport
+LFHS,Bourg-Ceyzériat Airfield,46.200901,5.29203,857,FR,small_airport
+LFHT,Ambert - Le Poyet Airfield,45.516196,3.74514,1847,FR,small_airport
+LFHU,L'Alpe d'Huez - Henri Giraud Altiport,45.087399,6.083604,6102,FR,small_airport
+LFHV,Villefranche-Tarare Airfield,45.918314,4.635184,1076,FR,small_airport
+LFHW,Belleville Villié Morgon Airfield,46.140843,4.713817,705,FR,small_airport
+LFHX,Lapalisse - Périgny Airfield,46.253899,3.58861,1040,FR,small_airport
+LFHY,Moulins-Montbeugny Airfield,46.534599,3.42372,915,FR,small_airport
+LFIB,Aérodrome de Belvès Saint-Pardoux,44.782501,0.958889,791,FR,small_airport
+LFID,Aérodrome de Condom - Valence-sur-Baïse,43.910301,0.387222,444,FR,small_airport
+LFIF,Saint-Affrique-Belmont Airfield,43.824568,2.743979,1686,FR,small_airport
+LFIG,Cassagnes-Bégonhès Airfield,44.177799,2.515,2024,FR,small_airport
+LFIH,Chalais Airfield,45.268101,0.016944,285,FR,small_airport
+LFIK,Aérodrome de Ribérac-Tourette,45.238667,0.264798,351,FR,small_airport
+LFIL,Rion Des Landes Airfield,43.915798,-0.949167,256,FR,small_airport
+LFIM,Saint Gaudens Montréjeau Airfield,43.107425,0.619132,1325,FR,small_airport
+LFIP,Altiport de Peyresourde Balestas,42.796723,0.436503,5190,FR,small_airport
+LFIR,Revel Montgey Airfield,43.4814,1.98,643,FR,small_airport
+LFIS,Saint-Inglevert Aerodrome,50.882608,1.735757,443,FR,small_airport
+LFIT,Aérodrome de Toulouse Bourg-Saint-Bernard,43.612202,1.72528,525,FR,small_airport
+LFIV,Aérodrome de Vendays-Montalivet,45.3806,-1.11583,16,FR,small_airport
+LFIX,Itxassou Airfield,43.337502,-1.42222,607,FR,small_airport
+LFIY,St Jean d'Angély Airfield,45.964993,-0.523374,246,FR,small_airport
+LFJA,Chaumont-Semoutiers Airfield,48.080719,5.047703,1001,FR,small_airport
+LFJB,Mauléon Airfield,46.902802,-0.697778,576,FR,small_airport
+LFJC,Clamecy-Rix Airfield,47.437597,3.507422,713,FR,small_airport
+LFJD,Corlier Altiport,46.040531,5.494537,2762,FR,small_airport
+LFJE,Altiport de La Motte Chalancon,44.4958,5.40285,2887,FR,small_airport
+LFJF,Aérodrome d'Aubenasson,44.6945,5.15111,810,FR,small_airport
+LFJH,Aérodrome de Cazères - Palaminy,43.202202,1.05111,811,FR,small_airport
+LFJI,Aérodrome de Marennes - Le Bournet,45.825001,-1.07667,16,FR,small_airport
+LFJL,Metz-Nancy-Lorraine Airport,48.982101,6.25132,870,FR,medium_airport
+LFJR,Angers Marcé airport,47.560299,-0.312222,194,FR,medium_airport
+LFJS,Soissons-Courmelles Airfield,49.344978,3.282681,509,FR,small_airport
+LFJT,Tours Le Louroux Airfield,47.149251,0.711125,413,FR,small_airport
+LFJU,Lurcy-Lévis Airfield,46.712283,2.944768,746,FR,small_airport
+LFJV,Aérodrome de Lasclaveries,43.425278,-0.286944,843,FR,small_airport
+LFJY,Chambley airfield,49.025501,5.87607,866,FR,small_airport
+LFKA,Albertville General Pierre Delachenal Airfield,45.626044,6.328125,1033,FR,small_airport
+LFKB,Bastia-Poretta International airport,42.5527,9.48373,26,FR,large_airport
+LFKC,Calvi Sainte Catherine Airport,42.530422,8.792984,209,FR,medium_airport
+LFKD,Sollières Sardières Airfield,45.253804,6.801138,4255,FR,small_airport
+LFKE,Saint-Jean-en-Royans Airfield,45.027802,5.31,866,FR,small_airport
+LFKF,Figari Sud-Corse Airport,41.50185,9.097092,85,FR,large_airport
+LFKG,Aérodrome de Ghisonaccia - Alzitone,42.053387,9.400241,177,FR,small_airport
+LFKH,St Jean D'avelanne Airfield,45.516701,5.68056,964,FR,small_airport
+LFKJ,Ajaccio Napoléon Bonaparte airport,41.923599,8.80292,18,FR,medium_airport
+LFKL,Lyon Brindas Airfield,45.710544,4.696675,1040,FR,small_airport
+LFKM,St Galmier Airfield,45.607201,4.30583,1266,FR,small_airport
+LFKO,Propriano Airport,41.660599,8.88975,13,FR,small_airport
+LFKP,La Tour-de-Pin Airfield,45.554924,5.385867,1050,FR,small_airport
+LFKS,Solenzara (BA 126) Air Base,41.9244,9.406,28,FR,medium_airport
+LFKT,Aérodrome de Corte,42.2919,9.189,1132,FR,small_airport
+LFKX,Méribel Altiport,45.407505,6.577597,5636,FR,small_airport
+LFKY,Belley-Peyrieu Airfield,45.694121,5.691533,739,FR,small_airport
+LFLA,Auxerre Branches airport,47.850201,3.49711,523,FR,medium_airport
+LFLB,Chambéry Aix les Bains airport,45.6381,5.88023,779,FR,medium_airport
+LFLC,Clermont-Ferrand Auvergne airport,45.786701,3.16917,1090,FR,large_airport
+LFLD,Bourges airport,47.060158,2.369633,529,FR,medium_airport
+LFLE,Chambéry Challes-les-Eaux Airfield,45.5611,5.97576,973,FR,small_airport
+LFLG,Grenoble Le Versoud Airfield,45.218047,5.848317,722,FR,small_airport
+LFLH,Chalon Champforgeuil Airfield,46.825813,4.817646,623,FR,small_airport
+LFLI,Annemasse Airfield,46.192001,6.26839,1620,FR,medium_airport
+LFLJ,Courchevel Altiport,45.397531,6.63498,6583,FR,small_airport
+LFLL,Lyon Saint-Exupéry Airport,45.725996,5.090139,821,FR,large_airport
+LFLM,Mâcon-Charnay Airfield,46.295131,4.795977,728,FR,medium_airport
+LFLN,Saint-Yan Airport,46.414019,4.014177,796,FR,medium_airport
+LFLO,Roanne-Renaison Airport,46.053818,3.999023,1106,FR,medium_airport
+LFLP,Annecy Meythet airport,45.928947,6.0987,1521,FR,medium_airport
+LFLQ,Montélimar-Ancône Airfield,44.579883,4.738789,240,FR,small_airport
+LFLR,Saint-Rambert-d'Albon Airfield,45.251531,4.826403,509,FR,small_airport
+LFLS,Grenoble Alpes Isère Airport,45.3629,5.32937,1302,FR,medium_airport
+LFLT,Montluçon-Domérat Airfield,46.352767,2.570479,771,FR,small_airport
+LFLU,Valence-Chabeuil Airport,44.9216,4.9699,525,FR,medium_airport
+LFLV,Vichy-Charmeil Airport,46.16969,3.403637,817,FR,medium_airport
+LFLW,Aurillac airport,44.891399,2.42194,2096,FR,medium_airport
+LFLX,Châteauroux Déols airport,46.860221,1.728326,529,FR,medium_airport
+LFLY,Lyon Bron Airport,45.727947,4.943991,659,FR,medium_airport
+LFLZ,Aérodrome de Feurs - Chambéon,45.70622,4.19734,1096,FR,small_airport
+LFMA,Aix Les Milles airport,43.506294,5.366426,367,FR,small_airport
+LFMC,Le Luc-Le Cannet Airfield,43.384701,6.38714,265,FR,medium_airport
+LFMD,Cannes Mandelieu Airport,43.547998,6.955176,13,FR,medium_airport
+LFME,Nîmes Courbessac Airfield,43.853901,4.41361,197,FR,small_airport
+LFMF,Fayence-Tourrettes Airfield,43.609576,6.697369,741,FR,small_airport
+LFMG,Aérodrome de la Montagne Noire,43.407501,1.99028,1470,FR,small_airport
+LFMH,Saint-Étienne-Bouthéon Airport,45.5406,4.29639,1325,FR,medium_airport
+LFMI,Istres-Le Tubé Air Base,43.522701,4.92384,82,FR,medium_airport
+LFMK,Carcassonne Salvaza Airport,43.216,2.30632,433,FR,medium_airport
+LFML,Marseille Provence Airport,43.438088,5.2125,74,FR,large_airport
+LFMN,Nice-Côte d'Azur Airport,43.658401,7.21587,12,FR,large_airport
+LFMO,Orange-Caritat (BA 115) Air Base,44.140499,4.86672,197,FR,medium_airport
+LFMP,Perpignan-Rivesaltes (Llabanère) Airport,42.740398,2.87067,144,FR,medium_airport
+LFMQ,Le Castellet Airport,43.252499,5.78519,1391,FR,medium_airport
+LFMR,Barcelonnette - Saint-Pons Airfield,44.387198,6.608831,3714,FR,small_airport
+LFMS,Aérodrome d'Alès Cévennes,44.069698,4.14212,668,FR,medium_airport
+LFMT,Montpellier-Méditerranée Airport,43.576199,3.96301,17,FR,large_airport
+LFMU,Béziers Vias airport,43.323502,3.3539,56,FR,medium_airport
+LFMV,Avignon Caumont airport,43.907299,4.90183,124,FR,medium_airport
+LFMW,Aérodrome de Castelnaudary-Villeneuve,43.312199,1.92111,551,FR,small_airport
+LFMX,Château-Arnoux-Saint-Auban Airfield,44.060001,5.99139,1509,FR,small_airport
+LFMY,Salon-de-Provence (BA 701) Air Base,43.6064,5.10925,195,FR,medium_airport
+LFMZ,Lézignan-Corbières Airfield,43.1758,2.73417,207,FR,small_airport
+LFNA,Gap-Tallard Airfield,44.455002,6.03778,1986,FR,small_airport
+LFNB,Mende-Brenoux Airfield,44.502102,3.53282,3362,FR,medium_airport
+LFNC,Mont-Dauphin Saint-Crépin Airfield,44.701698,6.60028,2963,FR,small_airport
+LFNE,Aérodrome d'Eyguières,43.658298,5.01361,246,FR,small_airport
+LFNF,Vinon Airfield,43.737801,5.78417,902,FR,small_airport
+LFNG,Aérodrome de Montpellier - Candillargues,43.610298,4.07028,5,FR,small_airport
+LFNH,Edgar Soumille Airfield,44.027689,5.084255,394,FR,small_airport
+LFNJ,Aspres-sur-Buëch Airfield,44.517458,5.735743,2726,FR,small_airport
+LFNL,Aérodrome de Saint-Martin-de-Londres,43.8008,3.7825,597,FR,small_airport
+LFNO,Florac Ste Enimie Airfield,44.2864,3.46667,3054,FR,small_airport
+LFNQ,Mont Louis La Quillane Airfield,42.543598,2.12,5610,FR,small_airport
+LFNR,Berre-la-Fare Airfield,43.536659,5.177444,108,FR,small_airport
+LFNS,Sistéron-Vaumeilh Airfield,44.286471,5.929086,1772,FR,small_airport
+LFNT,Avignon-Pujaut Airfield,43.996899,4.75556,148,FR,small_airport
+LFNU,Uzès-Belvezet Airfield,44.082146,4.393926,886,FR,small_airport
+LFNV,Valréas Visan Airfield,44.33574,4.906877,472,FR,small_airport
+LFNW,Puivert Airfield,42.9114,2.05611,1608,FR,small_airport
+LFNX,Bédarieux La Tour Airfield,43.6408,3.14556,1237,FR,small_airport
+LFNZ,Le Mazet De Romanin Airfield,43.768902,4.89361,387,FR,small_airport
+LFOA,Avord (BA 702) Air Base,47.053299,2.6325,580,FR,medium_airport
+LFOB,Beauvais-Tillé airport,49.454399,2.11278,359,FR,large_airport
+LFOC,Châteaudun Airfield,48.057907,1.379309,433,FR,medium_airport
+LFOD,Aérodrome de Saumur - Saint-Florent,47.256802,-0.115142,269,FR,small_airport
+LFOE,Évreux-Fauville (BA 105) Air Base,49.028702,1.21986,464,FR,medium_airport
+LFOF,Alençon-Valframbert Airfield,48.446568,0.107996,479,FR,small_airport
+LFOG,Aérodrome de Flers Saint-Paul,48.749964,-0.593927,656,FR,small_airport
+LFOH,Le Havre-Octeville Airport,49.534038,0.088406,313,FR,medium_airport
+LFOI,Abbeville-Buigny Baie de Somme Airfield,50.143501,1.831891,220,FR,medium_airport
+LFOJ,Orléans-Bricy (BA 123) Air Base,47.987801,1.76056,412,FR,medium_airport
+LFOK,Chalons Vatry airport,48.77333,4.20611,587,FR,medium_airport
+LFOL,L'Aigle-Saint-Michel Airfield,48.758502,0.656632,787,FR,small_airport
+LFOM,Lessay Airfield,49.202276,-1.507983,92,FR,small_airport
+LFON,Dreux Vernouillet Airfield,48.70543,1.361155,443,FR,small_airport
+LFOO,Les Sables-d'Olonne Talmont Airport,46.476898,-1.72278,105,FR,small_airport
+LFOP,Rouen Vallée de Seine Airport,49.384887,1.179142,512,FR,medium_airport
+LFOQ,Blois Le Breuil Airfield,47.678502,1.20884,398,FR,small_airport
+LFOR,Chartres-Métropole Airfield,48.457502,1.519843,509,FR,small_airport
+LFOS,Saint-Valery-Vittefleur Airfield,49.83516,0.655281,272,FR,small_airport
+LFOT,Tours Val de Loire Airport,47.432201,0.727606,357,FR,medium_airport
+LFOU,Cholet Le Pontreau airfield,47.0821,-0.877064,443,FR,small_airport
+LFOV,Laval-Entrammes Airport,48.032208,-0.743999,330,FR,medium_airport
+LFOW,Saint-Quentin-Roupy Airfield,49.816089,3.205734,325,FR,small_airport
+LFOX,Étampes-Mondésir Airfield,48.381901,2.07528,494,FR,small_airport
+LFOY,Havre-Saint-Romain-de-Colbosc Airfield,49.544676,0.360403,423,FR,small_airport
+LFOZ,Orléans–Saint-Denis-de-l'Hôtel Airport,47.897758,2.164478,396,FR,small_airport
+LFPA,Persan-Beaumont Airfield,49.165798,2.31306,148,FR,small_airport
+LFPB,Paris-Le Bourget International Airport,48.962276,2.436539,218,FR,large_airport
+LFPC,Creil Air Base,49.253502,2.51914,291,FR,medium_airport
+LFPD,Bernay-Saint-Martin Airfield,49.102351,0.565882,554,FR,small_airport
+LFPE,Meaux-Esbly Airfield,48.927462,2.833457,217,FR,small_airport
+LFPF,Beynes Thiverval Airfield,48.843165,1.906279,371,FR,small_airport
+LFPG,Charles de Gaulle International Airport,49.00896,2.554117,392,FR,large_airport
+LFPH,Chelles-le-Pin Airfield,48.896568,2.606206,207,FR,small_airport
+LFPK,Coulommiers-Voisins Aerodrome,48.839602,3.008653,470,FR,small_airport
+LFPL,Lognes Emerainville Airfield,48.821028,2.625967,359,FR,small_airport
+LFPM,Melun-Villaroche Airfield,48.604698,2.67112,302,FR,medium_airport
+LFPN,Toussus-le-Noble Airport,48.7519,2.10619,538,FR,medium_airport
+LFPO,Paris-Orly Airport,48.729499,2.358963,291,FR,large_airport
+LFPP,Le Plessis-Belleville Airfield,49.108837,2.736138,387,FR,small_airport
+LFPQ,Fontenay-Trésigny Aerodrome,48.706276,2.902849,371,FR,small_airport
+LFPT,Pontoise-Cormeilles Aerodrome,49.096064,2.035543,325,FR,medium_airport
+LFPU,Moret-Episy Airfield,48.34119,2.798517,253,FR,small_airport
+LFPV,Vélizy-Villacoublay Air Base,48.774406,2.203102,584,FR,medium_airport
+LFPX,Chavenay-Villepreux Airfield,48.842323,1.9805,426,FR,small_airport
+LFPZ,Saint-Cyr-l'École Airport,48.812459,2.067533,373,FR,small_airport
+LFQA,Reims-Prunay Airfield,49.208698,4.15658,313,FR,small_airport
+LFQB,Troyes-Barberey Airport,48.322102,4.0167,388,FR,medium_airport
+LFQC,Lunéville-Croismare Airfield,48.593262,6.545419,790,FR,small_airport
+LFQD,Arras-Roclincourt Airfield,50.323898,2.80278,338,FR,small_airport
+LFQE,Lieutenant Étienne Mantoux Air Base,49.226898,5.67222,770,FR,medium_airport
+LFQF,Autun-Bellevue Airfield,46.967277,4.260925,997,FR,small_airport
+LFQG,Nevers-Fourchambault Airport,47.002913,3.113114,602,FR,medium_airport
+LFQH,Châtillon-sur-Seine Airfield,47.843924,4.580045,905,FR,small_airport
+LFQJ,Maubeuge-Élesmes Airfield,50.310501,4.03312,452,FR,small_airport
+LFQK,Châlons - Écury-sur-Coole Airfield,48.905107,4.352703,319,FR,small_airport
+LFQL,Lens-Bénifontaine Airfield,50.4664,2.81972,167,FR,small_airport
+LFQM,Besançon La Vèze Airfield,47.206615,6.083168,1271,FR,small_airport
+LFQN,Saint-Omer Wizernes Airfield,50.727456,2.232586,249,FR,small_airport
+LFQO,Marcq-en-Baroeul Airfield,50.687199,3.07556,69,FR,small_airport
+LFQP,Phalsbourg-Bourscheid Air Base,48.766203,7.200551,1017,FR,medium_airport
+LFQQ,Lille Airport,50.566564,3.102429,157,FR,large_airport
+LFQS,Vitry-en-Artois Airfield,50.337883,2.990714,174,FR,small_airport
+LFQT,Merville-Calonne Airport,50.618401,2.64224,61,FR,medium_airport
+LFQU,Sarre-Union Airfield,48.950944,7.078468,837,FR,small_airport
+LFQV,Charleville-Mézières Ardennes-Etienne Riché Airfield,49.783901,4.64708,492,FR,medium_airport
+LFQW,Vesoul-Frotey Airfield,47.638588,6.204443,1249,FR,medium_airport
+LFQX,Juvancourt Aerodrome,48.113977,4.819424,1145,FR,small_airport
+LFQY,Saverne Steinbourg Airfield,48.753392,7.425402,630,FR,small_airport
+LFQZ,Dieuze-Guéblange Airfield,48.774378,6.714106,722,FR,small_airport
+LFRB,Brest Bretagne airport,48.447899,-4.41854,325,FR,large_airport
+LFRC,Cherbourg Manche airport,49.650101,-1.47028,459,FR,medium_airport
+LFRD,Dinard Pleurtuit Saint-Malo airport,48.5877,-2.07996,219,FR,medium_airport
+LFRE,La Baule-Escoublac Airport,47.289398,-2.34639,105,FR,medium_airport
+LFRF,Granville Airport,48.883099,-1.56417,45,FR,medium_airport
+LFRG,Deauville Normandie airport,49.365237,0.154481,479,FR,medium_airport
+LFRH,Lorient South Brittany (Bretagne Sud) Airport,47.760601,-3.44,160,FR,medium_airport
+LFRI,La Roche-sur-Yon Les Ajoncs Airport,46.7019,-1.37863,299,FR,medium_airport
+LFRJ,Landivisiau Air Base,48.5303,-4.15164,348,FR,medium_airport
+LFRK,Caen Carpiquet airport,49.17678,-0.454883,256,FR,medium_airport
+LFRL,Lanvéoc-Poulmic Air Base,48.2817,-4.44502,287,FR,medium_airport
+LFRM,Le Mans-Arnage Airport,47.948604,0.201702,194,FR,medium_airport
+LFRN,Rennes-Saint-Jacques Airport,48.0695,-1.73479,124,FR,medium_airport
+LFRO,Lannion Airport,48.754398,-3.47166,290,FR,medium_airport
+LFRP,Ploërmel Loyat Airfield,48.0028,-2.37722,236,FR,small_airport
+LFRQ,Quimper-Cornouaille Airport,47.973031,-4.169655,297,FR,medium_airport
+LFRS,Nantes Atlantique Airport,47.153198,-1.61073,90,FR,medium_airport
+LFRT,Saint-Brieuc-Armor Airport,48.538628,-2.853518,453,FR,medium_airport
+LFRU,Morlaix-Ploujean Airport,48.6031990051,-3.81577992439,272,FR,medium_airport
+LFRV,Vannes-Meucon Airport,47.723301,-2.71856,446,FR,medium_airport
+LFRW,Avranches Le Val-Saint-Père Airfield,48.662255,-1.403685,26,FR,small_airport
+LFRZ,Saint-Nazaire-Montoir Airport,47.31142,-2.152634,13,FR,medium_airport
+LFSA,Besançon-Thise Airfield,47.273144,6.082885,807,FR,small_airport
+LFSB,EuroAirport Basel–Mulhouse–Freiburg,47.60068,7.521117,885,FR,large_airport
+LFSD,Dijon Longvic airport,47.268902,5.09,726,FR,medium_airport
+LFSE,Épinal Dogneville Airfield,48.211899,6.44917,1040,FR,small_airport
+LFSG,Épinal Mirecourt Airport,48.325001,6.06998,1084,FR,medium_airport
+LFSH,Haguenau Airfield,48.794821,7.816129,491,FR,small_airport
+LFSI,Saint-Dizier – Robinson Air Base,48.636002,4.89942,458,FR,medium_airport
+LFSJ,Sédan Douzy Airfield,49.659698,5.03778,512,FR,small_airport
+LFSK,Vitry-le-François Vauclerc Airfield,48.702367,4.683109,410,FR,small_airport
+LFSL,Brive Souillac airport,45.039722,1.485556,1016,FR,medium_airport
+LFSM,Montbéliard-Courcelles Airfield,47.487,6.79054,1041,FR,medium_airport
+LFSN,Nancy-Essey Airport,48.692101,6.23046,751,FR,medium_airport
+LFSO,Nancy-Ochey (BA 133) Air Base,48.583099,5.955,1106,FR,medium_airport
+LFSP,Pontarlier Airfield,46.904032,6.326826,2683,FR,small_airport
+LFSS,Saint Sulpice des Landes,47.791667,-1.643611,312,FR,small_airport
+LFST,Strasbourg Airport,48.5383,7.62823,505,FR,large_airport
+LFSU,Langres-Rolampont Airfield,47.964804,5.293663,1378,FR,small_airport
+LFSV,Pont-Saint-Vincent Airfield,48.600127,6.056514,1339,FR,small_airport
+LFSW,Épernay Plivot Airfield,49.004461,4.085342,289,FR,small_airport
+LFSX,Luxeuil-Saint-Sauveur (BA 116) Air Base,47.787747,6.353419,913,FR,medium_airport
+LFSY,Cessey-Baigneux-les-Juffs Airfield,47.609375,4.618199,1316,FR,small_airport
+LFTF,Cuers-Pierrefeu Airfield,43.247615,6.126654,266,FR,small_airport
+LFTH,Toulon-Hyères Airport,43.097301,6.14603,7,FR,medium_airport
+LFTM,Serres - La Bâtie-Montsaléon Airfield,44.458302,5.72833,2345,FR,small_airport
+LFTN,La Grand'combe Airfield,44.2444,4.01222,1647,FR,small_airport
+LFTP,Puimoisson Airfield,43.86889,6.16278,2523,FR,small_airport
+LFTQ,Châteaubriant Pouancé Airfield,47.739562,-1.189519,322,FR,small_airport
+LFTW,Nîmes-Arles-Camargue Airport,43.757401,4.41635,309,FR,medium_airport
+LFTZ,La Môle Airport,43.205399,6.482,59,FR,small_airport
+LFVM,Miquelon Airport,47.095501,-56.380299,10,PM,small_airport
+LFVP,Saint-Pierre Pointe-Blanche Airport,46.762651,-56.17499,27,PM,medium_airport
+LFXA,Ambérieu Air Base (BA 278),45.987301,5.32844,823,FR,medium_airport
+LFXB,Saintes Thénac Airfield,45.7019,-0.636111,118,FR,small_airport
+LFXQ,Coëtquidan Air Base,47.943056,-2.185872,499,FR,small_airport
+LFXU,Les Mureaux Airfield,48.998299,1.94278,89,FR,small_airport
+LFYG,Cambrai Niergnies Airfield,50.140533,3.263226,312,FR,small_airport
+LFYR,Romorantin Pruniers Airbase,47.317543,1.691036,289,FR,small_airport
+LFYS,Ste Léocadie Airfield,42.447201,2.01083,4331,FR,small_airport
+LFYV,Yvetot Lucien Camu Airfield,49.638316,0.728467,463,FR,small_airport
+LIAA,"Aviosuperficie ""Alvaro Leonardi""",42.573333,12.584444,374,IT,small_airport
+LIAF,Foligno Airfield,42.9328,12.71237,730,IT,small_airport
+LIAL,Sant'Illuminato Airfield,43.354901,12.21807,984,IT,small_airport
+LIAP,L'Aquila–Preturo Airport,42.379902,13.3092,2211,IT,small_airport
+LIAQ,Aquino Airfield,41.491983,13.719342,361,IT,small_airport
+LIAR,Furbara Air Base,41.994141,12.013544,21,IT,small_airport
+LIAT,Valdera Airfield,43.592164,10.696294,39,IT,small_airport
+LIAU,Capua Airport,41.116001,14.178,64,IT,small_airport
+LIBA,Amendola Air Base,41.538443,15.717181,183,IT,medium_airport
+LIBC,Crotone Sant'Anna Pythagoras Airport,38.9972,17.0802,522,IT,medium_airport
+LIBD,Bari Karol Wojtyła International Airport,41.138901,16.760599,193,IT,large_airport
+LIBF,Foggia Gino Lisa Airport,41.433596,15.534566,265,IT,medium_airport
+LIBG,Taranto-Grottaglie Marcello Arlotta Airport,40.517502,17.4032,215,IT,medium_airport
+LIBN,Lecce Galatina Air Base / Galatina Fortunato Cesari Airport,40.239201,18.133301,156,IT,medium_airport
+LIBP,Abruzzo Airport,42.431079,14.182981,48,IT,large_airport
+LIBR,Brindisi Airport,40.6576,17.947001,47,IT,large_airport
+LIBV,Gioia del Colle Antonio Ramirez Air Base,40.767799,16.9333,1187,IT,medium_airport
+LICA,Lamezia Terme Sant'Eufemia International Airport,38.906214,16.246007,39,IT,large_airport
+LICB,Comiso Airport,36.99583,14.60889,756,IT,medium_airport
+LICC,Catania-Fontanarossa Airport,37.466801,15.0664,39,IT,large_airport
+LICD,Lampedusa Airport,35.497898,12.6181,70,IT,medium_airport
+LICG,Pantelleria Airport,36.816502,11.9689,628,IT,medium_airport
+LICJ,Falcone–Borsellino Airport,38.175999,13.091,65,IT,large_airport
+LICP,Palermo-Boccadifalco Airport,38.115919,13.31337,345,IT,medium_airport
+LICR,Reggio Calabria Airport,38.071201,15.6516,96,IT,medium_airport
+LICT,Vincenzo Florio Airport Trapani-Birgi,37.9114,12.488,25,IT,medium_airport
+LICZ,Sigonella Navy Air Base,37.401699,14.9224,79,IT,medium_airport
+LIDA,Asiago Romeo Sartori Airfield,45.886155,11.515861,3409,IT,small_airport
+LIDB,Belluno Arturo dell'Oro Airport,46.166549,12.250389,1240,IT,small_airport
+LIDC,Cà Negra Private Airstrip,45.08608,12.161455,1,IT,small_airport
+LIDE,Reggio Emilia Airport,44.698039,10.664885,152,IT,small_airport
+LIDF,Fano Airfield,43.824032,13.02588,54,IT,small_airport
+LIDG,Lugo Francesco Baracca Airfield,44.397476,11.854777,62,IT,small_airport
+LIDH,Thiene Arturo Ferrarin Airfield,45.67783,11.496306,335,IT,small_airport
+LIDL,Legnago Airfield,45.130116,11.293218,30,IT,small_airport
+LIDP,Pavullo Airfield,44.322222,10.831667,2244,IT,small_airport
+LIDR,Ravenna Airport,44.364291,12.224996,1,IT,small_airport
+LIDT,Trento-Mattarello Airport,46.023333,11.125,610,IT,medium_airport
+LIDU,Carpi-Budrione Airfield,44.833231,10.871186,69,IT,small_airport
+LIDV,Prati Vecchi d'Aguscello Airfield,44.790884,11.671901,20,IT,small_airport
+LIDW,Luciano Narder Airfield,45.6992,12.5431,7,IT,small_airport
+LIEA,Alghero-Fertilia Airport,40.632099,8.29077,87,IT,medium_airport
+LIED,Decimomannu Air Base,39.354198,8.97248,100,IT,medium_airport
+LIEE,Cagliari Elmas Airport,39.251499,9.05428,13,IT,large_airport
+LIEO,Olbia Costa Smeralda Airport,40.898953,9.518457,37,IT,large_airport
+LIER,Oristano-Fenosu Airport,39.895308,8.642661,36,IT,small_airport
+LIET,Tortolì Airport,39.9188,9.68298,23,IT,medium_airport
+LIGT,San Genesio Airfield,46.572786,11.307635,4259,IT,small_airport
+LIKD,Torraccia Airfield,43.948895,12.511411,787,SM,small_airport
+LILA,Alessandria Airfield,44.925635,8.626728,299,IT,small_airport
+LILB,Alzate Brianza Airfield,45.769644,9.162333,1260,IT,small_airport
+LILC,Calcinate del Pesce Airfield,45.8097,8.76806,797,IT,small_airport
+LILE,Biella-Cerrione Airfield,45.4953,8.10278,920,IT,medium_airport
+LILG,Vergiate Airfield,45.712633,8.700714,863,IT,small_airport
+LILH,Voghera-Rivanazzano Airfield,44.952,9.01653,423,IT,small_airport
+LILI,Vercelli Airport,45.311111,8.4175,417,IT,small_airport
+LILM,Casale Monferrato Airfield,45.110039,8.456898,377,IT,small_airport
+LILN,Varese-Venegono Airport,45.742199,8.888233,1100,IT,medium_airport
+LILO,Caiolo Sondrio Airfield,46.154448,9.79507,899,IT,small_airport
+LILQ,Massa Cinquale Municipal Airfield,43.98598,10.143785,13,IT,small_airport
+LILR,Cremona-Migliaro Airfield,45.168261,10.001864,161,IT,small_airport
+LILV,Valbrembo Airfield,45.719864,9.593954,745,IT,small_airport
+LIMA,Torino-Aeritalia Airport,45.084444,7.603056,943,IT,medium_airport
+LIMB,Milano-Bresso Airfield,45.541389,9.202222,484,IT,small_airport
+LIMC,Milan Malpensa International Airport,45.6306,8.72811,768,IT,large_airport
+LIME,Il Caravaggio International Airport,45.669362,9.708851,782,IT,large_airport
+LIMF,Turin Airport,45.200802,7.64963,989,IT,large_airport
+LIMG,Riviera Villanova d'Albenga International Airport,44.050598,8.12743,148,IT,medium_airport
+LIMJ,Genoa Cristoforo Colombo Airport,44.412039,8.840732,13,IT,large_airport
+LIML,Milano Linate Airport,45.445099,9.27674,353,IT,large_airport
+LIMN,Cameri Air Base,45.529598,8.66922,586,IT,medium_airport
+LIMP,Parma Airport,44.826351,10.29705,161,IT,medium_airport
+LIMR,Novi Ligure Eugenio Mossi Airfield,44.779999,8.78639,607,IT,medium_airport
+LIMS,Piacenza San Damiano Air Base,44.91442,9.722318,456,IT,medium_airport
+LIMW,Aosta Corrado Gex Airport,45.738552,7.3683,1791,IT,medium_airport
+LIMZ,Cuneo International Airport,44.547458,7.623045,1267,IT,medium_airport
+LINF,Fermano Airfield,43.226774,13.743299,49,IT,small_airport
+LINL,Lecce-San Cataldo Lepore Airfield,40.358928,18.297958,59,IT,small_airport
+LIPA,Aviano Air Base,46.031898,12.596503,410,IT,medium_airport
+LIPB,Bolzano Airport,46.459245,11.326125,789,IT,medium_airport
+LIPC,Cervia Air Base,44.224201,12.3072,18,IT,medium_airport
+LIPD,Udine-Campoformido Airfield,46.0308,13.18225,305,IT,small_airport
+LIPE,Bologna Guglielmo Marconi Airport,44.5354,11.2887,123,IT,large_airport
+LIPF,Ferrara-San Luca Airfield,44.812328,11.613884,20,IT,small_airport
+LIPG,Gorizia Duca d'Aosta Airfield,45.906898,13.5993,207,IT,small_airport
+LIPH,Treviso Airport,45.648399,12.1944,59,IT,large_airport
+LIPI,Udine-Rivolto Air Base,45.978699,13.0493,179,IT,medium_airport
+LIPK,Forlì-Luigi Ridolfi International Airport,44.194801,12.0701,97,IT,medium_airport
+LIPL,Ghedi Air Base,45.432551,10.268612,333,IT,medium_airport
+LIPM,Modena-Marzaglia Airfield,44.631389,10.808611,184,IT,small_airport
+LIPN,Verona-Boscomantico Airfield,45.472,10.9279,286,IT,small_airport
+LIPO,Brescia Gabriele d'Annunzio Airport,45.428902,10.3306,355,IT,medium_airport
+LIPQ,Trieste Airport,45.827862,13.466672,39,IT,large_airport
+LIPR,Federico Fellini International Airport,44.020024,12.612198,40,IT,large_airport
+LIPS,Istrana Air Base,45.684382,12.086594,137,IT,medium_airport
+LIPU,Padova Gino Allegri Airfield,45.395316,11.847124,44,IT,medium_airport
+LIPV,Venice-Lido Giovanni Nicelli Airfield,45.428779,12.388733,15,IT,small_airport
+LIPX,Verona Villafranca Valerio Catullo Airport,45.394955,10.887303,239,IT,large_airport
+LIPY,Marche Airport,43.616299,13.3623,49,IT,medium_airport
+LIPZ,Venice Marco Polo Airport,45.505299,12.3519,7,IT,large_airport
+LIQB,Arezzo Molin Blanco Airfield,43.455248,11.847393,814,IT,small_airport
+LIQG,Cecina Airfield,43.2856,10.521183,,IT,small_airport
+LIQL,Lucca-Tassignano Airport,43.825825,10.577928,39,IT,small_airport
+LIQN,Rieti Airfield,42.4272,12.8517,1278,IT,small_airport
+LIQS,Siena-Ampugnano Airport,43.254942,11.255084,634,IT,medium_airport
+LIQW,Sarzana-Luni Bartolomeo Arrigoni Airport,44.087375,9.987877,45,IT,medium_airport
+LIRA,Ciampino–G. B. Pastine International Airport,41.798769,12.595331,427,IT,large_airport
+LIRE,Pratica di Mare Air Base,41.654499,12.4452,41,IT,medium_airport
+LIRF,Rome–Fiumicino Leonardo da Vinci International Airport,41.804532,12.251998,13,IT,large_airport
+LIRG,Guidonia Air Base,41.990299,12.7408,289,IT,medium_airport
+LIRH,Frosinone Air Base,41.648537,13.294573,,IT,small_airport
+LIRI,Salerno Costa d'Amalfi Airport,40.620399,14.9113,123,IT,medium_airport
+LIRJ,Marina di Campo Airport,42.760871,10.239811,31,IT,medium_airport
+LIRL,Latina Air Base,41.5424,12.909,94,IT,medium_airport
+LIRM,Grazzanise Air Base,41.060799,14.0819,29,IT,medium_airport
+LIRN,Naples International Airport,40.886002,14.2908,294,IT,large_airport
+LIRP,Pisa International Airport,43.683899,10.3927,6,IT,large_airport
+LIRQ,"Florence Airport, Peretola",43.808558,11.202822,142,IT,large_airport
+LIRS,Grosseto Corrado Baccarini Air Base / Grosseto Airport,42.759701,11.0719,17,IT,medium_airport
+LIRU,Rome Urbe Airport,41.952096,12.502231,55,IT,medium_airport
+LIRV,Viterbo Airport,42.435297,12.061362,992,IT,medium_airport
+LIRZ,Perugia San Francesco d'Assisi – Umbria International Airport,43.095901,12.5132,697,IT,large_airport
+LIVD,Dobbiaco-Toblach Airstrip,46.727021,12.230723,4068,IT,small_airport
+LIVV,Moncucco-Vische Airfield,45.344613,7.919072,781,IT,small_airport
+LKBA,Břeclav Airfield,48.790439,16.892531,531,CZ,small_airport
+LKBE,Benešov Airfield,49.740799,14.6447,1319,CZ,small_airport
+LKBO,Bohuňovice Airfield,49.670601,17.295,771,CZ,small_airport
+LKBR,Broumov Airfield,50.561901,16.3428,1342,CZ,small_airport
+LKBU,Bubovice Airfield,49.9744,14.1781,1401,CZ,small_airport
+LKCB,Cheb Airfield,50.066101,12.4117,1585,CZ,small_airport
+LKCE,Česká Lípa Airfield,50.7094,14.5667,932,CZ,small_airport
+LKCH,Chomutov Airfield,50.468899,13.4681,1132,CZ,small_airport
+LKCM,Medlánky Airfield,49.236698,16.555,853,CZ,small_airport
+LKCR,Chrudim Airfield,49.936401,15.7806,981,CZ,small_airport
+LKCS,České Budějovice South Bohemian Airport,48.948171,14.42832,1417,CZ,large_airport
+LKCT,Chotěboř Airfield,49.685799,15.6761,1949,CZ,small_airport
+LKCV,Čáslav Air Base,49.939701,15.3818,794,CZ,medium_airport
+LKDK,Dvůr Králové nad Labem Airfield,50.4142,15.8369,932,CZ,small_airport
+LKER,Erpužice Airfield,49.802799,13.0381,1572,CZ,small_airport
+LKFR,Frýdlant Airfield,49.589401,18.3792,1440,CZ,small_airport
+LKHB,Havlíčkův Brod Airfield,49.597198,15.5492,1519,CZ,small_airport
+LKHC,Hořice Airfield,50.3576,15.576983,922,CZ,small_airport
+LKHD,Hodkovice nad Mohelkou Airfield,50.6572,15.0778,1480,CZ,small_airport
+LKHK,Hradec Králové Airport,50.253201,15.8452,791,CZ,small_airport
+LKHN,Hranice Airfield,49.5461,17.704399,797,CZ,small_airport
+LKHS,Hosín Airfield,49.040001,14.495,1621,CZ,small_airport
+LKHV,Hořovice Airfield,49.848099,13.8935,1214,CZ,small_airport
+LKJA,Jaroměř Airfield,50.331402,15.9539,889,CZ,small_airport
+LKJC,Jičín Airfield,50.43,15.3331,863,CZ,small_airport
+LKJH,Jindřichův Hradec Airfield,49.150682,14.972413,1667,CZ,small_airport
+LKJI,Jihlava Airfield,49.419399,15.6353,1821,CZ,small_airport
+LKKA,Křižanov Airfield,49.368301,16.1161,1831,CZ,small_airport
+LKKB,Prague–Kbely Air Base,50.121399,14.5436,939,CZ,medium_airport
+LKKC,Kříženec Planá Airfield,49.870602,12.7725,2076,CZ,small_airport
+LKKL,Kladno Airfield,50.112801,14.0897,1421,CZ,small_airport
+LKKM,Kroměříž Airfield,49.285599,17.4158,620,CZ,small_airport
+LKKO,Kolín Airfield,50.0019,15.1733,932,CZ,small_airport
+LKKR,Krnov Airfield,50.074407,17.695219,1230,CZ,small_airport
+LKKT,Klatovy Josef Hubáč Airfield,49.418301,13.3219,1299,CZ,small_airport
+LKKU,Kunovice Airport,49.0294,17.439699,581,CZ,medium_airport
+LKKV,Karlovy Vary Airport,50.202999,12.915,1989,CZ,large_airport
+LKKY,Kyjov Airfield,48.98,17.124701,689,CZ,small_airport
+LKLB,Liberec Airfield,50.767053,15.023071,1329,CZ,small_airport
+LKLN,Plzeň-Líně Airport,49.675201,13.2746,1188,CZ,medium_airport
+LKLT,Letňany Airfield,50.131401,14.5256,909,CZ,small_airport
+LKMB,Mladá Boleslav Airfield,50.3983,14.8983,781,CZ,small_airport
+LKMH,Mnichovo Hradiště Airport,50.540199,15.0066,800,CZ,small_airport
+LKMI,Mikulovice Airfield,50.301701,17.297501,1381,CZ,small_airport
+LKMK,Moravská Třebová Airfield,49.798302,16.687799,1322,CZ,small_airport
+LKMO,Most Airfield,50.525002,13.6831,1089,CZ,small_airport
+LKMT,Leoš Janáček Airport Ostrava,49.696301,18.111099,844,CZ,large_airport
+LKNA,Náměšť Air Base,49.166272,16.123981,1548,CZ,medium_airport
+LKNM,Nové Město nad Metují Airfield,50.364201,16.1136,1001,CZ,small_airport
+LKNY,Nymburk Airfield,50.169101,15.05245,607,CZ,small_airport
+LKOL,Olomouc Airport,49.587712,17.209275,869,CZ,small_airport
+LKOT,Zlín Otrokovice Airfield,49.198299,17.517799,600,CZ,small_airport
+LKPA,Polička Airfield,49.739399,16.2589,1982,CZ,small_airport
+LKPC,Panensky Tynec Airfield,50.306099,13.9342,1207,CZ,small_airport
+LKPD,Pardubice Airport,50.015049,15.73981,741,CZ,large_airport
+LKPI,Přibyslav Airfield,49.580799,15.7628,1739,CZ,small_airport
+LKPJ,Prostějov Airfield,49.4478,17.1339,699,CZ,small_airport
+LKPL,Letkov Airfield,49.723099,13.4522,1371,CZ,small_airport
+LKPM,Příbram Airfield,49.7201,14.1006,1529,CZ,small_airport
+LKPN,Podhořany Airfield,49.939201,15.5497,1250,CZ,small_airport
+LKPO,Přerov Air Base,49.4258,17.404699,676,CZ,medium_airport
+LKPR,Václav Havel Airport Prague,50.100874,14.259911,1247,CZ,large_airport
+LKPS,Plasy Rybnice Airfield,49.9203,13.3769,1430,CZ,small_airport
+LKRA,Rana Loumy Airfield,50.4039,13.7519,879,CZ,small_airport
+LKRK,Rakovnik Airfield,50.0942,13.6889,1270,CZ,small_airport
+LKRO,Roudnice nad Labem Airfield,50.410186,14.22708,732,CZ,small_airport
+LKRY,Rokycany Airfield,49.751944,13.589722,1329,CZ,small_airport
+LKSA,Staňkov Airfield,49.566515,13.04867,1404,CZ,small_airport
+LKSB,Stichovice Pluml Airfield,49.48739,17.05261,840,CZ,small_airport
+LKSK,Skuteč Airfield,49.827801,16.0058,1601,CZ,small_airport
+LKSN,Slaný Airfield,50.21639,14.087845,1079,CZ,small_airport
+LKSO,Soběslav Airfield,49.2455,14.712993,1342,CZ,small_airport
+LKSR,Prachatice Airfield,49.0825,14.0758,1572,CZ,small_airport
+LKST,Strakonice Airfield,49.251701,13.8928,1381,CZ,small_airport
+LKSU,Šumperk Airfield,49.960602,17.017799,1099,CZ,small_airport
+LKSZ,Sazená Airfield,50.324699,14.2589,761,CZ,small_airport
+LKTA,Tábor Airfield,49.391102,14.7083,1440,CZ,small_airport
+LKTB,Brno-Tuřany Airport,49.151276,16.693972,778,CZ,medium_airport
+LKTC,Točná Airfield,49.985435,14.426465,1027,CZ,small_airport
+LKTD,Tachov Airfield,49.797223,12.707169,1640,CZ,small_airport
+LKTO,Toužim Airfield,50.086399,12.9528,2139,CZ,small_airport
+LKUL,Usti Nad Labem Airfield,50.699699,13.9697,791,CZ,small_airport
+LKUO,Ústí Nad Orlicí Airfield,49.9786,16.426399,1342,CZ,small_airport
+LKVL,Vlašim Airfield,49.728901,14.8789,1421,CZ,small_airport
+LKVM,Vysoké Mýto Airfield,49.928102,16.185029,991,CZ,small_airport
+LKVO,Vodochody Airport,50.216599,14.3958,919,CZ,medium_airport
+LKVP,Velké Poříčí Airfield,50.4678,16.205601,1322,CZ,small_airport
+LKVR,Vrchlabí Airfield,50.624199,15.6464,1611,CZ,small_airport
+LKVY,Letiště Vyškov,49.300301,17.025299,922,CZ,small_airport
+LKZA,Zábřeh Dolní Benešov Airfield,49.928258,18.075557,791,CZ,small_airport
+LKZB,Zbraslavice Airfield,49.814201,15.2017,1621,CZ,small_airport
+LKZD,Žatec-Macerka Airfield,50.317501,13.5128,879,CZ,small_airport
+LKZM,Žamberk Airfield,50.0839,16.443899,1411,CZ,small_airport
+LKZN,Znojmo Airfield,48.817744,16.065831,830,CZ,small_airport
+LOAA,Ottenschlag Airfield,48.41856,15.215294,2867,AT,small_airport
+LOAB,Dobersberg Airfield,48.922113,15.296826,1720,AT,small_airport
+LOAD,Völtendorf Airfield,48.160081,15.58677,1063,AT,small_airport
+LOAG,Krems/Langenlois Airfield,48.446155,15.635011,1017,AT,small_airport
+LOAN,Wiener Neustadt East Airport,47.8433,16.260099,896,AT,medium_airport
+LOAR,Altlichtenwarth Gliderfield,48.6661,16.825,604,AT,small_airport
+LOAS,Spitzerberg Airfield,48.099157,16.933527,623,AT,small_airport
+LOAU,Stockerau Airfield,48.409121,16.191015,686,AT,small_airport
+LOAV,Vöslau-Kottingbrunn Airfield,47.965,16.26,765,AT,small_airport
+LOGF,Fürstenfeld Airfield,47.061873,16.083901,830,AT,small_airport
+LOGG,Punitz-Güssing Airfield,47.146654,16.317058,950,AT,small_airport
+LOGI,Trieben Airfield,47.493364,14.49558,2283,AT,small_airport
+LOGK,Kapfenberg Airfield,47.457544,15.331125,1719,AT,small_airport
+LOGL,Lanzen-Turnau Airfield,47.556155,15.320327,2575,AT,small_airport
+LOGM,Mariazell Airfield,47.789733,15.300333,2822,AT,small_airport
+LOGO,Niederöblarn Airfield,47.478742,14.007101,2142,AT,small_airport
+LOGP,Pinkafeld Airfield,47.386684,16.112673,1339,AT,small_airport
+LOGT,Leoben/Timmersdorf Airfield,47.379648,14.964044,2060,AT,small_airport
+LOGW,Weiz-Unterfladnitz Airfield,47.170293,15.664468,1296,AT,small_airport
+LOIH,Hohenems-Dornbirn Airfield,47.384477,9.699776,1352,AT,small_airport
+LOIJ,Sankt Johann Airfield,47.5201,12.4497,2198,AT,small_airport
+LOIK,Kufstein-Langkampfen Airfield,47.564713,12.127576,1588,AT,small_airport
+LOIR,Reutte-Höfen Airfield,47.470897,10.6913,2806,AT,small_airport
+LOKF,Feldkirchen Airfield,46.70893,14.076722,1706,AT,small_airport
+LOKG,Ferlach-Glainach Airfield,46.532778,14.330833,1498,AT,small_airport
+LOKH,Friesach/Hirt Airfield,46.927491,14.431848,2019,AT,small_airport
+LOKL,Lienz-Nikolsdorf Airfield,46.798069,12.87833,2093,AT,small_airport
+LOKM,Mayerhofen Airfield,46.974996,14.371228,2119,AT,small_airport
+LOKN,Nötsch im Gailtal Airfield,46.5811,13.6292,1801,AT,small_airport
+LOKR,Sankt Donat / Mairist Airfield,46.743139,14.413134,1759,AT,small_airport
+LOKW,Wolfsberg Airfield,46.818202,14.825154,1460,AT,small_airport
+LOLC,Scharnstein Airfield,47.898602,13.9394,1742,AT,small_airport
+LOLE,Eferding Airfield,48.338793,13.985209,887,AT,small_airport
+LOLF,Freistadt Airfield,48.513748,14.406579,2237,AT,small_airport
+LOLG,Sankt Georgen-Ybbsfeld Airfield,48.10332,14.951091,827,AT,small_airport
+LOLH,Hofkirchen Airfield,48.13911,14.33584,1175,AT,small_airport
+LOLK,Ried-Kirchheim Airfield,48.21227,13.345678,1378,AT,small_airport
+LOLM,Micheldorf Airfield,47.871669,14.125149,1509,AT,small_airport
+LOLO,Linz-East Glider Field,48.300044,14.333606,827,AT,small_airport
+LOLS,Schärding-Suben Airfield,48.403301,13.4483,1070,AT,small_airport
+LOLT,Flugplatz Seitenstetten,48.050556,14.661944,1050,AT,small_airport
+LOLU,Gmunden-Laakirchen Airfield,47.951541,13.867271,1670,AT,small_airport
+LOLW,Wels Airfield,48.182513,14.039283,1043,AT,small_airport
+LOSM,Mauterndorf Airfield,47.131995,13.695867,3642,AT,small_airport
+LOWG,Graz Airport,46.9911,15.4396,1115,AT,large_airport
+LOWI,Innsbruck Airport,47.260201,11.344,1907,AT,large_airport
+LOWK,Klagenfurt Airport,46.642502,14.3377,1472,AT,large_airport
+LOWL,Linz-Hörsching Airport,48.235362,14.188128,980,AT,large_airport
+LOWS,Salzburg Airport,47.793301,13.0043,1411,AT,large_airport
+LOWW,Vienna International Airport,48.110298,16.5697,600,AT,large_airport
+LOWZ,Zell am See Airfield,47.291468,12.790632,2470,AT,small_airport
+LOXA,Fiala-Fernbrugg Air Base,47.53573,14.141488,2093,AT,small_airport
+LOXN,Wiener Neustadt West Airport,47.836933,16.221838,935,AT,medium_airport
+LOXT,Brumowski  Air Base,48.319247,16.114016,574,AT,small_airport
+LOXZ,Hinterstoisser Air Base,47.202801,14.7442,2264,AT,medium_airport
+LP77,Military Airfield of Santa Margarida,39.402401,-8.28906,541,PT,small_airport
+LPAR,Alverca Air Base,38.883301,-9.0301,11,PT,medium_airport
+LPAV,São Jacinto Airfield,40.656741,-8.741544,26,PT,small_airport
+LPAZ,Santa Maria Airport,36.97140121459961,-25.17060089111328,308,PT,medium_airport
+LPBG,Bragança Airport,41.8578,-6.70713,2241,PT,medium_airport
+LPBJ,Beja Airport / Airbase,38.078899,-7.9324,636,PT,medium_airport
+LPBR,Braga Municipal Aerodrome,41.587,-8.445189,247,PT,medium_airport
+LPCB,Aerodromo de Castelo Branco,39.844528,-7.439875,1300,PT,medium_airport
+LPCH,Aerodromo de Chaves,41.722356,-7.463064,1181,PT,small_airport
+LPCO,Aerodromo Municipal de Coimbra,40.158758,-8.470815,587,PT,medium_airport
+LPCR,Corvo Airport,39.671501,-31.1136,62,PT,small_airport
+LPCS,Cascais Airport,38.724998,-9.35523,325,PT,medium_airport
+LPEV,Évora Airfield,38.533501,-7.88964,807,PT,medium_airport
+LPFL,Flores Airport,39.455299377441406,-31.131399154663086,112,PT,medium_airport
+LPFR,Faro - Gago Coutinho International Airport,37.015909,-7.970939,24,PT,large_airport
+LPGR,Graciosa Airport,39.092201232910156,-28.029800415039062,86,PT,medium_airport
+LPHR,Horta Airport,38.519901275634766,-28.715900421142578,118,PT,medium_airport
+LPIN,Espinho Airfield,40.974201,-8.64444,10,PT,small_airport
+LPJF,Aerodromo de Leiria,39.779907,-8.820238,151,PT,small_airport
+LPLA,Lajes Airport,38.761799,-27.090799,180,PT,medium_airport
+LPLZ,Aerodromo da Lousã,40.143042,-8.240987,654,PT,small_airport
+LPMA,Cristiano Ronaldo International Airport,32.697812,-16.774613,192,PT,large_airport
+LPMF,Aerodromo de Monfortinho,39.976398,-6.906624,,PT,small_airport
+LPMI,Mirandela Airfield,41.468006,-7.226257,1329,PT,small_airport
+LPMO,Morargil Airfield,38.993532,-8.14201,380,PT,small_airport
+LPMR,Monte Real Air Base,39.828335,-8.8875,187,PT,medium_airport
+LPMT,Montijo Air Base,38.70929,-9.03368,46,PT,medium_airport
+LPMU,Mogadouro Airfield,41.3963,-6.68348,2344,PT,small_airport
+LPOV,Ovar Air Base,40.915901,-8.64592,56,PT,medium_airport
+LPPD,João Paulo II Airport,37.7411994934,-25.6979007721,259,PT,large_airport
+LPPI,Pico Airport,38.554298,-28.441299,109,PT,medium_airport
+LPPM,Portimão Airport,37.1493,-8.58396,5,PT,medium_airport
+LPPR,Francisco de Sá Carneiro Airport,41.2481002808,-8.68138980865,228,PT,large_airport
+LPPS,Porto Santo Airport,33.0733985901,-16.3500003815,341,PT,medium_airport
+LPPT,Lisbon Humberto Delgado Airport,38.7813,-9.13592,374,PT,large_airport
+LPSC,Santa Cruz Airfield,39.12392,-9.380091,157,PT,small_airport
+LPSJ,São Jorge Airport,38.665501,-28.1758,311,PT,medium_airport
+LPSO,Aeródromo Municipal de Ponte de Sor,39.211545,-8.057787,390,PT,medium_airport
+LPSR,Santarém Airfield,39.209495,-8.68728,30,PT,small_airport
+LPST,Sintra Air Base,38.8311,-9.33955,440,PT,medium_airport
+LPTN,Tancos Airbase,39.475101,-8.36458,266,PT,medium_airport
+LPVL,Vilar de Luz Airfield,41.27729,-8.516209,762,PT,medium_airport
+LPVR,Vila Real Airport,41.2743,-7.72047,1805,PT,medium_airport
+LPVZ,Aerodromo Goncalves Lobato (Viseu Airport),40.725498,-7.88899,2060,PT,medium_airport
+LS00,Whitehead Ultralightport,30.675500869750977,-91.11430358886719,105,US,small_airport
+LS10,Reynolds Airport,30.2721004486084,-93.31179809570312,20,US,small_airport
+LS14,Lyon Airport,30.070999,-92.825104,6,US,small_airport
+LS16,Circle G Airport,32.010896,-91.756761,75,US,small_airport
+LS18,Ag Aviation Airport,30.223899841308594,-92.77860260009766,21,US,small_airport
+LS25,Annison Private Airport,30.704599380493164,-91.06069946289062,120,US,small_airport
+LS34,Bordelon Airpark,30.30644,-91.85955,22,US,small_airport
+LS35,Nauga Field,30.762500762939453,-91.27729797363281,38,US,small_airport
+LS36,Light Plane Flyers Airfield,30.250200271606445,-92.97200012207031,25,US,small_airport
+LS38,Richard's Airport,30.013099670410156,-91.86920166015625,15,US,small_airport
+LS39,Country Bend Airport,30.589399337768555,-90.9845962524414,49,US,small_airport
+LS40,St Charles Airport,29.9519,-90.286102,13,US,small_airport
+LS41,Tater Patch Ultralightport,32.567101,-93.878899,240,US,small_airport
+LS43,Southland Strip Number 2 Ultralightport,29.673847,-90.765244,10,US,small_airport
+LS49,Simpson Airport,30.30270004272461,-91.27149963378906,13,US,small_airport
+LS54,Brian's Ultralightport,30.694865,-91.1928,65,US,small_airport
+LS59,La Petite Airdrome Ultralightport,30.629232,-92.189079,63,US,small_airport
+LS68,Ken Guidry #1 Airport,29.9347,-92.213501,10,US,small_airport
+LS70,Lake Air Service-Pine Island Airport,30.340649,-92.736958,39,US,small_airport
+LS72,Aerolite Aero Park Ultralightport,30.202999114990234,-92.81210327148438,13,US,small_airport
+LS76,Hickham Field,30.46269989013672,-90.17009735107422,25,US,small_airport
+LS77,Magnolia Airpark,30.727067,-91.148736,140,US,small_airport
+LS83,Delta Dusters Airport,32.061737,-91.251454,77,US,small_airport
+LS86,Le Blanc Field,30.681900024414062,-90.41929626464844,158,US,small_airport
+LS88,Kreswell Airport,30.449677,-92.326258,42,US,small_airport
+LS89,Sara Field,30.940814,-91.473305,333,US,small_airport
+LS91,Tim Bullard Memorial Airport,30.417548,-91.974739,32,US,small_airport
+LS92,Koenig Airpark,30.597400665283203,-90.31590270996094,100,US,small_airport
+LS93,Greenwood Plantation Ultralightport,29.61079978942871,-90.89839935302734,6,US,small_airport
+LSGB,Bex Airfield,46.258301,6.98639,1312,CH,small_airport
+LSGC,Les Eplatures Airport,47.083900451699996,6.792840003970001,3368,CH,medium_airport
+LSGE,Ecuvillens Airfield,46.755279,7.075746,2293,CH,small_airport
+LSGG,Geneva International Airport,46.238098,6.10895,1411,CH,large_airport
+LSGK,Saanen Airfield,46.486525,7.248359,3307,CH,small_airport
+LSGL,Lausanne la Blécherette Airport,46.54509,6.616629,2041,CH,small_airport
+LSGN,Neuchâtel Airfield,46.957371,6.864574,1427,CH,small_airport
+LSGP,La Côte Airfield,46.406399,6.25806,1352,CH,small_airport
+LSGR,Reichenbach Air Base,46.613602,7.67778,2385,CH,small_airport
+LSGS,Sion Airport,46.219166,7.326944,1582,CH,medium_airport
+LSGT,La Gruyère  Airfield,46.5942,7.09444,2257,CH,small_airport
+LSGY,Yverdon-les-Bains Airfield,46.761871,6.613178,1421,CH,small_airport
+LSKV,Kvetoslavov Airfield,48.04507,17.34963,,SK,small_airport
+LSMA,Alpnach Air Base,46.943901,8.28417,1460,CH,medium_airport
+LSMD,Dübendorf Air Base,47.398602,8.64823,1470,CH,medium_airport
+LSME,Emmen Air Base,47.092444,8.305184,1400,CH,medium_airport
+LSML,Lodrino Air Base,46.295898,8.99213,850,CH,small_airport
+LSMM,Meiringen Air Base,46.742324,8.108919,1895,CH,small_airport
+LSMP,Payerne Air Base,46.8432,6.91506,1465,CH,medium_airport
+LSPA,Amlikon Airfield,47.573983,9.047785,1371,CH,small_airport
+LSPD,Dittingen Airfield,47.438599,7.49139,1758,CH,small_airport
+LSPF,Schmerlat Airfield,47.690203,8.526178,1519,CH,small_airport
+LSPG,Kägiswil Airfield,46.908298,8.25417,1525,CH,small_airport
+LSPH,Winterthur Airfield,47.514999,8.77194,1506,CH,small_airport
+LSPL,Langenthal Airfield,47.18281,7.741191,1575,CH,small_airport
+LSPM,Ambri Airport,46.512501,8.68978,3241,CH,small_airport
+LSPN,Triengen Airfield,47.2267,8.07806,1594,CH,small_airport
+LSPO,Olten Airfield,47.34131,7.88494,1368,CH,small_airport
+LSPU,Münster Airfield,46.480301,8.26333,4380,CH,small_airport
+LSPV,Wangen-Lachen Airfield,47.204835,8.867346,1335,CH,small_airport
+LSTA,Raron Airfield,46.30449,7.819085,2029,CH,small_airport
+LSTB,Bellechasse Airfield,46.979315,7.13253,1421,CH,small_airport
+LSTO,Môtiers Airfield,46.916698,6.615,2402,CH,small_airport
+LSTR,Montricher Airfield,46.590263,6.400591,2178,CH,small_airport
+LSTS,Sankt Stephan Airfield,46.497398,7.41257,3304,CH,small_airport
+LSTZ,Zweisimmen Airfield,46.551713,7.381012,3068,CH,small_airport
+LSVD,Clariden-Hüfifirn Mountain Landing Site,46.821944,8.880277,,CH,small_airport
+LSVP,Petersgrat Mountain Landing Site,46.468889,7.828333,,CH,small_airport
+LSVV,Vorabgletscher Mountain Landing Site,46.878333,9.151944,,CH,small_airport
+LSYI,Limmerenfirn Mountain Landing Site,46.810556,8.967778,,CH,small_airport
+LSYK,Kanderfirn Mountain Landing Site,46.485833,7.828333,,CH,small_airport
+LSYR,Rosa Blanche Mountain Landing Site,46.060833,7.354722,,CH,small_airport
+LSYX,Glacier du Trient Mountain Landing Site,45.9883,7.0425,,CH,small_airport
+LSZA,Lugano Airport,46.004299,8.91058,915,CH,medium_airport
+LSZB,Bern Airport,46.912736,7.498819,1671,CH,medium_airport
+LSZC,Buochs Airport,46.974444,8.396944,1475,CH,small_airport
+LSZE,Bad Ragaz Airfield,47.014904,9.481815,1617,CH,small_airport
+LSZF,Birrfeld Airfield,47.4436,8.23361,1300,CH,small_airport
+LSZG,Grenchen Airfield,47.181599,7.41719,1411,CH,medium_airport
+LSZH,Zürich Airport,47.458056,8.548056,1417,CH,large_airport
+LSZI,Fricktal-Schupfart Airfield,47.5089,7.95,1788,CH,small_airport
+LSZJ,Courtelary Airfield,47.183374,7.09085,2247,CH,small_airport
+LSZK,Speck-Fehraltorf Airfield,47.3764,8.7575,1748,CH,small_airport
+LSZL,Locarno Airport,46.162535,8.878908,650,CH,small_airport
+LSZM,Mollis Airfield,47.078353,9.064662,1485,CH,small_airport
+LSZN,Hausen am Albis Airfield,47.238602,8.51556,1928,CH,small_airport
+LSZO,Luzern-Beromünster Airfield,47.188993,8.204556,2146,CH,small_airport
+LSZP,Biel-Kappelen Airfield,47.088242,7.289055,1437,CH,small_airport
+LSZQ,Bressaucourt Airfield,47.392408,7.028956,1866,CH,small_airport
+LSZR,Sankt Gallen Altenrhein Airport,47.485001,9.56077,1306,CH,medium_airport
+LSZS,Engadin Airport,46.5341,9.88411,5600,CH,medium_airport
+LSZT,Lommis Airfield,47.524399,9.00306,1539,CH,small_airport
+LSZU,Buttwil Airfield,47.264702,8.3025,2372,CH,small_airport
+LSZV,Sitterdorf Airfield,47.5089,9.26278,1660,CH,small_airport
+LSZW,Thun Airfield,46.756401,7.60056,1837,CH,small_airport
+LSZX,Schänis Airfield,47.1717,9.03944,1365,CH,small_airport
