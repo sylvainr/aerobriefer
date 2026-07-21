@@ -15,6 +15,7 @@ __pycache__/
 briefing_*.html
 briefing_*.pdf
 exemple_briefing.pdf
+viewer_*.html
 
 # Secrets — par prudence, si jamais un .env apparaît.
 .env
