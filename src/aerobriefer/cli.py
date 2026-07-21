@@ -125,6 +125,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--html", type=Path, default=None, help="chemin du HTML autonome à produire"
     )
+    parser.add_argument(
+        "--viewer",
+        type=Path,
+        default=None,
+        help="chemin du viewer 3D d'espaces aériens à produire (HTML, three.js)",
+    )
     args = parser.parse_args(argv)
 
     context = build_context(
@@ -167,6 +173,14 @@ def main(argv: list[str] | None = None) -> int:
 
         render_pdf(package, args.pdf)
         print(f"  PDF : {args.pdf}")
+
+    if args.viewer:
+        from .render.viewer import render_viewer
+
+        # Outil de PRÉPARATION en ligne (three.js via CDN) : montre les volumes
+        # d'espaces aériens en 3D autour du terrain.
+        args.viewer.write_text(render_viewer(package), encoding="utf-8")
+        print(f"  Viewer 3D : {args.viewer} ({len(package.airspaces)} espaces)")
 
     return 0 if package.is_complete else 1
 
