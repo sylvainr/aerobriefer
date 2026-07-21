@@ -20,7 +20,17 @@ from typing import Any
 
 from .context import BriefingContext
 from .freshness import max_age_minutes
-from .models import Aerodrome, Chart, ForecastPoint, Metar, Notam, Severity, Sigmet, Taf
+from .models import (
+    Aerodrome,
+    Airspace,
+    Chart,
+    ForecastPoint,
+    Metar,
+    Notam,
+    Severity,
+    Sigmet,
+    Taf,
+)
 from .sourced import Sourced
 from .window import UtcDateTime, utcnow
 
@@ -53,6 +63,9 @@ class BriefingPackage:
     assembled_at: UtcDateTime = field(default_factory=utcnow)
 
     aerodromes: Sequence[Aerodrome] = field(default_factory=tuple)
+    airspaces: Sequence[Airspace] = field(default_factory=tuple)
+    """Espaces aériens touchant la zone. Donnée de RÉFÉRENCE (pas collectée avec
+    provenance par un provider) — d'où le type nu, sans `Sourced`."""
     metars: Sequence[Sourced[Metar]] = field(default_factory=tuple)
     tafs: Sequence[Sourced[Taf]] = field(default_factory=tuple)
     notams: Sequence[Sourced[Notam]] = field(default_factory=tuple)

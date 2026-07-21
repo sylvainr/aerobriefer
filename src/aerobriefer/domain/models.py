@@ -262,6 +262,77 @@ def _point_in_polygon(point: Position, polygon: Sequence[Position]) -> bool:
     return inside
 
 
+_FT_PER_METER = 3.280839895
+_METER_PER_FT = 0.3048
+
+
+@dataclass(frozen=True, slots=True)
+class AltitudeLimit:
+    """Un plancher ou plafond d'espace aérien.
+
+    Trois formes réelles dans les données SIA/planeur : pieds au-dessus de la mer
+    (FT/MSL), pieds au-dessus du sol (FT/GND), niveau de vol (FL/STD). On garde la
+    forme BRUTE (value/unit/reference) — c'est elle qui fait foi et qu'on affiche
+    — et on expose une hauteur dérivée en pieds AMSL pour l'extrusion 3D.
+    """
+
+    value: float
+    unit: str  # "FT" | "FL"
+    reference: str  # "MSL" | "GND" | "STD"
+
+    @property
+    def feet_amsl(self) -> float:
+        """Hauteur en pieds AMSL, pour le rendu.
+
+        FL/STD → FL×100 (altitude-pression, assez proche pour l'affichage).
+        FT/GND → au-dessus du sol ; faute de modèle de terrain, on approxime le
+        sol à 0 (le relief autour des terrains VFR français est faible). C'est une
+        approximation d'affichage, pas une donnée de navigation.
+        """
+        if self.unit.upper() == "FL":
+            return self.value * 100.0
+        return self.value  # FT/MSL direct ; FT/GND avec sol≈0
+
+    @property
+    def label(self) -> str:
+        """« SFC », « FL65 », « 4500 ft AMSL », « 1500 ft ASFC »."""
+        if self.unit.upper() == "FL":
+            return f"FL{int(round(self.value))}"
+        if self.reference.upper() == "GND":
+            return "SFC" if self.value <= 0 else f"{int(round(self.value))} ft ASFC"
+        return f"{int(round(self.value))} ft AMSL"
+
+
+@dataclass(frozen=True, slots=True)
+class Airspace:
+    """Un volume d'espace aérien : classe, type, empreinte polygonale, planchers.
+
+    Vient d'une base de référence (SIA / planeur-net), pas d'une collecte par
+    briefing. On garde le texte/valeurs bruts et on n'invente rien.
+    """
+
+    name: str
+    airspace_class: str  # A/B/C/D/E/F/G ou UNC (non contrôlé : zones R/P/D)
+    airspace_type: str  # TMA/CTR/CTA/R/P/D/Q/RMZ/TMZ/GSEC/AWY...
+    polygon: Sequence[Position]
+    lower: AltitudeLimit
+    upper: AltitudeLimit
+    frequency: str | None = None
+
+    def intersects(self, geometry: Geometry) -> bool:
+        """Vrai si l'empreinte touche la géométrie du vol.
+
+        Test approché mais sûr pour l'usage : un sommet du polygone dans la zone,
+        OU le centre de la zone dans le polygone (cas d'une grande TMA qui
+        contient tout le cercle). Suffit à ne pas rater un espace traversé.
+        """
+        if not self.polygon:
+            return False
+        if any(geometry.contains(vertex) for vertex in self.polygon):
+            return True
+        return _point_in_polygon(geometry.bounding_circle().center, self.polygon)
+
+
 @dataclass(frozen=True, slots=True)
 class Metar:
     station: str

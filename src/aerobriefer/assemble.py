@@ -92,6 +92,7 @@ def assemble_briefing(
     return BriefingPackage(
         context=context,
         aerodromes=_aerodromes_for(context, collected),
+        airspaces=_airspaces_for(context, failures),
         metars=_of_type(collected, Metar),
         tafs=_of_type(collected, Taf),
         notams=_relevant_notams(collected, context),
@@ -100,6 +101,26 @@ def assemble_briefing(
         charts=_of_type(collected, Chart),
         failures=tuple(failures),
     )
+
+
+def _airspaces_for(context: BriefingContext, failures: list[ProviderFailure]) -> tuple:
+    """Espaces aériens touchant la zone. Donnée de référence (fetch+cache) : son
+    échec ne compromet pas le briefing, il est signalé en anomalie mineure."""
+    try:
+        from .data import airspace
+
+        return tuple(airspace.intersecting(context.geometry))
+    except Exception as error:  # noqa: BLE001 - réseau/parse : dégrade sans casser
+        failures.append(
+            ProviderFailure(
+                source="airspace",
+                reason=f"espaces aériens indisponibles : {error!r}",
+                occurred_at=utcnow(),
+                category="airspace",
+                is_critical=False,
+            )
+        )
+        return ()
 
 
 def _of_type(items: Iterable[Sourced], wanted: type) -> tuple[Sourced, ...]:

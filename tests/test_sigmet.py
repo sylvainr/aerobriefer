@@ -365,15 +365,27 @@ def test_coordonnees_aberrantes_ignorees_sans_perdre_le_sigmet(monkeypatch):
 
 
 def test_sans_bornes_de_validite_reste_visible(monkeypatch):
-    """Sans epochs exploitables, on retient large plutôt que de disparaître."""
+    """Sans epochs exploitables, on retient large plutôt que de disparaître.
+
+    Le repli de validité part de `retrieved_at` (= maintenant) : on teste donc
+    avec une fenêtre centrée sur l'instant courant, pour ne pas coupler le test
+    à l'horloge murale."""
+    from datetime import timedelta
+
+    from aerobriefer.domain.window import utcnow
+
+    now = utcnow()
+    around_now = TimeWindow(start=now - timedelta(hours=1), end=now + timedelta(hours=1))
+    context = BriefingContext.local(center=LFCY, radius_nm=20.0, window=around_now, icao="LFCY")
+
     record = dict(SIGMET_FRANCE)
     record.pop("validTimeFrom")
     record.pop("validTimeTo")
     _stub_transport(monkeypatch, records=[record])
-    (sourced,) = SigmetProvider().fetch(_context())
+    (sourced,) = SigmetProvider().fetch(context)
 
     assert sourced.value.validity.duration_hours > 0
-    assert sourced.value.validity.overlaps(_window())
+    assert sourced.value.validity.overlaps(around_now)
 
 
 # --------------------------------------------------------------------------

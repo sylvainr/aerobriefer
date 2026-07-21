@@ -12,3 +12,5 @@ _FIXTURE = Path(__file__).parent / "fixtures" / "refdata"
 
 # Posé AVANT tout import de aerobriefer.data.refdata dans les tests.
 os.environ.setdefault("AEROBRIEFER_REFDATA_DIR", str(_FIXTURE))
+_AIRSPACE_FIXTURE = Path(__file__).parent / "fixtures" / "airspace"
+os.environ.setdefault("AEROBRIEFER_AIRSPACE_DIR", str(_AIRSPACE_FIXTURE))

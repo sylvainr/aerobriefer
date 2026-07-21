@@ -242,3 +242,14 @@ def test_lfcy_has_both_runways_from_sia():
     # Parallèle à la revêtue : même cap, donc même traversier.
     paved = next(r for r in lfcy.runways if r.ident == "10/28")
     assert grass.true_bearing_deg == paved.true_bearing_deg
+
+
+def test_airspaces_are_included_from_reference_data():
+    """Le dossier inclut les espaces touchant la zone (données de référence)."""
+    package = assemble_briefing(_ctx(), [], parallel=False)
+    assert package.airspaces, "des espaces doivent entourer LFCY"
+    types = {a.airspace_type for a in package.airspaces}
+    assert types & {"TMA", "R", "CTA", "RMZ"}, "au moins un espace attendu"
+    # triés par plancher croissant
+    floors = [a.lower.feet_amsl for a in package.airspaces]
+    assert floors == sorted(floors)

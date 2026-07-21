@@ -335,3 +335,36 @@ def test_favoured_runway_picks_into_wind_qfu():
     wc = ad.favoured_wind_components(90.0, 12.0)  # vent d'est pile dans l'axe 09
     assert wc.runway_ident == "09"
     assert wc.headwind_kt > 0
+
+
+# --- espaces aériens ---------------------------------------------------------
+
+
+def test_altitude_limit_labels_and_feet():
+    from aerobriefer.domain.models import AltitudeLimit
+
+    assert AltitudeLimit(0, "FT", "GND").label == "SFC"
+    assert AltitudeLimit(1500, "FT", "GND").label == "1500 ft ASFC"
+    assert AltitudeLimit(4500, "FT", "MSL").label == "4500 ft AMSL"
+    assert AltitudeLimit(65, "FL", "STD").label == "FL65"
+    # feet AMSL pour l'extrusion
+    assert AltitudeLimit(65, "FL", "STD").feet_amsl == 6500
+    assert AltitudeLimit(4500, "FT", "MSL").feet_amsl == 4500
+
+
+def test_airspace_intersects_circle():
+    from aerobriefer.domain.geo import Circle
+    from aerobriefer.domain.models import Airspace, AltitudeLimit
+
+    # carré ~autour de LFCY
+    poly = [Position(45.5, -1.1), Position(45.5, -0.8), Position(45.8, -0.8), Position(45.8, -1.1)]
+    a = Airspace(
+        name="TEST",
+        airspace_class="D",
+        airspace_type="TMA",
+        polygon=poly,
+        lower=AltitudeLimit(0, "FT", "GND"),
+        upper=AltitudeLimit(65, "FL", "STD"),
+    )
+    assert a.intersects(Circle(Position(45.628101, -0.9725), 20.0))
+    assert not a.intersects(Circle(Position(43.6, 1.4), 10.0))  # Toulouse, loin
