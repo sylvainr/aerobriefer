@@ -1,0 +1,100 @@
+icao,name,lat,lon,elev_ft,country,type
+LFAB,Dieppe-Saint-Aubin Airport,49.884662,1.08101,344,FR,small_airport
+LFAD,Compiègne Margny Airfield,49.431242,2.801514,315,FR,small_airport
+LFAF,Laon-Chambry Airfield,49.595798,3.63167,256,FR,small_airport
+LFAG,Péronne Saint-Quentin Airfield,49.868871,3.029566,295,FR,medium_airport
+LFAI,Nangis-Les Loges Aerodrome,48.596199,3.00679,428,FR,small_airport
+LFAQ,Albert Bray airport,49.970049,2.693939,364,FR,small_airport
+LFAR,Montdidier Airfield,49.672118,2.567811,358,FR,small_airport
+LFAX,Mortagne-au-Perche Airfield,48.539157,0.532043,886,FR,small_airport
+LFAY,Amiens Glisy Airfield,49.873004,2.387074,208,FR,medium_airport
+LFBC,Cazaux (BA 120) Air Base,44.533298,-1.125,84,FR,medium_airport
+LFBD,Bordeaux–Mérignac Airport,44.82865,-0.715356,162,FR,large_airport
+LFBE,Bergerac Dordogne-Périgord airport,44.825298,0.518611,171,FR,medium_airport
+LFBG,Cognac-Châteaubernard (BA 709) Air Base,45.658298,-0.3175,102,FR,medium_airport
+LFBH,La Rochelle Île de Ré Airport,46.179199,-1.19528,74,FR,medium_airport
+LFBI,Poitiers-Biard Airport,46.5877,0.306666,423,FR,medium_airport
+LFBN,Niort - Marais Poitevin Airport,46.313477,-0.394529,203,FR,medium_airport
+LFBS,Biscarrosse Parentis airfield,44.3694,-1.13056,98,FR,small_airport
+LFBU,Angoulême Brie-Champniers airport,45.729198,0.221456,436,FR,medium_airport
+LFBX,Périgueux-Bassillac Airport,45.198101,0.815556,328,FR,medium_airport
+LFCD,Aérodrome d'Andernos,44.755,-1.065,66,FR,small_airport
+LFCH,Aérodrome d'Arcachon-La Teste-de-Buch,44.596401,-1.11083,52,FR,medium_airport
+LFCJ,Aérodrome de Jonzac Neulles,45.4842,-0.421389,128,FR,small_airport
+LFCP,Pons Avy Airfield,45.57,-0.515,117,FR,small_airport
+LFCS,Aérodrome de Bordeaux-Léognan-Saucats,44.700298,-0.595556,190,FR,small_airport
+LFCY,Royan-Médis Airport,45.628101,-0.9725,72,FR,medium_airport
+LFDC,Aérodrome de Montendre-Marcillac,45.274399,-0.452222,148,FR,small_airport
+LFDF,Aérodrome de Sainte-Foy-la-Grande,44.8536,0.176667,282,FR,small_airport
+LFDI,Libourne-Artigues-de-Lussac Airfield,44.98347,-0.138359,157,FR,small_airport
+LFDK,Soulac Sur Mer Airfield,45.494999,-1.08222,7,FR,small_airport
+LFDN,Rochefort-Saint-Agnant (BA 721) Airport,45.887798,-0.983056,60,FR,medium_airport
+LFDP,St Pierre d'Oléron Airfield,45.959202,-1.31611,20,FR,small_airport
+LFDR,La Réole Floudes Airfield,44.5681,-0.056111,43,FR,small_airport
+LFDU,Lesparre St Laurent Medoc Airfield,45.1978,-0.882222,105,FR,small_airport
+LFDV,Couhé Vérac Airfield,46.2728,0.190556,499,FR,small_airport
+LFDY,Bordeaux Yvrac Airfield,44.876049,-0.480416,240,FR,small_airport
+LFEH,Aubigny-sur-Nère Airfield,47.47993,2.393271,630,FR,small_airport
+LFEI,Briare Châtillon Airfield,47.614399,2.78194,539,FR,small_airport
+LFEM,Montargis Vimory Airfield,47.960602,2.68583,308,FR,small_airport
+LFFB,Buno-Bonnevaux Airfield,48.350074,2.424431,420,FR,small_airport
+LFFC,Mantes-Chérence Airfield,49.078814,1.68829,512,FR,small_airport
+LFFD,Saint-André-de-l'Eure Airfield,48.897669,1.250839,489,FR,small_airport
+LFFE,Enghien-Moisselles Airfield,49.046016,2.353976,335,FR,small_airport
+LFFG,La Ferté-Gaucher Airfield,48.757019,3.278098,538,FR,small_airport
+LFFH,Château-Thierry-Belleau Airfield,49.066753,3.355465,728,FR,small_airport
+LFFK,Fontenay Le Comte Airfield,46.441399,-0.792778,85,FR,small_airport
+LFFL,Bailleau Armenonville Airfield,48.5158,1.64,509,FR,small_airport
+LFFP,Pithiviers Airfield,48.155176,2.187563,384,FR,small_airport
+LFFQ,Cerny-La Ferté Alais Airfield,48.498571,2.336891,453,FR,small_airport
+LFFW,Montaigu St Georges Airfield,46.933102,-1.32556,184,FR,small_airport
+LFFY,Étrépagny Airfield,49.305273,1.637907,308,FR,small_airport
+LFFZ,Sézanne-Saint-Remy Airfield,48.70957,3.763304,354,FR,small_airport
+LFGK,Joigny Airfield,47.994462,3.392715,732,FR,small_airport
+LFGO,Pont-sur-Yonne Airfield,48.291587,3.245745,236,FR,small_airport
+LFIH,Chalais Airfield,45.268101,0.016944,285,FR,small_airport
+LFIK,Aérodrome de Ribérac-Tourette,45.238667,0.264798,351,FR,small_airport
+LFIV,Aérodrome de Vendays-Montalivet,45.3806,-1.11583,16,FR,small_airport
+LFIY,St Jean d'Angély Airfield,45.964993,-0.523374,246,FR,small_airport
+LFJB,Mauléon Airfield,46.902802,-0.697778,576,FR,small_airport
+LFJI,Aérodrome de Marennes - Le Bournet,45.825001,-1.07667,16,FR,small_airport
+LFJS,Soissons-Courmelles Airfield,49.344978,3.282681,509,FR,small_airport
+LFLA,Auxerre Branches airport,47.850201,3.49711,523,FR,medium_airport
+LFOB,Beauvais-Tillé airport,49.454399,2.11278,359,FR,large_airport
+LFOC,Châteaudun Airfield,48.057907,1.379309,433,FR,medium_airport
+LFOE,Évreux-Fauville (BA 105) Air Base,49.028702,1.21986,464,FR,medium_airport
+LFOJ,Orléans-Bricy (BA 123) Air Base,47.987801,1.76056,412,FR,medium_airport
+LFOL,L'Aigle-Saint-Michel Airfield,48.758502,0.656632,787,FR,small_airport
+LFON,Dreux Vernouillet Airfield,48.70543,1.361155,443,FR,small_airport
+LFOO,Les Sables-d'Olonne Talmont Airport,46.476898,-1.72278,105,FR,small_airport
+LFOP,Rouen Vallée de Seine Airport,49.384887,1.179142,512,FR,medium_airport
+LFOQ,Blois Le Breuil Airfield,47.678502,1.20884,398,FR,small_airport
+LFOR,Chartres-Métropole Airfield,48.457502,1.519843,509,FR,small_airport
+LFOW,Saint-Quentin-Roupy Airfield,49.816089,3.205734,325,FR,small_airport
+LFOX,Étampes-Mondésir Airfield,48.381901,2.07528,494,FR,small_airport
+LFOZ,Orléans–Saint-Denis-de-l'Hôtel Airport,47.897758,2.164478,396,FR,small_airport
+LFPA,Persan-Beaumont Airfield,49.165798,2.31306,148,FR,small_airport
+LFPB,Paris-Le Bourget International Airport,48.962276,2.436539,218,FR,large_airport
+LFPC,Creil Air Base,49.253502,2.51914,291,FR,medium_airport
+LFPD,Bernay-Saint-Martin Airfield,49.102351,0.565882,554,FR,small_airport
+LFPE,Meaux-Esbly Airfield,48.927462,2.833457,217,FR,small_airport
+LFPF,Beynes Thiverval Airfield,48.843165,1.906279,371,FR,small_airport
+LFPG,Charles de Gaulle International Airport,49.00896,2.554117,392,FR,large_airport
+LFPH,Chelles-le-Pin Airfield,48.896568,2.606206,207,FR,small_airport
+LFPK,Coulommiers-Voisins Aerodrome,48.839602,3.008653,470,FR,small_airport
+LFPL,Lognes Emerainville Airfield,48.821028,2.625967,359,FR,small_airport
+LFPM,Melun-Villaroche Airfield,48.604698,2.67112,302,FR,medium_airport
+LFPN,Toussus-le-Noble Airport,48.7519,2.10619,538,FR,medium_airport
+LFPO,Paris-Orly Airport,48.729499,2.358963,291,FR,large_airport
+LFPP,Le Plessis-Belleville Airfield,49.108837,2.736138,387,FR,small_airport
+LFPQ,Fontenay-Trésigny Aerodrome,48.706276,2.902849,371,FR,small_airport
+LFPT,Pontoise-Cormeilles Aerodrome,49.096064,2.035543,325,FR,medium_airport
+LFPU,Moret-Episy Airfield,48.34119,2.798517,253,FR,small_airport
+LFPV,Vélizy-Villacoublay Air Base,48.774406,2.203102,584,FR,medium_airport
+LFPX,Chavenay-Villepreux Airfield,48.842323,1.9805,426,FR,small_airport
+LFPZ,Saint-Cyr-l'École Airport,48.812459,2.067533,373,FR,small_airport
+LFRI,La Roche-sur-Yon Les Ajoncs Airport,46.7019,-1.37863,299,FR,medium_airport
+LFSW,Épernay Plivot Airfield,49.004461,4.085342,289,FR,small_airport
+LFXB,Saintes Thénac Airfield,45.7019,-0.636111,118,FR,small_airport
+LFXU,Les Mureaux Airfield,48.998299,1.94278,89,FR,small_airport
+LFYV,Yvetot Lucien Camu Airfield,49.638316,0.728467,463,FR,small_airport

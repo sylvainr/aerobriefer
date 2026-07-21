@@ -5,6 +5,14 @@ domaine (`Metar`, `Taf`, `Notam`, `Sigmet`, `ForecastPoint`, `Chart`). Il ne
 décide jamais de ce qui est pertinent : il collecte pour un `BriefingContext` et
 rend des `Sourced[...]` horodatés. Le contrat commun est dans [`base.py`](base.py).
 
+> **Code vs données — licence.** Le CODE des clients (ces fichiers) est publié :
+> il ne contient ni identifiants (lus dans l'environnement) ni données de la
+> source. Les DONNÉES qu'un provider rapatrie, elles, suivent la licence de leur
+> source. La plupart sont ouvertes et rediffusables (SIA/SOFIA sous Licence
+> Ouverte Etalab, NOAA domaine public, met.no CC-BY). **Exception : Aeroweb
+> (© Météo-France)** — usage strictement personnel, ses images ne doivent JAMAIS
+> être committées ni republiées (elles sont exclues par `.gitignore`).
+
 ## Règles communes à tous les providers
 
 1. **Un échec LÈVE `ProviderError`, jamais une liste vide silencieuse.** C'est

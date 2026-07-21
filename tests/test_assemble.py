@@ -229,13 +229,13 @@ def test_metar_station_is_resolved_even_if_not_a_flight_aerodrome():
     assert "LFBD" in {a.icao for a in package.aerodromes}
 
 
-def test_lfcy_grass_runway_supplements_ourairports():
-    """OurAirports ne liste que la 10/28 revêtue de LFCY ; le complément ajoute
-    la bande herbe 10R/28L (1000 m), sans écraser la revêtue."""
+def test_lfcy_has_both_runways_from_sia():
+    """Le SIA (contrairement à OurAirports) a les DEUX pistes de LFCY : la 10/28
+    revêtue ET la bande herbe 10R/28L (1000 m). Elle remplace OurAirports."""
     lfcy = airports.require("LFCY")
     idents = {r.ident for r in lfcy.runways}
-    assert "10/28" in idents, "la piste revêtue OurAirports"
-    assert "10R/28L" in idents, "la bande herbe ajoutée par le complément"
+    assert "10/28" in idents, "la piste revêtue"
+    assert "10R/28L" in idents, "la bande herbe (que le SIA fournit, pas OurAirports)"
     grass = next(r for r in lfcy.runways if r.ident == "10R/28L")
     assert grass.length_m == 1000
     assert grass.is_paved is False

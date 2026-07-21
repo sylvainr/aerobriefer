@@ -14,9 +14,11 @@ from pathlib import Path
 
 from ..domain.geo import Position
 from ..domain.models import Aerodrome, Runway
+from . import refdata
 
-_CSV = Path(__file__).with_name("airports_eu.csv")
-_RUNWAYS_CSV = Path(__file__).with_name("runways_eu.csv")
+#: Seul CSV EMBARQUÉ : le complément manuel (données de l'utilisateur, override
+#: pour un cas exotique). Le reste — aérodromes, pistes OurAirports/SIA — est
+#: téléchargé et mis en cache par `refdata`, jamais committé.
 _RUNWAYS_SUPPLEMENT_CSV = Path(__file__).with_name("runways_supplement.csv")
 
 
@@ -27,10 +29,10 @@ def _to_float(value: str) -> float | None:
         return None
 
 
-@lru_cache(maxsize=1)
-def _read_runway_rows(path: Path) -> Iterator[tuple[str, Runway]]:
+def _read_runway_rows(path: Path) -> list[tuple[str, Runway]]:
     if not path.exists():
-        return
+        return []
+    rows: list[tuple[str, Runway]] = []
     with path.open(encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
             length_m = _to_float(row.get("length_m", ""))
@@ -40,35 +42,50 @@ def _read_runway_rows(path: Path) -> Iterator[tuple[str, Runway]]:
             if heading is None:
                 heading = _heading_from_ident(row.get("le_ident", ""))
             ident = f"{row.get('le_ident', '')}/{row.get('he_ident', '')}".strip("/")
-            yield (
-                row["icao"],
-                Runway(
-                    ident=ident or "?",
-                    length_m=int(length_m),
-                    width_m=int(w) if (w := _to_float(row.get("width_m", ""))) else None,
-                    surface=row.get("surface") or None,
-                    true_bearing_deg=heading,
-                ),
+            rows.append(
+                (
+                    row["icao"],
+                    Runway(
+                        ident=ident or "?",
+                        length_m=int(length_m),
+                        width_m=int(w) if (w := _to_float(row.get("width_m", ""))) else None,
+                        surface=row.get("surface") or None,
+                        true_bearing_deg=heading,
+                    ),
+                )
             )
+    return rows
 
 
 @lru_cache(maxsize=1)
 def _runways_by_icao() -> dict[str, tuple[Runway, ...]]:
-    """Pistes indexées par OACI.
+    """Pistes indexées par OACI, TROIS sources fusionnées par priorité croissante.
 
-    Deux sources FUSIONNÉES : OurAirports (base publique, souvent incomplète — elle
-    rate régulièrement les bandes herbe des petits terrains français) PLUS un
-    fichier de complément maintenu à la main (`runways_supplement.csv`) pour les
-    pistes qu'un pilote connaît et que la base ignore (ex. la bande herbe 10R/28L
-    de LFCY, absente d'OurAirports). Le complément AJOUTE, il n'écrase pas.
+    1. **OurAirports** (`runways_eu.csv`) — base mondiale de fond, mais incomplète :
+       elle rate régulièrement les bandes herbe des petits terrains français.
+    2. **SIA / DGAC** (`runways_fr.csv`, AIXM officiel, Licence Etalab) — pour les
+       terrains qu'elle couvre (France + outre-mer), elle REMPLACE OurAirports :
+       elle est autoritative et complète (elle a bien la 10R/28L herbe de LFCY).
+    3. **Complément manuel** (`runways_supplement.csv`) — override final pour un
+       cas exotique ou un correctif entre deux cycles AIRAC. AJOUTE par-dessus.
 
     Le cap vrai retenu est celui de la QFU basse, avec repli sur l'orientation
     déduite du numéro de piste. Sert au vent traversier et aux longueurs de piste.
     """
     index: dict[str, list[Runway]] = {}
-    for path in (_RUNWAYS_CSV, _RUNWAYS_SUPPLEMENT_CSV):
-        for icao, runway in _read_runway_rows(path):
-            index.setdefault(icao, []).append(runway)
+    for icao, runway in _read_runway_rows(refdata.runways_eu_csv()):
+        index.setdefault(icao, []).append(runway)
+
+    # Le SIA remplace entièrement OurAirports pour les terrains qu'il couvre.
+    fr: dict[str, list[Runway]] = {}
+    for icao, runway in _read_runway_rows(refdata.runways_fr_csv()):
+        fr.setdefault(icao, []).append(runway)
+    index.update(fr)
+
+    # Le complément manuel s'ajoute par-dessus (ne remplace pas).
+    for icao, runway in _read_runway_rows(_RUNWAYS_SUPPLEMENT_CSV):
+        index.setdefault(icao, []).append(runway)
+
     return {icao: tuple(rwys) for icao, rwys in index.items()}
 
 
@@ -87,7 +104,7 @@ def _heading_from_ident(ident: str) -> float | None:
 def _load() -> dict[str, Aerodrome]:
     runways = _runways_by_icao()
     index: dict[str, Aerodrome] = {}
-    with _CSV.open(encoding="utf-8") as handle:
+    with refdata.airports_csv().open(encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
             try:
                 position = Position(float(row["lat"]), float(row["lon"]))
