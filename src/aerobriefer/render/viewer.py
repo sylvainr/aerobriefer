@@ -61,15 +61,31 @@ CLASS_COLORS: dict[str, str] = {
 }
 
 
+#: Le viewer montre une RÉGION plus large que la zone filtrée du briefing : on
+#: veut voir tous les terrains et espaces alentour (jusqu'à ~50 NM autour d'un
+#: vol local), pas seulement ceux retenus pour le dossier.
+VIEWER_REGION_MARGIN_NM = 30.0
+
+
 def viewer_data(package: BriefingPackage) -> dict[str, Any]:
     """Contrat de données du viewer, dérivé d'un `BriefingPackage`.
 
     Coordonnées en [lon, lat] (convention GeoJSON). Altitudes en pieds AMSL, prêtes
-    à l'extrusion. Tout ce que 2D et 3D affichent vient d'ici — pas d'appel réseau
-    côté rendu.
+    à l'extrusion.
+
+    À la différence du briefing (qui filtre serré autour du vol), le viewer est un
+    outil de VISUALISATION : il interroge la donnée de référence sur une région
+    élargie pour montrer TOUS les aérodromes et TOUS les espaces alentour.
     """
+    from ..data import airports, airspace
+    from ..domain.geo import Circle
+
     context = package.context
     center = context.geometry.bounding_circle().center
+    region_radius_nm = context.geometry.bounding_circle().radius_nm + VIEWER_REGION_MARGIN_NM
+    region = Circle(center, region_radius_nm)
+
+    flight_icaos = {i.upper() for i in context.flight_aerodromes}
 
     airspaces = [
         {
@@ -84,7 +100,7 @@ def viewer_data(package: BriefingPackage) -> dict[str, Any]:
             "frequency": a.frequency,
             "polygon": [[p.lon, p.lat] for p in a.polygon],
         }
-        for a in package.airspaces
+        for a in _region_airspaces(airspace, region)
     ]
 
     aerodromes = [
@@ -94,6 +110,7 @@ def viewer_data(package: BriefingPackage) -> dict[str, Any]:
             "lat": ad.position.lat,
             "lon": ad.position.lon,
             "elevation_ft": ad.elevation_ft,
+            "is_flight_aerodrome": ad.icao.upper() in flight_icaos,
             "runways": [
                 {
                     "ident": r.ident,
@@ -104,10 +121,10 @@ def viewer_data(package: BriefingPackage) -> dict[str, Any]:
                 for r in ad.runways
             ],
         }
-        for ad in package.aerodromes
+        for ad, _dist in airports.nearest(center, within_nm=region_radius_nm, limit=200)
     ]
 
-    ground = _ground(center, context, package)
+    ground = _ground(center, region_radius_nm, airspaces)
 
     return {
         "center": {"lat": center.lat, "lon": center.lon},
@@ -156,8 +173,15 @@ def _route(context: BriefingContext) -> dict[str, Any] | None:
     }
 
 
-def _ground(center: Any, context: BriefingContext, package: BriefingPackage) -> dict[str, Any]:
-    """Emprise carrée (en mètres, centrée) couvrant le vol ET les espaces, plus
+def _region_airspaces(airspace_module: Any, region: Any) -> list[Any]:
+    """Tous les espaces touchant la région du viewer (plus large que le briefing)."""
+    return list(airspace_module.intersecting(region))
+
+
+def _ground(
+    center: Any, region_radius_nm: float, airspaces: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Emprise carrée (en mètres, centrée) couvrant la région ET les espaces, plus
     les URLs de couches de fond prêtes à charger.
 
     Le sol du viewer est un carré de côté 2·half_extent_m ; une image satellite de
@@ -166,11 +190,11 @@ def _ground(center: Any, context: BriefingContext, package: BriefingPackage) -> 
     """
     lat0, lon0 = center.lat, center.lon
     cos_lat = math.cos(math.radians(lat0))
-    reach_m = _radius_nm(context) * 1852.0
-    for airspace in package.airspaces:
-        for p in airspace.polygon:
-            dx = (p.lon - lon0) * _M_PER_DEG_LAT * cos_lat
-            dy = (p.lat - lat0) * _M_PER_DEG_LAT
+    reach_m = region_radius_nm * 1852.0
+    for airspace in airspaces:
+        for lon, lat in airspace["polygon"]:
+            dx = (lon - lon0) * _M_PER_DEG_LAT * cos_lat
+            dy = (lat - lat0) * _M_PER_DEG_LAT
             reach_m = max(reach_m, math.hypot(dx, dy))
     half_extent_m = reach_m * 1.12  # petite marge
 

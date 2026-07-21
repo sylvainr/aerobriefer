@@ -95,6 +95,50 @@
   #groundMsg { margin-top: 6px; font-size: 10.5px; color: #b1451f; display: none; line-height: 1.35; }
   #groundMsg.show { display: block; }
 
+  /* Filtre d'altitude (dans l'en-tête de la légende) */
+  #altFilter { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--panel-border); }
+  #altFilter .altrow { display: flex; align-items: center; gap: 9px; }
+  #altFilter label { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+  #altFilter input[type=range] { flex: 1; accent-color: var(--accent); }
+  #altVal { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 62px; text-align: right; font-size: 12px; }
+  .as-row.filtered-alt { opacity: .3; }
+
+  /* Panneau nav (récap) */
+  #navpanel {
+    position: absolute; top: 14px; left: 14px; width: 244px;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: var(--shadow); z-index: 20; display: none;
+    padding: 11px 13px; font-size: 12.5px;
+  }
+  #navpanel.show { display: block; }
+  #navpanel h3 { margin: 0 0 7px; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-soft); }
+  #navpanel .leg { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; line-height: 1.3; }
+  #navpanel .leg .lg-route { font-weight: 600; }
+  #navpanel .leg .lg-num { color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #navpanel .total { margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--panel-border);
+                     display: flex; justify-content: space-between; font-weight: 700; }
+  #navpanel .swatch-line { display:inline-block; width: 16px; height: 3px; border-radius:2px; background:#ff5a1f; vertical-align: 3px; margin-right: 5px; }
+
+  /* Panneau info aérodrome */
+  #aeropanel {
+    position: absolute; z-index: 31; display: none; width: 260px;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; font-size: 12.5px;
+  }
+  #aeropanel.show { display: block; }
+  #aeropanel .ap-close { position: absolute; top: 7px; right: 10px; cursor: pointer; color: var(--ink-soft);
+                         font-size: 16px; line-height: 1; }
+  #aeropanel .ap-close:hover { color: var(--ink); }
+  #aeropanel h3 { margin: 0 0 2px; font-size: 14px; }
+  #aeropanel .ap-name { color: var(--ink-soft); font-size: 11.5px; margin-bottom: 6px; }
+  #aeropanel .ap-elev { font-size: 12px; margin-bottom: 7px; }
+  #aeropanel .ap-elev b { font-variant-numeric: tabular-nums; }
+  #aeropanel table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  #aeropanel th { text-align: left; color: var(--ink-soft); font-weight: 600; padding: 2px 4px 4px 0;
+                  border-bottom: 1px solid var(--panel-border); }
+  #aeropanel td { padding: 3px 4px 3px 0; border-bottom: 1px solid #eceff3; font-variant-numeric: tabular-nums; }
+  #aeropanel .ap-norwy { color: var(--ink-soft); font-style: italic; }
+
   /* Tooltip */
   #tooltip {
     position: absolute; z-index: 30; pointer-events: none; display: none;
@@ -125,6 +169,13 @@
   <header>
     <h2>Filtrer par classe</h2>
     <div id="classFilters"></div>
+    <div id="altFilter">
+      <div class="altrow">
+        <label for="altMax">Altitude&nbsp;max</label>
+        <input id="altMax" type="range" min="1000" max="20000" step="500" value="7000">
+        <span id="altVal">7000 ft</span>
+      </div>
+    </div>
   </header>
   <div id="legendList"></div>
   <footer>
@@ -157,6 +208,8 @@
   </div>
 </div>
 
+<div id="navpanel"></div>
+<div id="aeropanel"></div>
 <div id="tooltip"></div>
 <div id="empty">Aucune donnée d'espace aérien à afficher.</div>
 
@@ -172,6 +225,9 @@
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 
 // ---- Données injectées par le pipeline Python ------------------------------
 const DATA = /*__AEROBRIEFER_DATA__*/null;
@@ -189,6 +245,7 @@ const aerodromes = Array.isArray(flight.aerodromes) ? flight.aerodromes : [];
 const classColors = data.class_colors || {};
 const ground = data.ground || null;
 const groundLayers = (ground && ground.layers) || {};
+const route = (data.route && Array.isArray(data.route.waypoints) && data.route.waypoints.length >= 2) ? data.route : null;
 
 // ---- Projection plan tangent (equirectangulaire) ---------------------------
 const lat0 = center.lat * DEG;
@@ -349,20 +406,24 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 // ---- Aérodromes ------------------------------------------------------------
+const aeroMeshes = [];   // cônes cliquables (raycasting)
 function buildAerodromes() {
   aerodromes.forEach((ad, idx) => {
     const [x, y] = project(ad.lon, ad.lat);
     const isMain = idx === 0;
     const h = radiusM * (isMain ? 0.05 : 0.03);
     const r = radiusM * (isMain ? 0.014 : 0.009);
+    const baseColor = isMain ? 0xd11a2a : 0x37516b;
     const cone = new THREE.Mesh(
       new THREE.ConeGeometry(r, h, 20),
-      new THREE.MeshLambertMaterial({ color: isMain ? 0xd11a2a : 0x37516b })
+      new THREE.MeshLambertMaterial({ color: baseColor })
     );
     // ConeGeometry pointe vers +Y ; on l'oriente vers +Z, pointe en haut.
     cone.rotation.x = Math.PI / 2;
     cone.position.set(x, y, h / 2);
+    cone.userData = { aerodrome: ad, baseColor, screenPos: new THREE.Vector3(x, y, h) };
     worldGroup.add(cone);
+    aeroMeshes.push(cone);
 
     if (isMain || ad.runways?.length) {
       const label = makeLabel(ad.icao, {
@@ -485,9 +546,111 @@ function buildAirspaces() {
   });
 }
 
+// ---- Navigation 3D ---------------------------------------------------------
+const ROUTE_COLOR = 0xff5a1f;   // orange vif
+let routeLineMat = null;         // gardé pour maj résolution au resize
+const routeMarkers = [];         // sphères waypoint (contre-échelle Z pour rester rondes)
+function altOf(wp) {
+  const v = Number(wp.altitude_ft);
+  return Number.isFinite(v) ? v : 0;   // waypoint sans alt -> au sol
+}
+function buildRoute() {
+  if (!route) return;
+  const wps = route.waypoints;
+  const pos3 = wps.map(wp => {
+    const [x, y] = project(wp.lon, wp.lat);
+    return [x, y, altOf(wp) * FT_TO_M];
+  });
+
+  // Polyligne 3D épaisse (Line2 = épaisseur en pixels, constante à l'écran)
+  const flat = [];
+  pos3.forEach(p => flat.push(p[0], p[1], p[2]));
+  const geo = new LineGeometry();
+  geo.setPositions(flat);
+  routeLineMat = new LineMaterial({
+    color: ROUTE_COLOR, linewidth: 4, transparent: true, opacity: 0.95,
+    depthTest: false, dashed: false,
+  });
+  routeLineMat.resolution.set(window.innerWidth, window.innerHeight);
+  const line = new Line2(geo, routeLineMat);
+  line.computeLineDistances();
+  line.renderOrder = 20;
+  vertGroup.add(line);
+
+  // Marqueurs + drop lines + labels
+  wps.forEach((wp, i) => {
+    const [x, y, z] = pos3[i];
+
+    const marker = new THREE.Mesh(
+      new THREE.SphereGeometry(radiusM * 0.009, 20, 14),
+      new THREE.MeshBasicMaterial({ color: ROUTE_COLOR, depthTest: false })
+    );
+    marker.position.set(x, y, z);
+    marker.renderOrder = 21;
+    vertGroup.add(marker);
+    routeMarkers.push(marker);
+
+    // Drop line (waypoint -> sol), en tirets
+    if (z > 0.5) {
+      const drop = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, y, z), new THREE.Vector3(x, y, 0),
+        ]),
+        new THREE.LineDashedMaterial({
+          color: ROUTE_COLOR, transparent: true, opacity: 0.7,
+          dashSize: radiusM * 0.02, gapSize: radiusM * 0.014, depthTest: false,
+        })
+      );
+      drop.computeLineDistances();
+      drop.renderOrder = 19;
+      vertGroup.add(drop);
+      // petit repère au sol
+      const foot = new THREE.Mesh(
+        new THREE.CircleGeometry(radiusM * 0.006, 18),
+        new THREE.MeshBasicMaterial({ color: ROUTE_COLOR, transparent: true, opacity: 0.6, depthTest: false })
+      );
+      foot.position.set(x, y, 0.6);
+      foot.renderOrder = 18;
+      vertGroup.add(foot);
+    }
+
+    const altTxt = Number.isFinite(Number(wp.altitude_ft))
+      ? Math.round(wp.altitude_ft).toLocaleString('fr-FR') + ' ft'
+      : 'sol';
+    const label = makeLabel(`${wp.name || 'WP' + (i + 1)} · ${altTxt}`, {
+      fontSize: 34, worldHeight: radiusM * 0.04, color: '#8a2c0d',
+      bg: 'rgba(255,246,240,0.94)',
+    });
+    label.position.set(x, y, z + radiusM * 0.045);
+    label.renderOrder = 22;
+    vertGroup.add(label);
+  });
+}
+
+function buildNavPanel() {
+  if (!route) return;
+  const panel = document.getElementById('navpanel');
+  const legs = Array.isArray(route.legs) ? route.legs : [];
+  let html = `<h3><span class="swatch-line"></span>Navigation</h3>`;
+  legs.forEach((lg) => {
+    const trk = (lg.true_track_deg != null)
+      ? String(Math.round(lg.true_track_deg)).padStart(3, '0') + '°' : '—';
+    const dist = (lg.distance_nm != null) ? Number(lg.distance_nm).toFixed(1) + ' NM' : '—';
+    html += `<div class="leg"><span class="lg-route">${escapeHtml(lg.from || '')}→${escapeHtml(lg.to || '')}</span>` +
+            `<span class="lg-num">${dist} · ${trk}</span></div>`;
+  });
+  if (route.total_distance_nm != null) {
+    html += `<div class="total"><span>Total</span><span>${Number(route.total_distance_nm).toFixed(1)} NM</span></div>`;
+  }
+  panel.innerHTML = html;
+  panel.classList.add('show');
+}
+
 // ---- Construction ----------------------------------------------------------
 buildGround();
 buildAerodromes();
+buildRoute();
+buildNavPanel();
 buildCompass();
 if (airspaces.length) {
   const maxFt = airspaces.reduce((m, a) => Math.max(m, Number(a.upper_ft) || 0), 0);
@@ -502,6 +665,8 @@ const exagSlider = document.getElementById('exag');
 const exagVal = document.getElementById('exagVal');
 function applyExag(v) {
   vertGroup.scale.z = v;
+  // les sphères de waypoint compensent l'échelle Z pour rester rondes
+  routeMarkers.forEach(m => m.scale.set(1, 1, 1 / v));
   exagVal.textContent = '×' + v;
 }
 exagSlider.addEventListener('input', () => applyExag(parseFloat(exagSlider.value)));
@@ -620,6 +785,7 @@ const CLASS_LABEL = {
 };
 const classState = {}; // classe -> bool actif
 const rowByIndex = {};
+let altThreshold = Infinity;   // seuil "Altitude max" (ft) ; Infinity = tout
 
 function classOf(a) { return a.class || 'UNC'; }
 function colorOf(a) { return a.color || classColors[classOf(a)] || '#888888'; }
@@ -639,8 +805,7 @@ function buildLegend() {
     cb.addEventListener('change', () => {
       classState[cl] = cb.checked;
       chip.classList.toggle('off', !cb.checked);
-      airspaces.forEach((a, i) => { if (classOf(a) === cl) setVisible(i, cb.checked, true); });
-      refreshRows();
+      refreshRows();   // resynchronise volumes + lignes (préserve les bascules individuelles)
     });
     cf.appendChild(chip);
   });
@@ -662,7 +827,7 @@ function buildLegend() {
       `</span>`;
     row.addEventListener('click', () => {
       const mesh = airspaceMeshes[i];
-      setVisible(i, !mesh.userData.visible, false);
+      setVisible(i, !mesh.userData.visible);
       refreshRows();
     });
     row.addEventListener('mouseenter', () => setHighlight(i, true));
@@ -673,34 +838,56 @@ function buildLegend() {
   refreshRows();
 }
 
-function setVisible(i, vis, fromClass) {
+function passesAlt(a) { return (Number(a.lower_ft) || 0) <= altThreshold; }
+function meshShown(i) {
+  const a = airspaces[i];
+  const mesh = airspaceMeshes[i];
+  if (!mesh) return false;
+  const clOn = classState[classOf(a)] !== false;
+  return mesh.userData.visible && clOn && passesAlt(a);
+}
+function setVisible(i, vis) {
   const mesh = airspaceMeshes[i];
   if (!mesh) return;
   mesh.userData.visible = vis;
-  // visible seulement si la classe est active ET non masqué individuellement
-  const clOn = classState[classOf(airspaces[i])] !== false;
-  mesh.visible = vis && clOn;
+  mesh.visible = meshShown(i);
 }
+// Applique les trois filtres (individuel / classe / altitude) aux volumes ET à la légende.
 function refreshRows() {
   airspaces.forEach((a, i) => {
-    const row = rowByIndex[i]; if (!row) return;
     const mesh = airspaceMeshes[i];
+    if (mesh) mesh.visible = meshShown(i);
+    const row = rowByIndex[i]; if (!row) return;
     const clOn = classState[classOf(a)] !== false;
-    const shown = mesh.userData.visible && clOn;
-    row.classList.toggle('hidden', !shown);
+    const indiv = mesh.userData.visible;
+    const keptByToggle = indiv && clOn;          // non masqué par classe/clic
+    row.classList.toggle('hidden', !keptByToggle);
+    row.classList.toggle('filtered-alt', keptByToggle && !passesAlt(a)); // exclu par altitude
   });
 }
 
 document.getElementById('showAll').addEventListener('click', () => {
-  airspaces.forEach((a, i) => { classState[classOf(a)] = true; setVisible(i, true, false); });
+  airspaces.forEach((a, i) => { classState[classOf(a)] = true; airspaceMeshes[i].userData.visible = true; });
   document.querySelectorAll('#classFilters input').forEach(cb => cb.checked = true);
   document.querySelectorAll('#classFilters .classchip').forEach(c => c.classList.remove('off'));
+  altMaxSlider.value = altMaxSlider.max; setAltThreshold();   // filtre altitude sur "tout"
   refreshRows();
 });
 document.getElementById('hideAll').addEventListener('click', () => {
-  airspaces.forEach((a, i) => setVisible(i, false, false));
+  airspaces.forEach((a, i) => airspaceMeshes[i].userData.visible = false);
   refreshRows();
 });
+
+// ---- Filtre d'altitude max -------------------------------------------------
+const altMaxSlider = document.getElementById('altMax');
+const altValEl = document.getElementById('altVal');
+const ALT_MAX = parseInt(altMaxSlider.max, 10);
+function setAltThreshold() {
+  const v = parseInt(altMaxSlider.value, 10);
+  altThreshold = (v >= ALT_MAX) ? Infinity : v;
+  altValEl.textContent = (v >= ALT_MAX) ? 'tout' : v.toLocaleString('fr-FR') + ' ft';
+}
+altMaxSlider.addEventListener('input', () => { setAltThreshold(); refreshRows(); });
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c =>
@@ -764,20 +951,81 @@ function onPointerMove(ev) {
   } else {
     tooltip.style.display = 'none';
   }
+  // curseur "main" au survol d'un aérodrome cliquable
+  const aeroHit = raycaster.intersectObjects(aeroMeshes, false);
+  renderer.domElement.style.cursor = aeroHit.length ? 'pointer' : '';
 }
 renderer.domElement.addEventListener('pointermove', onPointerMove);
 renderer.domElement.addEventListener('pointerleave', () => {
   if (hoverIndex >= 0) setHighlight(hoverIndex, false);
   hoverIndex = -1; tooltip.style.display = 'none';
+  renderer.domElement.style.cursor = '';
 });
 
-if (airspaces.length) buildLegend();
+// ---- Clic sur un aérodrome -> panneau d'infos ------------------------------
+const aeroPanel = document.getElementById('aeropanel');
+function hideAeroPanel() { aeroPanel.classList.remove('show'); }
+function showAeroPanel(ad, clientX, clientY) {
+  const rwys = Array.isArray(ad.runways) ? ad.runways : [];
+  let rwyHtml;
+  if (rwys.length) {
+    rwyHtml = '<table><tr><th>Piste</th><th>Long.</th><th>QFU</th><th>Surface</th></tr>' +
+      rwys.map((r) => {
+        const brg = (r.bearing != null) ? String(Math.round(r.bearing)).padStart(3, '0') + '°' : '—';
+        const len = (r.length_m != null) ? Math.round(r.length_m) + ' m' : '—';
+        return `<tr><td>${escapeHtml(r.ident || '')}</td><td>${escapeHtml(len)}</td>` +
+               `<td>${brg}</td><td>${escapeHtml(r.surface || '')}</td></tr>`;
+      }).join('') + '</table>';
+  } else {
+    rwyHtml = '<div class="ap-norwy">Aucune piste renseignée.</div>';
+  }
+  const elev = (ad.elevation_ft != null)
+    ? `<div class="ap-elev">Altitude terrain&nbsp;: <b>${Math.round(ad.elevation_ft).toLocaleString('fr-FR')} ft</b></div>` : '';
+  aeroPanel.innerHTML =
+    `<span class="ap-close" id="apClose">×</span>` +
+    `<h3>${escapeHtml(ad.icao || '')}</h3>` +
+    `<div class="ap-name">${escapeHtml(ad.name || '')}</div>` +
+    elev + rwyHtml;
+  aeroPanel.classList.add('show');
+  const pw = aeroPanel.offsetWidth, ph = aeroPanel.offsetHeight;
+  let px = clientX + 16, py = clientY + 16;
+  if (px + pw > window.innerWidth - 8) px = clientX - pw - 16;
+  if (py + ph > window.innerHeight - 8) py = window.innerHeight - ph - 8;
+  if (px < 8) px = 8;
+  if (py < 8) py = 8;
+  aeroPanel.style.left = px + 'px';
+  aeroPanel.style.top = py + 'px';
+  document.getElementById('apClose').addEventListener('click', (e) => { e.stopPropagation(); hideAeroPanel(); });
+}
+
+// Distinguer un clic d'un drag (rotation/pan OrbitControls) via le déplacement.
+let ptrDown = null;
+renderer.domElement.addEventListener('pointerdown', (ev) => { ptrDown = [ev.clientX, ev.clientY]; });
+renderer.domElement.addEventListener('pointerup', (ev) => {
+  if (!ptrDown) return;
+  const moved = Math.hypot(ev.clientX - ptrDown[0], ev.clientY - ptrDown[1]);
+  ptrDown = null;
+  if (moved > 6) return;   // c'était un drag, pas un clic
+  pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(aeroMeshes, false);
+  if (hits.length) showAeroPanel(hits[0].object.userData.aerodrome, ev.clientX, ev.clientY);
+  else hideAeroPanel();
+});
+
+if (airspaces.length) {
+  buildLegend();
+  setAltThreshold();   // applique le seuil d'altitude par défaut (~7000 ft)
+  refreshRows();
+}
 
 // ---- Resize + boucle de rendu ----------------------------------------------
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  if (routeLineMat) routeLineMat.resolution.set(window.innerWidth, window.innerHeight);
 });
 
 function animate() {

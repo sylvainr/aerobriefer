@@ -1,78 +1,97 @@
-"""Tests du pipeline viewer (données + injection). Le rendu WebGL lui-même n'est
-pas testable en unitaire — on vérifie la structure et l'injection déterministe."""
+"""Tests du pipeline viewer.
+
+Depuis l'enrichissement « région », `viewer_data` puise les aérodromes et espaces
+dans la donnée de RÉFÉRENCE (fixture, via conftest), pas dans le package : le
+viewer montre toute la région, pas seulement la zone filtrée du briefing. Le
+rendu WebGL lui-même n'est pas testable en unitaire — on teste structure et
+injection déterministe.
+"""
 
 from __future__ import annotations
 
-from datetime import UTC, timedelta
-
-from aerobriefer.domain.context import BriefingContext
+from aerobriefer.assemble import assemble_briefing
+from aerobriefer.cli import build_context
 from aerobriefer.domain.geo import Position
-from aerobriefer.domain.models import Airspace, AltitudeLimit
-from aerobriefer.domain.package import BriefingPackage
-from aerobriefer.domain.window import TimeWindow, UtcDateTime
 from aerobriefer.render.viewer import CLASS_COLORS, render_viewer, viewer_data
 
-LFCY = Position(45.628101, -0.9725)
-T0 = UtcDateTime(2026, 7, 21, 8, 0, tzinfo=UTC)
+
+def _package(icao: str = "LFCY", radius_nm: float = 20.0):
+    ctx = build_context(icao, date="2026-07-21", heure="10:00", duree_h=3, rayon_nm=radius_nm)
+    return assemble_briefing(ctx, [])
 
 
-def _package() -> BriefingPackage:
-    ctx = BriefingContext.local(
-        center=LFCY,
-        radius_nm=20.0,
-        window=TimeWindow(T0, T0 + timedelta(hours=3)),
-        icao="LFCY",
-    )
-    poly = [Position(45.5, -1.1), Position(45.5, -0.8), Position(45.8, -0.8)]
-    airspace = Airspace(
-        name="TMA TEST",
-        airspace_class="D",
-        airspace_type="TMA",
-        polygon=poly,
-        lower=AltitudeLimit(0, "FT", "GND"),
-        upper=AltitudeLimit(65, "FL", "STD"),
-    )
-    return BriefingPackage(context=ctx, airspaces=[airspace])
-
-
-def test_viewer_data_contract():
+def test_viewer_shows_whole_region_not_just_flight():
+    """Le viewer montre TOUS les aérodromes et espaces alentour, pas juste LFCY."""
     data = viewer_data(_package())
-    assert data["center"]["lat"] == LFCY.lat
-    assert data["flight"]["radius_nm"] == 20.0
-    (a,) = data["airspaces"]
-    assert a["type"] == "TMA" and a["class"] == "D"
-    assert a["upper_ft"] == 6500  # FL65 → pieds
-    assert a["upper_label"] == "FL65"
-    assert a["color"] == CLASS_COLORS["D"]
-    # polygone en [lon, lat] (convention GeoJSON)
-    assert a["polygon"][0] == [-1.1, 45.5]
+    aeros = data["flight"]["aerodromes"]
+    icaos = {a["icao"] for a in aeros}
+    assert "LFCY" in icaos
+    assert len(aeros) > 3, "la région doit contenir plusieurs terrains, pas que le départ"
+    lfcy = next(a for a in aeros if a["icao"] == "LFCY")
+    assert lfcy["is_flight_aerodrome"] is True
+    assert lfcy["runways"], "LFCY doit porter ses pistes (dont l'herbe SIA)"
+    assert data["airspaces"], "des espaces doivent entourer LFCY"
 
 
-def test_render_viewer_injects_data_and_consumes_marker():
+def test_viewer_data_airspace_fields():
+    data = viewer_data(_package())
+    a = data["airspaces"][0]
+    for key in ("name", "class", "type", "color", "lower_ft", "upper_ft", "polygon"):
+        assert key in a
+    assert a["color"] == CLASS_COLORS.get(a["class"], "#888888")
+    lon, lat = a["polygon"][0]
+    assert -10 < lon < 10 and 40 < lat < 52
+
+
+def test_render_viewer_consumes_marker_and_is_html():
     html = render_viewer(_package())
     assert "/*__AEROBRIEFER_DATA__*/null" not in html, "le marqueur doit être remplacé"
-    assert "TMA TEST" in html
     assert "<!doctype html" in html.lower() or "<!DOCTYPE html" in html
+    assert "LFCY" in html
 
 
-def test_render_viewer_handles_no_airspaces():
+def test_render_viewer_handles_empty_region():
+    """Loin de tout (océan) : aucune donnée, mais rendu propre sans marqueur."""
+    from datetime import UTC, timedelta
+
+    from aerobriefer.domain.context import BriefingContext
+    from aerobriefer.domain.window import TimeWindow, UtcDateTime
+
+    t0 = UtcDateTime(2026, 7, 21, 8, 0, tzinfo=UTC)
     ctx = BriefingContext.local(
-        center=LFCY, radius_nm=20.0, window=TimeWindow(T0, T0 + timedelta(hours=3)), icao="LFCY"
+        center=Position(30.0, -40.0),  # Atlantique
+        radius_nm=20.0,
+        window=TimeWindow(t0, t0 + timedelta(hours=3)),
+        icao=None,
     )
-    html = render_viewer(BriefingPackage(context=ctx))
+    html = render_viewer(assemble_briefing(ctx, []))
     assert "/*__AEROBRIEFER_DATA__*/null" not in html
 
 
 def test_viewer_data_ground_and_base_layers():
-    """Le sol porte une emprise carrée + des URLs de couches satellite prêtes."""
     data = viewer_data(_package())
     ground = data["ground"]
     assert ground["half_extent_m"] > 0
     bbox = ground["bbox"]
     assert bbox["minLon"] < data["center"]["lon"] < bbox["maxLon"]
     assert bbox["minLat"] < data["center"]["lat"] < bbox["maxLat"]
-    # URLs prêtes (bbox déjà injecté, aucune accolade restante)
     for layer in ground["layers"].values():
         assert "label" in layer
         assert "{" not in layer["url"], "l'URL doit être prête, bbox rempli"
         assert layer["url"].startswith("https://")
+
+
+def test_viewer_data_route_when_navigation():
+    ctx = build_context(
+        "LFCY", date="2026-07-21", heure="10:00", duree_h=3, rayon_nm=20, route="LFBN@2500"
+    )
+    data = viewer_data(assemble_briefing(ctx, []))
+    route = data["route"]
+    assert route is not None
+    assert [w["name"] for w in route["waypoints"]] == ["LFCY", "LFBN"]
+    assert route["waypoints"][1]["altitude_ft"] == 2500.0
+    assert route["total_distance_nm"] > 0
+
+
+def test_viewer_data_no_route_for_local():
+    assert viewer_data(_package())["route"] is None
