@@ -64,14 +64,50 @@ qui télécharge + cache, comme Aeroweb. Filtrage spatial contre la géométrie 
 Autour de LFCY, données réelles : TMA Aquitaine (E), LF-R260 Royan, CTR Cognac,
 RMZ Rochefort, P-zone du Blayais…
 
-Deux livrables :
-- **a) Carte 2D** — SVG autosuffisant dans le briefing (polygones colorés par
-  classe + cercle du vol + terrains). Pas de fond de carte externe (offline).
-- **b) Viewer 3D three.js** — page interactive : chaque espace = un prisme extrudé
-  entre plancher et plafond, translucide, coloré par classe. Conversion altitude :
-  FT/MSL → m ; FL/STD → FL×100×0.3048 ; FT/GND → au-dessus du sol (MVP sol=0).
+Trois livrables :
+- **a) Carte 2D** — vue de dessus, polygones colorés par classe + cercle du vol +
+  terrains. Autosuffisante, pas de fond de carte externe (offline).
+- **b) Viewer 3D three.js** — chaque espace = un prisme extrudé entre plancher et
+  plafond, translucide, coloré par classe. Conversion altitude : FT/MSL → m ;
+  FL/STD → FL×100×0.3048 ; FT/GND → au-dessus du sol (MVP sol=0).
+- **c) Le viewer construit la ROUTE** (voir chantier 4). Ce n'est pas que de la
+  visualisation : on clique ses points tournants sur la 2D, on voit les espaces
+  traversés, et ça définit la nav. Le viewer est l'ÉDITEUR de route.
 
 *Le morceau « waouh ». Domaine `Airspace` déjà esquissé.*
+
+**En ligne vs hors ligne — la distinction clé.** Le briefing (PDF/HTML emporté en
+vol) reste AUTOSUFFISANT et hors ligne. Le viewer de création de route, lui, est
+un outil de PRÉPARATION au bureau, en ligne : il PEUT charger un fond de carte
+externe. Les deux ne suivent pas la même règle, et c'est assumé.
+
+**Fond de carte du viewer.** Pour préparer une nav, voir le terrain réel
+(satellite) compte. Options, de la plus pertinente à la plus générique :
+- **IGN Géoportail (français, officiel, gratuit, WMTS)** — le bon choix pour la
+  France. Deux couches en or : l'**ortho-photo** (satellite haute résolution) ET
+  surtout la **carte OACI VFR 1:500 000** (la vraie carte aéro, qui montre déjà
+  espaces, obstacles, points VFR). On pose nos couches par-dessus.
+- **Esri World Imagery** — satellite mondial, sans clé, bon repli hors France.
+- **Mapbox / MapLibre GL** — satellite + rendu vectoriel, clé API (offre gratuite).
+  MapLibre (open-source) si on veut éviter la dépendance Mapbox.
+
+Moteur de carte : **MapLibre GL JS** (open-source, gère raster WMTS + vecteur +
+3D terrain), ou Leaflet pour un MVP 2D plus simple. Le 3D three.js reste pour la
+vue volumétrique des espaces ; MapLibre peut aussi faire de la 3D terrain si on
+veut tout au même endroit.
+
+**Architecture du round-trip viewer ↔ moteur.** Le viewer est du JS navigateur,
+le moteur est Python — il faut une frontière propre :
+1. Le viewer charge les espaces + terrains (données servies par le moteur, ou
+   fetchées/cachées).
+2. L'utilisateur place ses points tournants → le viewer produit une **route JSON**
+   (suite de {lat, lon, nom?, altitude?}).
+3. Cette route alimente le moteur (`Corridor`) → briefing de nav.
+4. *Plus tard* : le moteur renvoie le résultat (NOTAM/météo le long de la route)
+   et le viewer l'affiche par-dessus la carte. Boucle complète.
+
+MVP : viewer exporte la route → CLI génère le brief. Intégration serrée ensuite
+(petit serveur local, ou MCP — cf. chantier 5).
 
 ### 3. Modèle avion (framework + exemple DR400)  🟡 données en main
 
@@ -101,7 +137,21 @@ produit.
   log de nav (branches, caps, distances, temps estimés).
 - **Déroutement** : `Circle` autour de chaque dégagement + go/no-go piste (chantier 3).
 
-### 5. Serveur MCP  🔵 idée initiale
+### 5. Cartes VAC des terrains  🟡 source ouverte, URL à trouver
+
+Pour une nav, il faut la **VAC** (carte d'atterrissage à vue) de chaque terrain
+concerné : destination, dégagements, déroutements, terrains des points tournants.
+
+- **Source : eAIP du SIA**, sous Licence Ouverte Etalab — donc librement
+  récupérable ET **rediffusable** (on peut l'embarquer dans le dossier emporté,
+  contrairement aux cartes Aeroweb). Gros avantage vs Aeroweb.
+- **Provider `VacProvider`** indexé sur les terrains du contexte
+  (`flight_aerodromes` + points tournants). Rend des PDF/images embarqués.
+- **Travail** : rétro-ingénier le motif d'URL des VAC dans l'eAIP (comme SOFIA /
+  Aeroweb). Attention au **cycle AIRAC** (change toutes les 4 semaines) — viser
+  le cycle courant, pas une URL figée.
+
+### 6. Serveur MCP  🔵 idée initiale
 
 Exposer `assemble_briefing` et les providers comme outils MCP → interroger le
 briefing en conversation depuis Claude. La « toolbox » du départ.
@@ -110,9 +160,10 @@ briefing en conversation depuis Claude. La « toolbox » du départ.
 
 ## Ordre proposé
 
-`1 (pistes SIA)` → `3 (avion, débloque le go/no-go)` → `4 (nav/déroutement)` →
-`2 (espaces + 3D, le gros bloc visuel)` → `5 (MCP)`.
-À réordonner selon l'envie — le viewer 3D peut passer devant si c'est ça qui motive.
+`1 (pistes SIA)` → `3 (avion, débloque le go/no-go)` → `4 (nav/déroutement)` +
+`5 (VAC)` → `2 (espaces + viewer, qui devient aussi l'éditeur de route)` →
+`6 (MCP)`. À réordonner selon l'envie — le viewer peut passer devant si c'est ça
+qui motive, d'autant qu'il porte la création de route.
 
 ---
 
