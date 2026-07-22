@@ -25,8 +25,9 @@ from ..domain.package import BriefingPackage
 _M_PER_DEG_LAT = 111320.0
 
 # Couches de fond de carte pour le SOL du viewer (outil en ligne). Modèles d'URL
-# WMS/export : {minLon},{minLat},{maxLon},{maxLat} sont remplis côté client (ou
-# ici). Aucune clé requise.
+# WMS/export : {minLon},{minLat},{maxLon},{maxLat} remplis par tuile. Aucune clé.
+# Chaque tuile est demandée en 2048×2048 : découper le sol en grille N×N multiplie
+# la résolution effective (une seule image sur 100+ km serait floue de près).
 BASE_LAYERS: dict[str, dict[str, str]] = {
     "ign-ortho": {
         "label": "Satellite IGN (France, HD)",
@@ -45,6 +46,11 @@ BASE_LAYERS: dict[str, dict[str, str]] = {
         ),
     },
 }
+
+#: Taille de sol visée par tuile (m). Grille N×N pour couvrir l'emprise à cette
+#: granularité, bornée pour ne pas exploser le nombre de requêtes.
+_TILE_TARGET_M = 28000.0
+_MAX_GRID = 6
 
 _TEMPLATE = Path(__file__).parent / "templates" / "viewer.html"
 
@@ -206,11 +212,38 @@ def _ground(
         "maxLon": lon0 + dlon,
         "maxLat": lat0 + dlat,
     }
+
+    grid = max(1, min(_MAX_GRID, round(2 * half_extent_m / _TILE_TARGET_M)))
     layers = {
-        key: {"label": spec["label"], "url": spec["url"].format(**bbox)}
+        key: {
+            "label": spec["label"],
+            "grid": grid,
+            "tiles": _tiles(spec["url"], bbox, grid),
+        }
         for key, spec in BASE_LAYERS.items()
     }
-    return {"half_extent_m": round(half_extent_m), "bbox": bbox, "layers": layers}
+    return {"half_extent_m": round(half_extent_m), "bbox": bbox, "grid": grid, "layers": layers}
+
+
+def _tiles(url_template: str, bbox: dict[str, float], grid: int) -> list[dict[str, Any]]:
+    """Découpe l'emprise en grille `grid`×`grid` de tuiles, URL prête par tuile.
+
+    gridX croît vers l'EST, gridY vers le NORD (repère bas-gauche), pour un
+    placement direct du plan de sol côté 3D.
+    """
+    span_lon = (bbox["maxLon"] - bbox["minLon"]) / grid
+    span_lat = (bbox["maxLat"] - bbox["minLat"]) / grid
+    tiles: list[dict[str, Any]] = []
+    for gy in range(grid):
+        for gx in range(grid):
+            cell = {
+                "minLon": bbox["minLon"] + gx * span_lon,
+                "maxLon": bbox["minLon"] + (gx + 1) * span_lon,
+                "minLat": bbox["minLat"] + gy * span_lat,
+                "maxLat": bbox["minLat"] + (gy + 1) * span_lat,
+            }
+            tiles.append({"gridX": gx, "gridY": gy, "url": url_template.format(**cell)})
+    return tiles
 
 
 def _radius_nm(context: BriefingContext) -> float:

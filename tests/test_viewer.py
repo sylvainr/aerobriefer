@@ -68,17 +68,23 @@ def test_render_viewer_handles_empty_region():
     assert "/*__AEROBRIEFER_DATA__*/null" not in html
 
 
-def test_viewer_data_ground_and_base_layers():
+def test_viewer_data_ground_and_tiled_layers():
     data = viewer_data(_package())
     ground = data["ground"]
     assert ground["half_extent_m"] > 0
     bbox = ground["bbox"]
     assert bbox["minLon"] < data["center"]["lon"] < bbox["maxLon"]
     assert bbox["minLat"] < data["center"]["lat"] < bbox["maxLat"]
+    grid = ground["grid"]
+    assert 1 <= grid <= 6
     for layer in ground["layers"].values():
         assert "label" in layer
-        assert "{" not in layer["url"], "l'URL doit être prête, bbox rempli"
-        assert layer["url"].startswith("https://")
+        tiles = layer["tiles"]
+        assert len(tiles) == grid * grid, "une tuile par case de la grille"
+        for tile in tiles:
+            assert 0 <= tile["gridX"] < grid and 0 <= tile["gridY"] < grid
+            assert "{" not in tile["url"], "l'URL de tuile doit être prête"
+            assert tile["url"].startswith("https://")
 
 
 def test_viewer_data_route_when_navigation():
