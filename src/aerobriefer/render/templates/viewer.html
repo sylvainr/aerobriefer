@@ -276,20 +276,30 @@ renderer.setClearColor(0xeef1f4, 1);
 appEl.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0xeef1f4, 60000, 220000);
 
 // Rayon horizontal de référence (mètres) pour cadrer caméra & sol.
 const radiusM = (flight.radius_nm || 20) * NM_TO_M;
+// Demi-emprise réelle de la scène (le sol satellite peut être bien plus large
+// que le cercle de vol) : sert à dimensionner le plan de clipping lointain.
+const halfExtent = (ground && Number(ground.half_extent_m) > 0)
+  ? Number(ground.half_extent_m) : radiusM * 1.3;
+const sceneFar = Math.max(500000, halfExtent * 12);
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 10, 1_000_000);
+// Pas de fog : à cette échelle (emprise ~300 km) il ferait « disparaître »
+// progressivement les objets lointains quand on dézoome.
+scene.fog = null;
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 10, sceneFar);
 camera.up.set(0, 0, 1); // Z vers le haut (altitude)
 camera.position.set(radiusM * 1.15, -radiusM * 1.55, radiusM * 1.05);
+camera.updateProjectionMatrix();   // near/far à l'échelle de l'emprise (~300 km)
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.target.set(0, 0, radiusM * 0.18);
 controls.maxPolarAngle = Math.PI * 0.495; // ne pas passer sous l'horizon
+controls.maxDistance = halfExtent * 6;      // dézoom large sans buter ni clipper
 controls.update();
 
 // Lumières
@@ -310,7 +320,8 @@ scene.add(vertGroup);
 // ---- Sol : grille + cercle de vol + fond satellite -------------------------
 let groundGrid = null;      // grille neutre
 let groundDisk = null;      // disque neutre
-let groundPlane = null;     // plan texturé (satellite), sous les volumes
+let groundTiles = null;     // groupe des tuiles satellite (grille grid×grid), sous les volumes
+const tileMeshes = [];      // sous-plans de tuiles de la couche courante
 function buildGround() {
   const extent = Math.max(radiusM * 2.4, 4000);
   const div = 24;
@@ -331,20 +342,15 @@ function buildGround() {
   worldGroup.add(disk);
   groundDisk = disk;
 
-  // Plan texturé (satellite) : carré exact [center ± half_extent_m].
-  // La bbox de l'image correspond à ce carré en mètres, nord en haut.
+  // Sol satellite : GRILLE de tuiles couvrant le carré [center ± half_extent_m].
+  // Chaque tuile (gridX vers l'est, gridY vers le nord) est un PlaneGeometry.
   // PlaneGeometry (plan XY, normale +Z) + TextureLoader (flipY par défaut)
-  // donnent le bon calage : +y (nord) → haut de l'image, +x (est) → droite.
+  // donnent le bon calage par tuile : +y (nord) → haut de l'image, +x → est.
   if (ground && Number(ground.half_extent_m) > 0) {
-    const side = ground.half_extent_m * 2;
-    const plane = new THREE.Mesh(
-      new THREE.PlaneGeometry(side, side),
-      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, side: THREE.DoubleSide })
-    );
-    plane.position.z = -1.5;   // sous les volumes, au-dessus du disque neutre
-    plane.visible = false;      // activé par le sélecteur de couche
-    worldGroup.add(plane);
-    groundPlane = plane;
+    groundTiles = new THREE.Group();
+    groundTiles.position.z = -1.5;   // sous les volumes, au-dessus du disque neutre
+    groundTiles.visible = false;      // activé par le sélecteur de couche
+    worldGroup.add(groundTiles);
   }
 
   // Cercle du vol
@@ -675,71 +681,116 @@ applyExag(parseFloat(exagSlider.value));
 // ---- Fond de carte (satellite) ---------------------------------------------
 const groundBlock = document.getElementById('groundBlock');
 const groundMsg = document.getElementById('groundMsg');
-const texCache = {};            // clé de couche -> THREE.Texture
+const texCache = {};              // url de tuile -> THREE.Texture
 let currentLayer = 'none';
+let currentGroundOpacity = 1;     // opacité appliquée à toutes les tuiles
+let loadToken = 0;                // invalide les chargements d'une couche abandonnée
 
 function showNeutralGround() {
   if (groundDisk) groundDisk.visible = true;
   if (groundGrid) groundGrid.visible = true;
-  if (groundPlane) groundPlane.visible = false;
+  if (groundTiles) groundTiles.visible = false;
 }
-function showSatelliteGround() {
-  if (groundDisk) groundDisk.visible = false;
-  if (groundGrid) groundGrid.visible = false;
-  if (groundPlane) groundPlane.visible = true;
+function clearTiles() {
+  tileMeshes.forEach((m) => {
+    if (groundTiles) groundTiles.remove(m);
+    m.geometry.dispose();
+    m.material.dispose();   // textures gardées en cache, pas disposées
+  });
+  tileMeshes.length = 0;
+}
+function applyTexture(mesh, tex) {
+  if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  mesh.material.map = tex;
+  mesh.material.needsUpdate = true;
+  mesh.visible = true;
 }
 function setGroundMsg(text) {
   if (!text) { groundMsg.classList.remove('show'); groundMsg.textContent = ''; }
   else { groundMsg.textContent = text; groundMsg.classList.add('show'); }
 }
 
+function buildTilesForLayer(layer, token) {
+  clearTiles();
+  const half = Number(ground.half_extent_m);
+  const grid = Number(layer.grid) || Number(ground.grid) || 1;
+  const cell = (2 * half) / grid;         // cote d'une case (metres)
+  const tiles = Array.isArray(layer.tiles) ? layer.tiles : [];
+  let done = 0, failed = 0;
+  const finalize = () => {
+    if (token !== loadToken) return;
+    if (done + failed < tiles.length) return;
+    if (failed === 0) setGroundMsg('');
+    else if (failed >= tiles.length) setGroundMsg('Imagerie satellite indisponible (hors ligne ?). Sol neutre affiche.');
+    else setGroundMsg(failed + ' tuile(s) non chargee(s).');
+  };
+
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin('anonymous');
+
+  tiles.forEach((t) => {
+    const gx = Number(t.gridX), gy = Number(t.gridY);
+    const cx = -half + (gx + 0.5) * cell;   // gridX vers l'est (+x)
+    const cy = -half + (gy + 0.5) * cell;   // gridY vers le nord (+y)
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(cell, cell),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: currentGroundOpacity,
+        side: THREE.DoubleSide, depthWrite: false,
+      })
+    );
+    mesh.position.set(cx, cy, 0);
+    mesh.visible = false;   // apparait quand sa texture est prete
+    groundTiles.add(mesh);
+    tileMeshes.push(mesh);
+
+    if (texCache[t.url]) {                  // deja en cache
+      applyTexture(mesh, texCache[t.url]);
+      done++; finalize();
+      return;
+    }
+    loader.load(
+      t.url,
+      (tex) => {
+        texCache[t.url] = tex;
+        if (token !== loadToken) return;    // couche changee entre-temps
+        applyTexture(mesh, tex);
+        done++; finalize();
+      },
+      undefined,
+      () => { failed++; finalize(); }       // tuile en echec : reste invisible (neutre dessous)
+    );
+  });
+  if (tiles.length === 0) setGroundMsg('Aucune tuile fournie pour cette couche.');
+}
+
 function selectLayer(key) {
   currentLayer = key;
-  if (key === 'none' || !groundPlane) {
+  loadToken++;                       // annule les chargements de la couche precedente
+  if (key === 'none' || !groundTiles) {
     showNeutralGround();
     setGroundMsg('');
     return;
   }
   const layer = groundLayers[key];
-  if (!layer || !layer.url) { showNeutralGround(); return; }
-
-  // Déjà en cache : appliquer directement.
-  if (texCache[key]) {
-    groundPlane.material.map = texCache[key];
-    groundPlane.material.needsUpdate = true;
-    showSatelliteGround();
+  if (!layer || !(Array.isArray(layer.tiles) && layer.tiles.length)) {
+    showNeutralGround();
     setGroundMsg('');
     return;
   }
-
-  setGroundMsg('Chargement de l’imagerie…');
-  const loader = new THREE.TextureLoader();
-  loader.setCrossOrigin('anonymous');
-  loader.load(
-    layer.url,
-    (tex) => {
-      if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
-      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-      tex.minFilter = THREE.LinearFilter;
-      texCache[key] = tex;
-      if (currentLayer !== key) return;   // l'utilisateur a changé entre-temps
-      groundPlane.material.map = tex;
-      groundPlane.material.needsUpdate = true;
-      showSatelliteGround();
-      setGroundMsg('');
-    },
-    undefined,
-    () => {
-      if (currentLayer !== key) return;
-      showNeutralGround();
-      setGroundMsg('Imagerie satellite indisponible (hors ligne ?). Sol neutre affiché.');
-    }
-  );
+  // Sol neutre conserve en fond pendant l'arrivee des tuiles ; grille masquee.
+  if (groundDisk) groundDisk.visible = true;
+  if (groundGrid) groundGrid.visible = false;
+  groundTiles.visible = true;
+  setGroundMsg('Chargement de l’imagerie (' + layer.tiles.length + ' tuiles)...');
+  buildTilesForLayer(layer, loadToken);
 }
-
 function setupGroundLayers() {
   const keys = Object.keys(groundLayers);
-  if (!ground || keys.length === 0 || !groundPlane) {
+  if (!ground || keys.length === 0 || !groundTiles) {
     groundBlock.style.display = 'none';   // anciennes données : pas de fond
     showNeutralGround();
     return;
@@ -759,13 +810,16 @@ function setupGroundLayers() {
     container.appendChild(row);
   });
 
-  // Opacité du sol satellite
+  // Opacité du sol satellite (appliquée à toutes les tuiles)
   const opSlider = document.getElementById('groundOpacity');
   const opVal = document.getElementById('groundOpacityVal');
   opSlider.addEventListener('input', () => {
-    const v = parseFloat(opSlider.value);
-    if (groundPlane) { groundPlane.material.opacity = v; groundPlane.material.transparent = v < 1; }
-    opVal.textContent = Math.round(v * 100) + '%';
+    currentGroundOpacity = parseFloat(opSlider.value);
+    tileMeshes.forEach((m) => {
+      m.material.opacity = currentGroundOpacity;
+      m.material.transparent = currentGroundOpacity < 1;
+    });
+    opVal.textContent = Math.round(currentGroundOpacity * 100) + '%';
   });
 
   selectLayer(defaultKey);
@@ -1040,6 +1094,12 @@ window.__aerobriefer = {
   airspaces: airspaces.length,
   meshes: airspaceMeshes.length,
   aerodromes: aerodromes.length,
+  hasRoute: !!route,
+  cameraFar: camera.far,
+  maxDistance: controls.maxDistance,
+  halfExtent: halfExtent,
+  get groundTiles() { return tileMeshes.length; },
+  get tilesVisible() { return tileMeshes.filter(m => m.visible).length; },
   ready: true,
 };
 </script>
