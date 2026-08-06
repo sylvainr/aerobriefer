@@ -105,6 +105,16 @@
   </tbody>
 </table>
 
+{% if fuel_plan %}
+<p class="vac"><b>Bilan carburant</b> —
+  roulage {{ fuel_plan.taxi }} L · trajet {{ fuel_plan.trip }} L{% if fuel_plan.alternate != '0.0' %} · dégagement {{ fuel_plan.alternate }} L{% endif %} · réserve 30 min {{ fuel_plan.reserve }} L
+  = <b>minimum {{ fuel_plan.total }} L</b> · capacité {{ fuel_plan.capacity }} L ·
+  {% if fuel_plan.sufficient %}marge {{ fuel_plan.margin }} L{% else %}<b style="color:#b3261e">INSUFFISANT ({{ fuel_plan.margin }} L)</b>{% endif %}
+  · endurance {{ fuel_plan.endurance }}.
+  <span style="color:#b3261e">Conso provisoire (avion fictif).</span>
+</p>
+{% endif %}
+
 {% if vac_links %}
 <p class="vac"><b>Cartes VAC (SIA)</b> —
   {% for v in vac_links %}<a href="{{ v.url }}">{{ v.icao }}</a>{% if v.name %} ({{ v.name }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}.

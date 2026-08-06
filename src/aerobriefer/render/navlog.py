@@ -128,6 +128,27 @@ def _row(
     }
 
 
+def _fuel_view(plan: Any | None) -> dict[str, Any] | None:
+    if plan is None:
+        return None
+
+    def endurance() -> str:
+        minutes = round(plan.endurance_min)
+        return f"{minutes // 60} h {minutes % 60:02d}"
+
+    return {
+        "taxi": f"{plan.taxi_l:.1f}",
+        "trip": f"{plan.trip_l:.1f}",
+        "alternate": f"{plan.alternate_l:.1f}",
+        "reserve": f"{plan.reserve_l:.1f}",
+        "total": f"{plan.total_l:.1f}",
+        "capacity": f"{plan.capacity_l:.0f}",
+        "margin": f"{plan.margin_l:.1f}",
+        "sufficient": plan.sufficient,
+        "endurance": endurance(),
+    }
+
+
 def render_navlog_html(
     navlog: NavLog,
     *,
@@ -140,6 +161,7 @@ def render_navlog_html(
     annotations: list[Any] | None = None,
     vac_links: list[Any] | None = None,
     safety_ft: list[float] | None = None,
+    fuel_plan: Any | None = None,
     display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
     now: UtcDateTime | None = None,
 ) -> str:
@@ -165,6 +187,7 @@ def render_navlog_html(
         "arrival_local": _dual(navlog.eta_arrival, tz),
         "rows": _rows(navlog, tz, annotations, safety_ft),
         "vac_links": [{"icao": v.icao, "name": v.name, "url": v.url} for v in (vac_links or [])],
+        "fuel_plan": _fuel_view(fuel_plan),
         "total_distance": f"{navlog.total_distance_nm:.1f}",
         "total_time": _duration(navlog.total_time),
         "total_fuel": f"{total_fuel:.1f} L" if total_fuel is not None else "—",

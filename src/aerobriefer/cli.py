@@ -387,6 +387,17 @@ def _render_navlog(
         safety_ft = safety_altitudes(navlog)
     except Exception:  # noqa: BLE001 - élévation indisponible : Zmin à la main, pas fatal
         safety_ft = None
+
+    fuel_plan = None
+    capacity_l = aircraft.weight_balance.fuel.capacity_l if aircraft.weight_balance else 0.0
+    if navlog.total_fuel_l is not None and aircraft.cruise_fuel_lph and capacity_l:
+        from .domain.fuel import fuel_plan as compute_fuel_plan
+
+        fuel_plan = compute_fuel_plan(
+            trip_l=navlog.total_fuel_l,
+            fuel_flow_lph=aircraft.cruise_fuel_lph,
+            capacity_l=capacity_l,
+        )
     render_navlog_pdf(
         navlog,
         output,
@@ -399,6 +410,7 @@ def _render_navlog(
         annotations=annotations,
         vac_links=vac_links,
         safety_ft=safety_ft,
+        fuel_plan=fuel_plan,
     )
 
 
