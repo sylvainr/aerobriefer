@@ -116,6 +116,17 @@ def _parse_waypoint(token: str, _prev: list[Waypoint]) -> Waypoint:
     name_part, _, alt_part = token.partition("@")
     altitude = float(alt_part) if alt_part else None
     name_part = name_part.strip()
+    # Coordonnées NOMMÉES en un seul jeton : « NOM:lat/lon » (slash, pas de
+    # virgule → pas coupé par le split). Ex. « MARENNES:45.82/-1.10@2000 ».
+    if ":" in name_part:
+        label, _, coords = name_part.partition(":")
+        lat_s, _, lon_s = coords.partition("/")
+        if _is_number(lat_s) and _is_number(lon_s):
+            return Waypoint(
+                name=label.strip() or f"{float(lat_s):.3f},{float(lon_s):.3f}",
+                position=Position(float(lat_s), float(lon_s)),
+                altitude_ft=altitude,
+            )
     aerodrome = airports.lookup(name_part)
     if aerodrome is not None:
         return Waypoint(name=aerodrome.icao, position=aerodrome.position, altitude_ft=altitude)
@@ -360,7 +371,7 @@ def _render_navlog(
     d'Open-Meteo, échantillonné à l'heure de départ.
     """
     from .aircraft.examples.dr400 import DR400_160
-    from .navlog_build import build_navlog
+    from .navlog_build import annotate_navlog, build_navlog
     from .render.navlog import render_navlog_pdf
 
     assert context.route is not None
@@ -371,6 +382,7 @@ def _render_navlog(
         departure_time=context.window.start,
         magnetic_variation_deg=magnetic_variation_deg,
     )
+    annotations, vac_links = annotate_navlog(navlog, magnetic_variation_deg=magnetic_variation_deg)
     render_navlog_pdf(
         navlog,
         output,
@@ -380,6 +392,8 @@ def _render_navlog(
         tas_kt=aircraft.cruise_tas_kt,
         fuel_flow_lph=aircraft.cruise_fuel_lph or None,
         magnetic_variation_deg=magnetic_variation_deg,
+        annotations=annotations,
+        vac_links=vac_links,
     )
 
 

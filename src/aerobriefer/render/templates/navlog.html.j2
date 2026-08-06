@@ -7,7 +7,7 @@
   }
   html { font-size: 9pt; }
   body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #000; background: #fff; margin: 0; line-height: 1.2; }
-  @media screen { html { background: #ececec; } body { max-width: 850px; margin: 18px auto; padding: 16px 18px; box-shadow: 0 1px 6px rgba(0,0,0,.15); } }
+  @media screen { html { background: #ececec; } body { max-width: 900px; margin: 18px auto; padding: 16px 18px; box-shadow: 0 1px 6px rgba(0,0,0,.15); } }
 
   h1 { font-size: 11.5pt; margin: 0 0 1.5mm; color: #12232e; letter-spacing: .3px; }
   .facts { display: flex; flex-wrap: wrap; gap: .8mm 4mm; margin: 0 0 2mm; font-size: 7pt; }
@@ -17,19 +17,23 @@
   table { width: 100%; border-collapse: collapse; font-size: 6.8pt; table-layout: fixed; }
   th, td { border: .5pt solid #888; padding: 1mm 1mm; vertical-align: top; }
   th { background: #12232e; color: #fff; font-size: 5.8pt; text-transform: uppercase; letter-spacing: .2px; text-align: center; padding: 1mm 0.5mm; }
-  td { height: 15mm; }               /* hauteur d'écriture pour les cases à remplir */
+  td { height: 13mm; }
   .c { text-align: center; }
   .big { font-size: 10pt; font-weight: 700; }
   .sub { font-size: 6pt; color: #444; }
+  .auto { font-size: 6.3pt; color: #12232e; }
+  .auto b { color: #2b6cb0; }
   .lbl { font-size: 5.5pt; color: #888; text-transform: uppercase; letter-spacing: .3px; }
-  .blank { display: block; border-bottom: .5pt solid #bbb; height: 3.2mm; }
-  /* Colonnes à remplir en vol : en-tête bleu clair, fond blanc. */
+  .blank { display: block; border-bottom: .5pt solid #bbb; height: 3mm; }
   th.fill { background: #35618e; }
   .eto b { font-size: 8.5pt; }
   tbody tr:nth-child(even) td { background: #fbfbfb; }
   .totals td { height: auto; font-weight: 700; background: #f0f0f0; border-top: 1.4pt solid #000; }
 
-  .disclaimer { margin-top: 2.5mm; padding-top: 1.5mm; border-top: 1pt solid #000; font-size: 6.5pt; color: #333; }
+  .vac { margin-top: 2.5mm; font-size: 7pt; }
+  .vac b { font-size: 6pt; text-transform: uppercase; letter-spacing: .3px; color: #555; }
+  .vac a { color: #2b6cb0; text-decoration: none; }
+  .disclaimer { margin-top: 2mm; padding-top: 1.5mm; border-top: 1pt solid #000; font-size: 6.5pt; color: #333; }
   .disclaimer b { color: #b3261e; }
 </style>
 
@@ -46,18 +50,18 @@
 
 <table>
   <colgroup>
-    <col style="width:15%"><col style="width:11%"><col style="width:13%"><col style="width:14%">
-    <col style="width:15%"><col style="width:20%"><col style="width:12%">
+    <col style="width:14%"><col style="width:10%"><col style="width:12%"><col style="width:16%">
+    <col style="width:11%"><col style="width:25%"><col style="width:12%">
   </colgroup>
   <thead>
     <tr>
       <th class="left">Branche</th>
       <th>Alt / Zmin</th>
-      <th>RM<br><span style="font-weight:400">(Rv · Dv)</span></th>
-      <th>Dist / Temps</th>
-      <th class="fill">Report · Heures</th>
-      <th class="fill">Observations<br><span style="font-weight:400">vent · radiales · radios</span></th>
-      <th class="fill">Déroutement<br>urgence</th>
+      <th>RM <span style="font-weight:400">(Rv·Dv)</span></th>
+      <th>Dist / Temps / Conso</th>
+      <th class="fill">Heures</th>
+      <th>Observations <span style="font-weight:400">(VOR · radios)</span></th>
+      <th>Déroutement</th>
     </tr>
   </thead>
   <tbody>
@@ -74,36 +78,45 @@
         <div class="sub">{{ r.wind }} · Vs {{ r.ground_speed }}</div>
       </td>
       <td class="c">
-        <div><b>DI</b> {{ r.distance }} <span class="sub">NM</span></div>
-        <div class="sub">DTG {{ r.dtg }} · cumul {{ r.cumulative }}</div>
-        <div class="sub">Tsv {{ r.tsv }}′ · Tav {{ r.tav }}′</div>
+        <div><b>DI</b> {{ r.distance }} <span class="sub">NM</span> · DTG {{ r.dtg }}</div>
+        <div class="sub">cumul {{ r.cumulative }} NM · Tsv {{ r.tsv }}′ · Tav {{ r.tav }}′</div>
+        <div class="sub">Conso {{ r.fuel }} L · cum {{ r.fuel_cumulative }} L</div>
       </td>
       <td>
-        <span class="lbl">Report</span><span class="blank"></span>
         <div class="eto"><span class="lbl">Est.</span> <b>{{ r.eto_local }}</b> <span class="sub">{{ r.eto_zulu }}</span></div>
-        <span class="lbl">Réelle</span><span class="blank"></span>
+        <span class="lbl">Réel</span><span class="blank"></span>
       </td>
-      <td></td>
-      <td></td>
+      <td class="auto">
+        {% if r.vor %}<div>VOR <b>{{ r.vor }}</b></div>{% endif %}
+        {% if r.radios %}<div>{{ r.radios }}</div>{% endif %}
+        {% if not r.vor and not r.radios %}<span class="sub">—</span>{% endif %}
+      </td>
+      <td class="auto">{% if r.diversion %}{{ r.diversion }}{% else %}<span class="sub">—</span>{% endif %}</td>
     </tr>
     {% endfor %}
     <tr class="totals">
       <td>TOTAL</td>
       <td class="c">—</td>
       <td class="c">—</td>
-      <td class="c">{{ total_distance }} NM · {{ total_time }}</td>
-      <td><span class="lbl">Arrivée est.</span> <b>{{ arrival_local }}</b></td>
-      <td class="c">Conso totale {{ total_fuel }}</td>
-      <td></td>
+      <td class="c">{{ total_distance }} NM · {{ total_time }} · {{ total_fuel }}</td>
+      <td><span class="lbl">Arrivée</span> <b>{{ arrival_local }}</b></td>
+      <td class="c" colspan="2">—</td>
     </tr>
   </tbody>
 </table>
 
+{% if vac_links %}
+<p class="vac"><b>Cartes VAC (SIA)</b> —
+  {% for v in vac_links %}<a href="{{ v.url }}">{{ v.icao }}</a>{% if v.name %} ({{ v.name }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}.
+  Visualisateur : <a href="https://www.sia.aviation-civile.gouv.fr/vaip">vAIP SIA</a>.
+</p>
+{% endif %}
+
 <p class="disclaimer">
   <b>AIDE À LA PRÉPARATION — ne remplace pas le calcul officiel ni le jugement du commandant de bord.</b>
-  Colonnes bleutées <b>à remplir en vol</b> (Zmin, point de report, heure réelle, observations, déroutement).
   <b>RM = Rv − déclinaison</b> ({{ mag_var_label }}, à confirmer sur la carte). DI = distance de branche, DTG = distance restante,
-  Tsv/Tav = temps sans / avec vent. Vent en altitude interpolé — source <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ.
-  <b>TAS et conso PROVISOIRES</b> (valeurs typiques DR400/160, pas encore le manuel F-ZZZZ).
+  Tsv/Tav = temps sans / avec vent. VOR = radiale magnétique depuis le VOR le plus proche vers le point ; déroutement = terrain le plus proche.
+  Vent en altitude interpolé — source <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ.
+  <b>TAS et conso PROVISOIRES</b> (valeurs typiques DR400/160, avion d'exemple F-ZZZZ fictif). Zmin à compléter à la main pour l'instant.
   Heures locales = {{ display_timezone }}, Z indiqué. Généré le {{ generated_dual }}.
 </p>
