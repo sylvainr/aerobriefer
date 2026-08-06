@@ -269,6 +269,10 @@
     <div class="fact"><b>Fenêtre — début</b><span class="mono">{{ window_start_dual }}</span></div>
     <div class="fact"><b>Fenêtre — fin</b><span class="mono">{{ window_end_dual }}</span></div>
     <div class="fact"><b>Durée</b><span class="mono">{{ window_duration_h }} h</span></div>
+    {% if sun %}
+    <div class="fact"><b>Coucher du soleil</b><span class="mono">{{ sun.sunset }}</span></div>
+    <div class="fact"><b>Nuit aéro (SS+30)</b><span class="mono">{{ sun.night or '—' }}</span></div>
+    {% endif %}
     <div class="fact"><b>Aéronef</b><span class="mono">{{ context.aircraft_id or '—' }}</span></div>
     {% if context.origin_icao %}
     <div class="fact"><b>Départ</b><span class="mono">{{ context.origin_icao }}</span></div>
@@ -281,6 +285,11 @@
     {% endif %}
   </div>
 </header>
+
+{% if sun and sun.lands_after_night %}
+<p class="warn"><b>ATTENTION — la fenêtre de vol se termine APRÈS le début de la nuit aéronautique
+({{ sun.night }}).</b> Le VFR de jour impose d'être posé avant. Revoir l'horaire ou prévoir le VFR de nuit.</p>
+{% endif %}
 
 {# =================== BANDEAU D'ANOMALIES =================== #}
 {% if not is_complete %}

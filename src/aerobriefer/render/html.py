@@ -28,6 +28,7 @@ from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from ..domain.context import BriefingContext
 from ..domain.freshness import describe as freshness_label
 from ..domain.freshness import max_age_minutes
 from ..domain.models import Aerodrome, Notam
@@ -395,6 +396,26 @@ class HtmlRenderer:
             )
         return groups
 
+    def _sun_view(self, ctx: BriefingContext) -> dict[str, Any] | None:
+        """Coucher du soleil et début de nuit aéronautique pour le vol.
+
+        C'est une CONDITION du vol (limite VFR jour) : sa place est dans le
+        briefing. On avertit si la fenêtre de vol se termine APRÈS le début de
+        nuit aéronautique."""
+        from ..domain.sun import sun_times
+
+        center = ctx.geometry.bounding_circle().center
+        local_start = ctx.window.start.astimezone(self._tz)
+        times = sun_times(local_start.date(), center.lat, center.lon)
+        if times.sunset is None:
+            return None
+        night = times.aeronautical_night_start
+        return {
+            "sunset": self._dual(times.sunset),
+            "night": self._dual(night) if night is not None else None,
+            "lands_after_night": night is not None and ctx.window.end > night,
+        }
+
     # -- API ---------------------------------------------------------------
 
     def build_view(
@@ -405,6 +426,7 @@ class HtmlRenderer:
         ctx = package.context
         window = ctx.window
         self._window = window
+        sun = self._sun_view(ctx)
 
         # Tri CHRONOLOGIQUE : par date d'entrée en vigueur, la plus récente
         # d'abord. Le tri repose sur la date d'entrée en vigueur — une donnée
@@ -526,6 +548,7 @@ class HtmlRenderer:
             "critical_failures": critical_failures,
             "other_failures": other_failures,
             "failures": list(package.failures),
+            "sun": sun,
             "metars": metars,
             "tafs": tafs,
             "forecasts": forecasts,
