@@ -56,19 +56,43 @@ def _drift_label(wind_correction_deg: float) -> str:
     return f"{value:+d}° {'▶' if value > 0 else '◀'}"
 
 
-def _row(leg: LegComputation, tz: ZoneInfo) -> dict[str, Any]:
+def _rows(navlog: NavLog, tz: ZoneInfo) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    total = navlog.total_distance_nm
+    cumulative = 0.0
+    for leg in navlog.legs:
+        cumulative += leg.distance_nm
+        rows.append(_row(leg, tz, cumulative, remaining_nm=total - cumulative))
+    return rows
+
+
+def _minutes(hours: float) -> str:
+    return f"{round(hours * 60)}"
+
+
+def _row(
+    leg: LegComputation, tz: ZoneInfo, cumulative_nm: float, *, remaining_nm: float
+) -> dict[str, Any]:
+    local = leg.eta.astimezone(tz)
+    tsv_h = leg.distance_nm / leg.tas_kt if leg.tas_kt else 0.0
     return {
         "branch": f"{leg.leg.start.name} → {leg.leg.end.name}",
         "altitude": f"{leg.altitude_ft:.0f}" if leg.altitude_ft is not None else "—",
-        "true_track": f"{leg.true_track_deg:03.0f}°",
-        "magnetic_track": f"{leg.magnetic_track_deg:03.0f}°",
-        "magnetic_heading": f"{leg.magnetic_heading_deg:03.0f}°",
+        "true_track": f"{leg.true_track_deg:03.0f}",
+        "magnetic_track": f"{leg.magnetic_track_deg:03.0f}",
+        "magnetic_heading": f"{leg.magnetic_heading_deg:03.0f}",
         "wind": _wind_label(leg),
         "drift": _drift_label(leg.wind_correction_deg),
         "distance": f"{leg.distance_nm:.1f}",
+        "cumulative": f"{cumulative_nm:.1f}",
+        "dtg": f"{max(0.0, remaining_nm):.1f}",
         "ground_speed": f"{leg.ground_speed_kt:.0f}",
-        "time": _duration(leg.time),
-        "passage": _dual(leg.eta, tz),
+        "tsv": _minutes(tsv_h),  # temps sans vent
+        "tav": _minutes(leg.time.total_seconds() / 3600.0),  # temps avec vent
+        # Heure de passage ESTIMÉE (imprimée). L'heure RÉELLE se remplit à la main
+        # en vol, dans la case vide voisine.
+        "eto_local": local.strftime("%H:%M"),
+        "eto_zulu": f"{leg.eta:%H:%M}Z",
         "fuel": f"{leg.fuel_l:.1f}" if leg.fuel_l is not None else "—",
     }
 
@@ -105,7 +129,7 @@ def render_navlog_html(
         "departure_dual": _dual(navlog.departure_time, tz, with_date=True),
         "arrival_dual": _dual(navlog.eta_arrival, tz, with_date=True),
         "arrival_local": _dual(navlog.eta_arrival, tz),
-        "rows": [_row(leg, tz) for leg in navlog.legs],
+        "rows": _rows(navlog, tz),
         "total_distance": f"{navlog.total_distance_nm:.1f}",
         "total_time": _duration(navlog.total_time),
         "total_fuel": f"{total_fuel:.1f} L" if total_fuel is not None else "—",
