@@ -101,6 +101,8 @@
   #altFilter label { font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
   #altFilter input[type=range] { flex: 1; accent-color: var(--accent); }
   #altVal { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 62px; text-align: right; font-size: 12px; }
+  #altFilter .cliprow { display: flex; align-items: center; gap: 7px; margin-top: 8px; font-size: 12px; color: var(--ink-soft); cursor: pointer; }
+  #altFilter .cliprow input { accent-color: var(--accent); flex: none; }
   .as-row.filtered-alt { opacity: .3; }
 
   /* Panneau nav (récap) */
@@ -175,6 +177,7 @@
         <input id="altMax" type="range" min="1000" max="20000" step="500" value="7000">
         <span id="altVal">7000 ft</span>
       </div>
+      <label class="cliprow"><input id="clipMax" type="checkbox">Couper les volumes à l'altitude max</label>
     </div>
   </header>
   <div id="legendList"></div>
@@ -269,11 +272,17 @@ if (aerodromes.length) {
 
 // ---- Scène three.js --------------------------------------------------------
 const appEl = document.getElementById('app');
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+// logarithmicDepthBuffer : la scène couvre de ~quelques mètres à plusieurs
+// millions (emprise ~300 km). Avec un depth-buffer linéaire, le ratio far/near
+// (~430 000:1) épuise la précision au loin et le z-fighting fait « disparaître »
+// les objets, de plus en plus au dézoom. Le buffer log répartit la précision
+// de façon logarithmique et corrige ça à toutes les distances.
+const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0xeef1f4, 1);
 appEl.appendChild(renderer.domElement);
+renderer.localClippingEnabled = true;   // pour la coupe à l'altitude max (plan de clip local)
 
 const scene = new THREE.Scene();
 
@@ -289,7 +298,10 @@ const sceneFar = Math.max(500000, halfExtent * 12);
 // progressivement les objets lointains quand on dézoome.
 scene.fog = null;
 
-const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 10, sceneFar);
+// near remonté à ~1 % du rayon : rien n'est jamais aussi proche de la caméra,
+// et ça réduit encore la plage de profondeur (belt-and-suspenders avec le log buffer).
+const sceneNear = Math.max(50, radiusM * 0.01);
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, sceneNear, sceneFar);
 camera.up.set(0, 0, 1); // Z vers le haut (altitude)
 camera.position.set(radiusM * 1.15, -radiusM * 1.55, radiusM * 1.05);
 camera.updateProjectionMatrix();   // near/far à l'échelle de l'emprise (~300 km)
@@ -317,6 +329,20 @@ const vertGroup = new THREE.Group();  // contient volumes + règle verticale
 scene.add(worldGroup);
 scene.add(vertGroup);
 
+// Plan de coupe horizontal partagé (option « couper à l'altitude max »).
+// Normale -Z : on garde la demi-espace z <= constant (sous le plan). Les volumes
+// sont dans vertGroup (échelle Z = exagération), donc la hauteur monde d'une
+// altitude est altFt * FT_TO_M * exag. constant = 1e12 => rien n'est coupé.
+// On ne modifie que .constant (aucune recompilation de shader).
+let altThreshold = Infinity;           // seuil « Altitude max » (ft) ; Infinity = tout
+let clipAtMax = false;                 // option activée ?
+const clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 1e12);
+function updateClipPlane() {
+  const exag = vertGroup.scale.z || 1;
+  const active = clipAtMax && Number.isFinite(altThreshold);
+  clipPlane.constant = active ? (altThreshold * FT_TO_M * exag) : 1e12;
+}
+
 // ---- Sol : grille + cercle de vol + fond satellite -------------------------
 let groundGrid = null;      // grille neutre
 let groundDisk = null;      // disque neutre
@@ -330,15 +356,22 @@ function buildGround() {
   grid.position.z = -1;                 // légèrement sous les volumes
   grid.material.transparent = true;
   grid.material.opacity = 0.6;
+  // Couches de sol coplanaires : on N'ÉCRIT PAS la profondeur et on impose un
+  // ordre de rendu fixe (disque < tuiles < grille). Sinon, séparées de ~1 m sur
+  // une emprise de 360 km, elles se battent au depth-test (précision insuffisante
+  // au loin) → scintillement et « carrés » sur le sol.
+  grid.material.depthWrite = false;
+  grid.renderOrder = -1;
   worldGroup.add(grid);
   groundGrid = grid;
 
-  // Disque de sol neutre
+  // Disque de sol neutre (couche la plus basse)
   const disk = new THREE.Mesh(
     new THREE.CircleGeometry(radiusM * 1.18, 96),
-    new THREE.MeshBasicMaterial({ color: 0xe6ebf0, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xe6ebf0, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false })
   );
   disk.position.z = -2;
+  disk.renderOrder = -3;
   worldGroup.add(disk);
   groundDisk = disk;
 
@@ -362,8 +395,13 @@ function buildGround() {
   }
   const circle = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints(pts),
-    new THREE.LineBasicMaterial({ color: 0x2b6cb0, transparent: true, opacity: 0.9 })
+    // Comme les couches de sol : n'écrit pas la profondeur, ordre fixe (au-dessus
+    // du sol, sous les volumes). Sinon ce fin anneau à z=0,5 se bat au depth-test
+    // avec les planchers de volumes SFC (z=0) coplanaires → scintillement le long
+    // du cercle autour du terrain.
+    new THREE.LineBasicMaterial({ color: 0x2b6cb0, transparent: true, opacity: 0.9, depthWrite: false })
   );
+  circle.renderOrder = -0.5;
   worldGroup.add(circle);
 }
 
@@ -531,6 +569,7 @@ function buildAirspaces() {
     const mat = new THREE.MeshLambertMaterial({
       color: col, transparent: true, opacity: 0.22,
       side: THREE.DoubleSide, depthWrite: false,
+      clippingPlanes: [clipPlane],   // coupe à l'altitude max (inactif tant que constant=1e12)
     });
     const mesh = new THREE.Mesh(geo, mat);
 
@@ -538,7 +577,7 @@ function buildAirspaces() {
     const edgeCol = col.clone().multiplyScalar(0.6);
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(geo, 15),
-      new THREE.LineBasicMaterial({ color: edgeCol, transparent: true, opacity: 0.85 })
+      new THREE.LineBasicMaterial({ color: edgeCol, transparent: true, opacity: 0.85, clippingPlanes: [clipPlane] })
     );
     mesh.add(edges);
 
@@ -674,6 +713,7 @@ function applyExag(v) {
   // les sphères de waypoint compensent l'échelle Z pour rester rondes
   routeMarkers.forEach(m => m.scale.set(1, 1, 1 / v));
   exagVal.textContent = '×' + v;
+  updateClipPlane();   // le plan de coupe suit l'exagération verticale
 }
 exagSlider.addEventListener('input', () => applyExag(parseFloat(exagSlider.value)));
 applyExag(parseFloat(exagSlider.value));
@@ -743,6 +783,7 @@ function buildTilesForLayer(layer, token) {
       })
     );
     mesh.position.set(cx, cy, 0);
+    mesh.renderOrder = -2;  // entre le disque neutre (-3) et la grille (-1)
     mesh.visible = false;   // apparait quand sa texture est prete
     groundTiles.add(mesh);
     tileMeshes.push(mesh);
@@ -839,7 +880,6 @@ const CLASS_LABEL = {
 };
 const classState = {}; // classe -> bool actif
 const rowByIndex = {};
-let altThreshold = Infinity;   // seuil "Altitude max" (ft) ; Infinity = tout
 
 function classOf(a) { return a.class || 'UNC'; }
 function colorOf(a) { return a.color || classColors[classOf(a)] || '#888888'; }
@@ -940,8 +980,14 @@ function setAltThreshold() {
   const v = parseInt(altMaxSlider.value, 10);
   altThreshold = (v >= ALT_MAX) ? Infinity : v;
   altValEl.textContent = (v >= ALT_MAX) ? 'tout' : v.toLocaleString('fr-FR') + ' ft';
+  updateClipPlane();   // suit le seuil quand la coupe est active
 }
 altMaxSlider.addEventListener('input', () => { setAltThreshold(); refreshRows(); });
+
+// Option « couper à l'altitude max » : tranche les volumes au plan d'altitude
+// (plan de clip local) au lieu de les afficher entiers.
+const clipMaxCb = document.getElementById('clipMax');
+clipMaxCb.addEventListener('change', () => { clipAtMax = clipMaxCb.checked; updateClipPlane(); });
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c =>
