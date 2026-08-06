@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Masse & centrage</title>
+<style>
+  :root { --ink:#12232e; --soft:#5a6b76; --line:#d6dde2; --accent:#2b6cb0; --ok:#1f6b3a; --bad:#b3261e; --bg:#eef1f4; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  header { padding:14px 20px; background:#fff; border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:18px; letter-spacing:.3px; }
+  h1 small { color:var(--soft); font-weight:400; font-size:13px; }
+  .placeholder { background:var(--bad); color:#fff; padding:10px 20px; font-weight:700; font-size:14px; }
+  .placeholder small { display:block; font-weight:400; opacity:.9; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; align-items:flex-start; }
+  .panel { background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; }
+  .controls { flex:1 1 320px; min-width:300px; }
+  .plot { flex:1 1 460px; min-width:340px; }
+  .st { margin-bottom:14px; }
+  .st .row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+  .st label { font-weight:600; font-size:14px; }
+  .st .arm { color:var(--soft); font-size:12px; font-weight:400; }
+  .st .val { font-variant-numeric:tabular-nums; font-weight:700; min-width:96px; text-align:right; }
+  input[type=range] { width:100%; accent-color:var(--accent); }
+  .fuel label { color:var(--accent); }
+  .readout { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; margin-top:6px; }
+  .box { border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
+  .box b { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--soft); margin-bottom:2px; }
+  .box .big { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .status { grid-column:1/-1; text-align:center; font-weight:700; font-size:16px; padding:10px; border-radius:6px; }
+  .status.ok { background:#e3f2e8; color:var(--ok); }
+  .status.bad { background:#fdecea; color:var(--bad); }
+  svg { width:100%; height:auto; display:block; }
+  .legend { font-size:12px; color:var(--soft); margin-top:8px; display:flex; gap:16px; flex-wrap:wrap; }
+  .legend span { display:inline-flex; align-items:center; gap:5px; }
+  .dot { width:11px; height:11px; border-radius:50%; display:inline-block; }
+  footer { padding:12px 20px; color:var(--soft); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Masse &amp; centrage — <span id="acName"></span> <small id="mtow"></small></h1>
+</header>
+<div id="placeholderBanner"></div>
+
+<main>
+  <section class="panel controls">
+    <div id="stations"></div>
+    <div class="readout">
+      <div class="box"><b>Masse totale</b><span class="big"><span id="mTotal">—</span> kg</span></div>
+      <div class="box"><b>Centrage (bras)</b><span class="big"><span id="cg">—</span> m</span></div>
+      <div class="box"><b>Sans carburant</b><span id="zfw">—</span> kg · <span id="zfcg">—</span> m</div>
+      <div class="box"><b>Carburant</b><span id="fuelKg">—</span> kg</div>
+      <div id="status" class="status">—</div>
+    </div>
+  </section>
+
+  <section class="panel plot">
+    <svg id="chart" viewBox="0 0 520 420" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend">
+      <span><span class="dot" style="background:#2b6cb0"></span> Avec carburant</span>
+      <span><span class="dot" style="background:#fff;border:2px solid #2b6cb0"></span> Sans carburant</span>
+      <span><span class="dot" style="background:#b3261e"></span> Hors enveloppe</span>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Enveloppe de centrage : bras (m) en abscisse, masse (kg) en ordonnée. La ligne relie le point AVEC
+  carburant au point SANS carburant : toute la ligne doit rester dans l'enveloppe (le centrage se
+  déplace en consommant). Calcul local, aucune donnée n'est envoyée.
+</footer>
+
+<script>
+const DATA = /*__AEROBRIEFER_WB__*/null;
+
+// ---- calcul (miroir de WeightBalance.state) --------------------------------
+function inPolygon(x, y, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y)) {
+      const xc = (xj - xi) * (y - yi) / (yj - yi) + xi;
+      if (x <= xc) inside = !inside;
+    }
+  }
+  return inside;
+}
+function state(loads, fuelL) {
+  let mass = DATA.empty.mass_kg, moment = DATA.empty.mass_kg * DATA.empty.arm_m;
+  DATA.stations.forEach((s, i) => { mass += loads[i]; moment += loads[i] * s.arm_m; });
+  const fuelKg = fuelL * DATA.fuel.density_kg_per_l;
+  mass += fuelKg; moment += fuelKg * DATA.fuel.arm_m;
+  const arm = mass > 0 ? moment / mass : 0;
+  return { mass, arm, fuelKg, within: inPolygon(arm, mass, DATA.envelope) };
+}
+
+// ---- contrôles -------------------------------------------------------------
+document.getElementById('acName').textContent = DATA.aircraft;
+document.getElementById('mtow').textContent = '· MTOW ' + DATA.max_mass_kg + ' kg';
+if (DATA.is_placeholder) {
+  const b = document.getElementById('placeholderBanner');
+  b.className = 'placeholder';
+  b.innerHTML = '⚠ DONNÉES FICTIVES — bras et enveloppe NON conformes à l\'avion réel.' +
+    '<small>À remplacer par la fiche de pesée et les bras du manuel avant tout usage. Ne pas utiliser pour un vol.</small>';
+}
+
+const loads = DATA.stations.map(s => s.default_kg);
+let fuelL = DATA.fuel.default_l;
+
+const host = document.getElementById('stations');
+DATA.stations.forEach((s, i) => {
+  const wrap = document.createElement('div');
+  wrap.className = 'st';
+  wrap.innerHTML =
+    '<div class="row"><label>' + s.name + ' <span class="arm">bras ' + s.arm_m.toFixed(2) + ' m</span></label>' +
+    '<span class="val"><span id="v' + i + '">' + s.default_kg.toFixed(0) + '</span> kg</span></div>' +
+    '<input type="range" min="0" max="' + s.max_kg + '" step="1" value="' + s.default_kg + '" id="r' + i + '">';
+  host.appendChild(wrap);
+  wrap.querySelector('#r' + i).addEventListener('input', e => {
+    loads[i] = parseFloat(e.target.value);
+    document.getElementById('v' + i).textContent = loads[i].toFixed(0);
+    render();
+  });
+});
+// carburant
+const fw = document.createElement('div');
+fw.className = 'st fuel';
+fw.innerHTML =
+  '<div class="row"><label>' + DATA.fuel.name + ' <span class="arm">bras ' + DATA.fuel.arm_m.toFixed(2) + ' m</span></label>' +
+  '<span class="val"><span id="vf">' + fuelL.toFixed(0) + '</span> L</span></div>' +
+  '<input type="range" min="0" max="' + DATA.fuel.capacity_l + '" step="1" value="' + fuelL + '" id="rf">';
+host.appendChild(fw);
+fw.querySelector('#rf').addEventListener('input', e => {
+  fuelL = parseFloat(e.target.value);
+  document.getElementById('vf').textContent = fuelL.toFixed(0);
+  render();
+});
+
+// ---- tracé -----------------------------------------------------------------
+const svg = document.getElementById('chart');
+const W = 520, H = 420, M = { l: 56, r: 16, t: 16, b: 44 };
+const arms = DATA.envelope.map(p => p[0]), masses = DATA.envelope.map(p => p[1]);
+const xMin = Math.min(...arms) - 0.03, xMax = Math.max(...arms) + 0.03;
+const yMin = Math.min(...masses) - 40, yMax = Math.max(DATA.max_mass_kg, ...masses) + 40;
+const X = a => M.l + (a - xMin) / (xMax - xMin) * (W - M.l - M.r);
+const Y = m => H - M.b - (m - yMin) / (yMax - yMin) * (H - M.t - M.b);
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+
+function drawStatic() {
+  // axes
+  svg.appendChild(el('line', { x1: M.l, y1: H - M.b, x2: W - M.r, y2: H - M.b, stroke: '#888' }));
+  svg.appendChild(el('line', { x1: M.l, y1: M.t, x2: M.l, y2: H - M.b, stroke: '#888' }));
+  // graduations masse
+  for (let m = Math.ceil(yMin / 100) * 100; m <= yMax; m += 100) {
+    const gy = Y(m);
+    svg.appendChild(el('line', { x1: M.l, y1: gy, x2: W - M.r, y2: gy, stroke: '#eef1f4' }));
+    const t = el('text', { x: M.l - 6, y: gy + 3, 'text-anchor': 'end', 'font-size': 10, fill: '#5a6b76' });
+    t.textContent = m; svg.appendChild(t);
+  }
+  // graduations bras
+  for (let a = Math.ceil(xMin / 0.05) * 0.05; a <= xMax; a += 0.05) {
+    const gx = X(a);
+    const t = el('text', { x: gx, y: H - M.b + 14, 'text-anchor': 'middle', 'font-size': 10, fill: '#5a6b76' });
+    t.textContent = a.toFixed(2); svg.appendChild(t);
+  }
+  svg.appendChild(el('text', { x: (W + M.l) / 2, y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: '#12232e' })).textContent = 'Bras (m)';
+  const yl = el('text', { x: 14, y: (H) / 2, 'text-anchor': 'middle', 'font-size': 11, fill: '#12232e', transform: 'rotate(-90 14 ' + (H / 2) + ')' });
+  yl.textContent = 'Masse (kg)'; svg.appendChild(yl);
+  // enveloppe
+  const pts = DATA.envelope.map(p => X(p[0]) + ',' + Y(p[1])).join(' ');
+  svg.appendChild(el('polygon', { points: pts, fill: 'rgba(43,108,176,.10)', stroke: '#2b6cb0', 'stroke-width': 1.6 }));
+  // MTOW
+  svg.appendChild(el('line', { x1: M.l, y1: Y(DATA.max_mass_kg), x2: W - M.r, y2: Y(DATA.max_mass_kg), stroke: '#b3261e', 'stroke-dasharray': '5 4', 'stroke-width': 1.2 }));
+}
+const dyn = el('g', {}); svg.appendChild(dyn);
+drawStatic(); svg.appendChild(dyn);
+
+function render() {
+  while (dyn.firstChild) dyn.removeChild(dyn.firstChild);
+  const full = state(loads, fuelL);
+  const zero = state(loads, 0);
+  // ligne consommation
+  dyn.appendChild(el('line', { x1: X(full.arm), y1: Y(full.mass), x2: X(zero.arm), y2: Y(zero.mass), stroke: '#2b6cb0', 'stroke-width': 1.4 }));
+  // point sans carburant (creux)
+  dyn.appendChild(el('circle', { cx: X(zero.arm), cy: Y(zero.mass), r: 5, fill: '#fff', stroke: '#2b6cb0', 'stroke-width': 2 }));
+  // point avec carburant (plein, rouge si hors)
+  const col = full.within ? '#2b6cb0' : '#b3261e';
+  dyn.appendChild(el('circle', { cx: X(full.arm), cy: Y(full.mass), r: 6.5, fill: col }));
+
+  document.getElementById('mTotal').textContent = full.mass.toFixed(0);
+  document.getElementById('cg').textContent = full.arm.toFixed(3);
+  document.getElementById('zfw').textContent = zero.mass.toFixed(0);
+  document.getElementById('zfcg').textContent = zero.arm.toFixed(3);
+  document.getElementById('fuelKg').textContent = full.fuelKg.toFixed(0);
+  const st = document.getElementById('status');
+  const overweight = full.mass > DATA.max_mass_kg;
+  const ok = full.within && zero.within && !overweight;
+  st.className = 'status ' + (ok ? 'ok' : 'bad');
+  st.textContent = ok ? '✓ Dans l\'enveloppe' :
+    (overweight ? '⚠ Masse maxi dépassée' : '⚠ Hors enveloppe de centrage');
+}
+render();
+</script>
+</body>
+</html>

@@ -1,19 +1,32 @@
-"""EXEMPLE d'avion codé : le DR400/160 Chevalier (F-GGJY, aéroclub de Royan).
+"""EXEMPLE d'avion codé : un DR400/160 Chevalier fictif, immatriculé F-ZZZZ.
 
 C'est un EXEMPLE de référence — la façon dont un utilisateur code SON avion. Les
 avions réels de l'utilisateur sont SA donnée : ils vivent hors du repo et
-sous-classent `Aircraft` de la même manière.
+sous-classent `Aircraft` de la même manière. L'immatriculation **F-ZZZZ est
+volontairement invalide** : on ne doit JAMAIS prendre cet exemple pour un vrai
+appareil.
 
-Toutes les valeurs viennent du MANUEL DE VOL réel (DR400/160, édition 1972). Les
-tables de distances sont recopiées telles quelles : chaque case est
-(roulement_m, distance_pour_15 m_m). Les vitesses limites du manuel sont en km/h
-EAS et converties en nœuds ici. Aucune valeur n'est inventée ; ce qui n'est pas
-dans le manuel (ex. le vent traversier démontré) reste `None`.
+Provenance MIXTE, à ne pas confondre :
+- Tables de distances décollage/atterrissage + vitesses limites : recopiées d'un
+  MANUEL DE VOL réel (DR400/160, éd. 1972), chaque case = (roulement_m,
+  distance_pour_15 m_m). Vitesses en km/h EAS converties en nœuds ici.
+- Croisière (TAS/conso) et **masse & centrage** (bras, enveloppe) : PLACEHOLDERS
+  fictifs, signalés comme tels (`is_placeholder`). À remplacer par les données de
+  l'appareil réel avant tout usage.
 """
 
 from __future__ import annotations
 
-from ..model import Aircraft, PerfTable, SpeedCard, Surface, kmh_to_kt
+from ..model import (
+    Aircraft,
+    FuelTank,
+    PerfTable,
+    SpeedCard,
+    Station,
+    Surface,
+    WeightBalance,
+    kmh_to_kt,
+)
 
 _ALT = (0.0, 4000.0, 8000.0)
 _ISA = (-20.0, 0.0, 20.0)
@@ -126,9 +139,10 @@ _LANDING_GRASS = PerfTable(
 
 
 class DR400_160(Aircraft):
-    """Robin DR400/160 Chevalier — F-GGJY. Données du manuel de vol (1972)."""
+    """DR400/160 Chevalier FICTIF (F-ZZZZ). Perfs piste du manuel réel ; croisière
+    et masse & centrage encore PLACEHOLDERS."""
 
-    name = "DR400/160 (F-GGJY)"
+    name = "DR400/160 (F-ZZZZ)"
     max_takeoff_mass_kg = 1050.0
     max_landing_mass_kg = 1045.0
     # Vitesses limites du manuel (km/h EAS) → nœuds.
@@ -143,10 +157,33 @@ class DR400_160(Aircraft):
     #: Correction de vent de face (manuel p.5.2/5.5), identique déco/atterro.
     headwind_factors = {0.0: 1.0, 10.0: 0.8, 20.0: 0.66, 30.0: 0.55}
     #: PROVISOIRE — valeurs typiques DR400/160 à ~75 %, PAS encore tirées du
-    #: manuel F-GGJY. À remplacer par une table croisière (TAS/conso par altitude
+    #: manuel F-ZZZZ. À remplacer par une table croisière (TAS/conso par altitude
     #: et régime). Utilisées telles quelles par le log de navigation.
     cruise_tas_kt = 130.0
     cruise_fuel_lph = 32.0
+    #: Masse & centrage — VALEURS FICTIVES (is_placeholder=True). Les bras et
+    #: l'enveloppe NE sont PAS ceux du manuel/de la fiche de pesée F-ZZZZ : à
+    #: remplacer avant tout usage réel. Le cadre est bon, les nombres non.
+    weight_balance = WeightBalance(
+        empty_mass_kg=620.0,
+        empty_arm_m=0.32,
+        stations=(
+            Station(name="Sièges avant", arm_m=0.41, max_kg=180.0, default_kg=150.0),
+            Station(name="Sièges arrière", arm_m=1.19, max_kg=160.0),
+            Station(name="Bagages", arm_m=1.90, max_kg=40.0),
+        ),
+        fuel=FuelTank(arm_m=1.12, capacity_l=110.0, density_kg_per_l=0.72, default_l=80.0),
+        # Enveloppe FICTIVE (bras_m, masse_kg), polygone fermé.
+        envelope=(
+            (0.205, 500.0),
+            (0.205, 1050.0),
+            (0.430, 1050.0),
+            (0.520, 800.0),
+            (0.520, 500.0),
+        ),
+        max_mass_kg=1050.0,
+        is_placeholder=True,
+    )
 
     def _takeoff_table(self, surface: Surface) -> PerfTable:
         return _TAKEOFF_GRASS if surface == "grass" else _TAKEOFF_PAVED

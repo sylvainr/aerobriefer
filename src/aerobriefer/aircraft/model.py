@@ -165,6 +165,88 @@ class SpeedCard:
     vfe_kt: float
 
 
+@dataclass(frozen=True, slots=True)
+class Station:
+    """Poste de chargement fixe : nom, bras de levier au datum (m), charge max."""
+
+    name: str
+    arm_m: float
+    max_kg: float
+    default_kg: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
+class FuelTank:
+    """Réservoir : bras, capacité, densité. Le carburant a son propre poste car
+    on veut le centrage AVEC et SANS lui (consommation en vol)."""
+
+    arm_m: float
+    capacity_l: float
+    density_kg_per_l: float = 0.72
+    default_l: float = 0.0
+    name: str = "Carburant"
+
+
+@dataclass(frozen=True, slots=True)
+class WBState:
+    """Point de centrage résultant : masse, bras (CG), et respect de l'enveloppe."""
+
+    mass_kg: float
+    arm_m: float
+    within_envelope: bool
+
+
+@dataclass(frozen=True, slots=True)
+class WeightBalance:
+    """Données de masse & centrage d'un appareil : masse à vide, postes, réservoir
+    et enveloppe de centrage (polygone bras×masse).
+
+    `is_placeholder` : vrai tant que les valeurs ne sont pas celles de l'appareil
+    réel (fiche de pesée + bras du manuel). Le rendu DOIT l'afficher en évidence :
+    un centrage faux est dangereux.
+    """
+
+    empty_mass_kg: float
+    empty_arm_m: float
+    stations: tuple[Station, ...]
+    fuel: FuelTank
+    envelope: tuple[tuple[float, float], ...]  # sommets (bras_m, masse_kg), polygone fermé
+    max_mass_kg: float
+    is_placeholder: bool = False
+
+    def state(self, loads_kg: Mapping[str, float], fuel_l: float) -> WBState:
+        """Masse, bras et respect d'enveloppe pour un chargement donné."""
+        mass = self.empty_mass_kg
+        moment = self.empty_mass_kg * self.empty_arm_m
+        for station in self.stations:
+            weight = loads_kg.get(station.name, 0.0)
+            mass += weight
+            moment += weight * station.arm_m
+        fuel_kg = fuel_l * self.fuel.density_kg_per_l
+        mass += fuel_kg
+        moment += fuel_kg * self.fuel.arm_m
+        arm = moment / mass if mass > 0 else 0.0
+        return WBState(
+            mass_kg=mass, arm_m=arm, within_envelope=_in_polygon(arm, mass, self.envelope)
+        )
+
+
+def _in_polygon(x: float, y: float, polygon: Sequence[tuple[float, float]]) -> bool:
+    """Point (x, y) dans le polygone (lancer de rayon). Bord = dedans par tolérance."""
+    inside = False
+    count = len(polygon)
+    j = count - 1
+    for i in range(count):
+        xi, yi = polygon[i]
+        xj, yj = polygon[j]
+        if (yi > y) != (yj > y):
+            x_cross = (xj - xi) * (y - yi) / (yj - yi) + xi
+            if x <= x_cross:
+                inside = not inside
+        j = i
+    return inside
+
+
 class Aircraft(ABC):
     """Base d'un modèle d'avion. Sous-classer pour coder un appareil réel.
 
@@ -183,6 +265,9 @@ class Aircraft(ABC):
     # viendra plus tard, comme les tables décollage/atterrissage.
     cruise_tas_kt: float = 0.0
     cruise_fuel_lph: float = 0.0
+
+    # Masse & centrage (postes de pesage + enveloppe). None = non renseigné.
+    weight_balance: WeightBalance | None = None
 
     # Courbe de correction de vent de face : nœuds → facteur multiplicatif.
     # Défaut neutre ; la plupart des appareils la surchargent (DR400 : 0.8 à 10 kt).

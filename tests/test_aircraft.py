@@ -1,6 +1,6 @@
 """Tests du framework avion et de l'exemple DR400.
 
-Les valeurs de référence viennent du manuel de vol DR400/160 (F-GGJY). On vérifie
+Les valeurs de référence viennent du manuel de vol DR400/160 (F-ZZZZ). On vérifie
 d'abord que le modèle REPRODUIT le manuel aux points de grille (sinon tout le
 reste est faux), puis l'interpolation, le clampage hors table, les corrections,
 et le go/no-go piste.

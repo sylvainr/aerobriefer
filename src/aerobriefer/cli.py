@@ -274,6 +274,12 @@ def main(argv: list[str] | None = None) -> int:
         default=0.0,
         help="déclinaison magnétique (° Est positif), à lire sur la carte (défaut 0)",
     )
+    parser.add_argument(
+        "--masse-centrage",
+        type=Path,
+        default=None,
+        help="chemin de la web-app masse & centrage à produire (HTML+JS local)",
+    )
     args = parser.parse_args(argv)
 
     context = build_context(
@@ -332,6 +338,14 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("--navlog exige une route : ajouter --route")
         _render_navlog(context, args.navlog, magnetic_variation_deg=args.declinaison)
         print(f"  Navlog PDF : {args.navlog}")
+
+    if args.masse_centrage:
+        from .aircraft.examples.dr400 import DR400_160
+        from .render.massbalance import render_massbalance
+
+        # Web-app par avion (DR400 d'exemple pour l'instant) : centrage interactif.
+        args.masse_centrage.write_text(render_massbalance(DR400_160()), encoding="utf-8")
+        print(f"  Masse & centrage : {args.masse_centrage}")
 
     return 0 if package.is_complete else 1
 

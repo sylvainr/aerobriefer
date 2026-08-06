@@ -11,7 +11,7 @@ l'utilisateur sont **sa donnée** : ils vivent hors du repo et sous-classent
 | Fichier | Rôle |
 |---|---|
 | `model.py` | Framework : `Conditions`, `PerfTable` (interpolation trilinéaire alt × écart-ISA × masse), `Aircraft` (base), corrections vent/pente, limites, unités (km/h↔kt, ISA). |
-| `examples/dr400.py` | **Exemple** : DR400/160 (F-GGJY), codé depuis le manuel de vol réel. |
+| `examples/dr400.py` | **Exemple** : DR400/160 (F-ZZZZ), codé depuis le manuel de vol réel. |
 | `runway.py` | `assess_runway()` — go/no-go longueur de piste : distance requise vs disponible. |
 
 ## Principes
