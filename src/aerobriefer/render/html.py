@@ -19,6 +19,7 @@ sécurité, pas du style :
 from __future__ import annotations
 
 import base64
+import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,7 @@ from ..domain.freshness import describe as freshness_label
 from ..domain.freshness import max_age_minutes
 from ..domain.models import Aerodrome, Notam
 from ..domain.package import BriefingPackage, ProviderFailure
+from ..domain.route import Route
 from ..domain.sourced import Sourced
 from ..domain.window import TimeWindow, UtcDateTime, utcnow
 
@@ -440,6 +442,20 @@ class HtmlRenderer:
             }
             for t in package.tafs
         ]
+        # Ordre « dans le sens du vol » : sur une nav, on projette chaque station
+        # sur l'axe de la route (départ = 0, arrivée = total) et on trie par cette
+        # distance le long de la trajectoire. Le pilote lit les stations dans
+        # l'ordre où il les survole, pas dans un ordre de collecte arbitraire.
+        route = ctx.route
+        if route is not None:
+            flight_route: Route = route
+
+            def _axis_position(value: Any) -> float:
+                aerodrome = airports_lookup(value.station)
+                return flight_route.along_track_nm(aerodrome.position) if aerodrome else math.inf
+
+            metars.sort(key=lambda view: _axis_position(view["value"]))
+            tafs.sort(key=lambda view: _axis_position(view["value"]))
         forecasts = [
             {
                 "value": f.value,
