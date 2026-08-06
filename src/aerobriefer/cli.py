@@ -262,6 +262,18 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="chemin du viewer 3D d'espaces aériens à produire (HTML, three.js)",
     )
+    parser.add_argument(
+        "--navlog",
+        type=Path,
+        default=None,
+        help="chemin du log de navigation PDF à produire (exige --route)",
+    )
+    parser.add_argument(
+        "--declinaison",
+        type=float,
+        default=0.0,
+        help="déclinaison magnétique (° Est positif), à lire sur la carte (défaut 0)",
+    )
     args = parser.parse_args(argv)
 
     context = build_context(
@@ -315,7 +327,46 @@ def main(argv: list[str] | None = None) -> int:
         args.viewer.write_text(render_viewer(package), encoding="utf-8")
         print(f"  Viewer 3D : {args.viewer} ({len(package.airspaces)} espaces)")
 
+    if args.navlog:
+        if context.route is None:
+            parser.error("--navlog exige une route : ajouter --route")
+        _render_navlog(context, args.navlog, magnetic_variation_deg=args.declinaison)
+        print(f"  Navlog PDF : {args.navlog}")
+
     return 0 if package.is_complete else 1
+
+
+def _render_navlog(
+    context: BriefingContext, output: Path, *, magnetic_variation_deg: float
+) -> None:
+    """Produit le log de navigation PDF pour la route du contexte.
+
+    L'avion est le DR400/160 d'exemple (seul modèle codé pour l'instant) ; ses
+    perfs de croisière sont encore provisoires. Le vent en altitude vient
+    d'Open-Meteo, échantillonné à l'heure de départ.
+    """
+    from .aircraft.examples.dr400 import DR400_160
+    from .navlog_build import build_navlog
+    from .render.navlog import render_navlog_pdf
+
+    assert context.route is not None
+    aircraft = DR400_160()
+    navlog = build_navlog(
+        context.route,
+        aircraft,
+        departure_time=context.window.start,
+        magnetic_variation_deg=magnetic_variation_deg,
+    )
+    render_navlog_pdf(
+        navlog,
+        output,
+        origin=context.origin_icao or context.route.waypoints[0].name,
+        destination=context.destination_icao or context.route.waypoints[-1].name,
+        aircraft_name=aircraft.name,
+        tas_kt=aircraft.cruise_tas_kt,
+        fuel_flow_lph=aircraft.cruise_fuel_lph or None,
+        magnetic_variation_deg=magnetic_variation_deg,
+    )
 
 
 if __name__ == "__main__":

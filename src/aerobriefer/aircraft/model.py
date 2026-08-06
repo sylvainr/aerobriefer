@@ -178,6 +178,12 @@ class Aircraft(ABC):
     speeds: SpeedCard
     demonstrated_crosswind_kt: float | None = None
 
+    # Croisière, pour le log de navigation (triangle des vitesses + carburant).
+    # Valeur unique pour l'instant ; une table TAS/conso par altitude et régime
+    # viendra plus tard, comme les tables décollage/atterrissage.
+    cruise_tas_kt: float = 0.0
+    cruise_fuel_lph: float = 0.0
+
     # Courbe de correction de vent de face : nœuds → facteur multiplicatif.
     # Défaut neutre ; la plupart des appareils la surchargent (DR400 : 0.8 à 10 kt).
     headwind_factors: Mapping[float, float] = {0.0: 1.0}

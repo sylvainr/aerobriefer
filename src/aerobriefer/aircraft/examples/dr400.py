@@ -142,6 +142,11 @@ class DR400_160(Aircraft):
     demonstrated_crosswind_kt = None
     #: Correction de vent de face (manuel p.5.2/5.5), identique déco/atterro.
     headwind_factors = {0.0: 1.0, 10.0: 0.8, 20.0: 0.66, 30.0: 0.55}
+    #: PROVISOIRE — valeurs typiques DR400/160 à ~75 %, PAS encore tirées du
+    #: manuel F-GGJY. À remplacer par une table croisière (TAS/conso par altitude
+    #: et régime). Utilisées telles quelles par le log de navigation.
+    cruise_tas_kt = 130.0
+    cruise_fuel_lph = 32.0
 
     def _takeoff_table(self, surface: Surface) -> PerfTable:
         return _TAKEOFF_GRASS if surface == "grass" else _TAKEOFF_PAVED
