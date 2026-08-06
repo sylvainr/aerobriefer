@@ -291,6 +291,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="chemin de la web-app masse & centrage à produire (HTML+JS local)",
     )
+    parser.add_argument(
+        "--checklist",
+        type=Path,
+        default=None,
+        help="chemin de la checklist de préparation nav à produire (PDF, exige --route)",
+    )
     args = parser.parse_args(argv)
 
     context = build_context(
@@ -358,7 +364,60 @@ def main(argv: list[str] | None = None) -> int:
         args.masse_centrage.write_text(render_massbalance(DR400_160()), encoding="utf-8")
         print(f"  Masse & centrage : {args.masse_centrage}")
 
+    if args.checklist:
+        if context.route is None:
+            parser.error("--checklist exige une route : ajouter --route")
+        _render_checklist(context, args.checklist, zone=args.zone)
+        print(f"  Checklist : {args.checklist}")
+
     return 0 if package.is_complete else 1
+
+
+def _render_checklist(context: BriefingContext, output: Path, *, zone: str) -> None:
+    """Checklist de prépa nav, indépendante du réseau : coucher du soleil, liste
+    VAC et carburant mini ESTIMÉ (sans vent) pré-remplis en tête."""
+    from .aircraft.examples.dr400 import DR400_160
+    from .data import airports
+    from .domain.fuel import fuel_plan
+    from .domain.sun import sun_times
+    from .render.checklist import render_checklist_pdf
+
+    assert context.route is not None
+    route = context.route
+    aircraft = DR400_160()
+    tz = ZoneInfo(zone)
+    local_start = context.window.start.astimezone(tz)
+
+    center = route.bounding_circle().center
+    sun = sun_times(local_start.date(), center.lat, center.lon)
+
+    fuel_min = None
+    capacity = aircraft.weight_balance.fuel.capacity_l if aircraft.weight_balance else 0.0
+    if aircraft.cruise_tas_kt and aircraft.cruise_fuel_lph and capacity:
+        trip_l = route.total_distance_nm() / aircraft.cruise_tas_kt * aircraft.cruise_fuel_lph
+        plan = fuel_plan(trip_l=trip_l, fuel_flow_lph=aircraft.cruise_fuel_lph, capacity_l=capacity)
+        fuel_min = f"{plan.total_l:.0f}"
+
+    vac_icaos: list[str] = []
+    for waypoint in route.waypoints:
+        aerodrome = airports.lookup(waypoint.name)
+        if aerodrome is not None and aerodrome.icao not in vac_icaos:
+            vac_icaos.append(aerodrome.icao)
+
+    render_checklist_pdf(
+        output,
+        origin=context.origin_icao or route.waypoints[0].name,
+        destination=context.destination_icao or route.waypoints[-1].name,
+        date_label=f"{local_start:%d/%m/%Y}",
+        aircraft_name=aircraft.name,
+        sunset=f"{sun.sunset.astimezone(tz):%H:%M}" if sun.sunset else None,
+        night=f"{sun.aeronautical_night_start.astimezone(tz):%H:%M}"
+        if sun.aeronautical_night_start
+        else None,
+        fuel_min_l=fuel_min,
+        vac_icaos=vac_icaos,
+        display_timezone=zone,
+    )
 
 
 def _render_navlog(

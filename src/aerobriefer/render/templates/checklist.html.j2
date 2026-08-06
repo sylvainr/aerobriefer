@@ -1,0 +1,96 @@
+<meta charset="utf-8">
+<title>Checklist prépa nav {{ origin }} → {{ destination }}</title>
+<style>
+  @page { size: A4 portrait; margin: 12mm 12mm 14mm 12mm;
+    @bottom-left { content: "Checklist prépa — {{ origin }} → {{ destination }}"; font: 7pt Arial; color: #666; }
+    @bottom-right { content: "page " counter(page) " / " counter(pages); font: 7pt Arial; color: #666; }
+  }
+  html { font-size: 10pt; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #12232e; margin: 0; line-height: 1.4; }
+  @media screen { html { background: #ececec; } body { max-width: 800px; margin: 20px auto; padding: 28px 34px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.15); } }
+
+  h1 { font-size: 16pt; margin: 0 0 1mm; letter-spacing: .3px; }
+  .head { border-bottom: 2pt solid #12232e; padding-bottom: 3mm; margin-bottom: 4mm; }
+  .facts { display: flex; flex-wrap: wrap; gap: 1.5mm 7mm; margin-top: 2mm; font-size: 9pt; }
+  .fact b { display: block; font-size: 7pt; text-transform: uppercase; letter-spacing: .5px; color: #666; }
+  .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
+
+  h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: .8px; margin: 5mm 0 1.5mm; padding-bottom: 1mm; border-bottom: 1pt solid #b7c2ca; }
+  ul { list-style: none; margin: 0; padding: 0; column-count: 1; }
+  li { padding: 1.1mm 0 1.1mm 7mm; text-indent: -7mm; break-inside: avoid; }
+  li::before { content: "☐"; font-size: 12pt; margin-right: 2.5mm; color: #35618e; }
+  .note { color: #555; font-size: 8.5pt; }
+  .cols { columns: 2; column-gap: 10mm; }
+  .warn { color: #b3261e; }
+  .foot { margin-top: 6mm; padding-top: 2mm; border-top: 1pt solid #999; font-size: 7.5pt; color: #555; }
+</style>
+
+<div class="head">
+  <h1>CHECKLIST PRÉPARATION NAV — {{ origin }} → {{ destination }}</h1>
+  <div class="facts">
+    <div class="fact"><b>Date</b><span class="mono">{{ date_label }}</span></div>
+    <div class="fact"><b>Aéronef</b><span class="mono">{{ aircraft_name }}</span></div>
+    {% if sunset %}<div class="fact"><b>Coucher du soleil</b><span class="mono">{{ sunset }}</span></div>{% endif %}
+    {% if night %}<div class="fact"><b>Nuit aéro (SS+30)</b><span class="mono">{{ night }}</span></div>{% endif %}
+    {% if fuel_min_l %}<div class="fact"><b>Carburant mini</b><span class="mono">{{ fuel_min_l }} L</span></div>{% endif %}
+  </div>
+</div>
+
+<h2>1 · Météo &amp; conditions</h2>
+<ul class="cols">
+  <li>METAR départ / arrivée / dégagements lus</li>
+  <li>TAF départ / arrivée dans la fenêtre</li>
+  <li>TEMSI + WINTEM consultés</li>
+  <li>Vent en altitude (dérive du log)</li>
+  <li>Plafond / visibilité compatibles VFR</li>
+  <li>SIGMET / phénomènes dangereux</li>
+  <li>Coucher du soleil noté — posé avant la nuit aéro</li>
+  <li>Tendance / évolution (rebriefer avant départ)</li>
+</ul>
+
+<h2>2 · NOTAM</h2>
+<ul class="cols">
+  <li>NOTAM départ / arrivée / dégagements</li>
+  <li>NOTAM en-route (couloir)</li>
+  <li>Zones réglementées temporaires (ZRT) — activation vérifiée</li>
+  <li>Zones P/R/D sur la route</li>
+  <li>Parachutage / voltige / aéromodélisme</li>
+  <li>Obstacles / grues signalés</li>
+</ul>
+
+<h2>3 · Aéronef &amp; performances</h2>
+<ul class="cols">
+  <li>Masse &amp; centrage dans l'enveloppe (avec ET sans carburant)</li>
+  <li>Perfs décollage OK (piste, altitude, température)</li>
+  <li>Perfs atterrissage OK (dest + dégagements)</li>
+  <li>Carburant embarqué ≥ minimum{% if fuel_min_l %} ({{ fuel_min_l }} L){% endif %}</li>
+  <li>Documents avion à bord (à jour)</li>
+  <li>Vne / Vno / Va connues</li>
+</ul>
+
+<h2>4 · Navigation</h2>
+<ul class="cols">
+  <li>Log de navigation préparé (caps, temps, ETA)</li>
+  <li>Zmin par branche notée</li>
+  <li>Fréquences radio par point</li>
+  <li>Radiales VOR / points de report</li>
+  <li>Espaces aériens traversés (classes, plafonds)</li>
+  <li>Cartes 1/500 000 à jour</li>
+  {% if vac_icaos %}<li>Cartes VAC imprimées : {{ vac_icaos | join(' · ') }}</li>
+  {% else %}<li>Cartes VAC des terrains imprimées</li>{% endif %}
+</ul>
+
+<h2>5 · Administratif &amp; sécurité</h2>
+<ul class="cols">
+  <li>Documents pilote (licence, médical, SEP/validité)</li>
+  <li>Plan de vol déposé si requis</li>
+  <li>Dégagements choisis + raison</li>
+  <li>Réserve carburant finale (30 min VFR jour)</li>
+  <li>Briefing passagers / sécurité</li>
+  <li>Téléphone / contacts (aéroclub, ATS)</li>
+</ul>
+
+<p class="foot">
+  Checklist de PRÉPARATION — aide-mémoire, ne remplace pas les checklists avion ni le jugement du commandant de bord.
+  Générée le {{ generated }} ({{ display_timezone }}). À adapter à votre exploitation.
+</p>
