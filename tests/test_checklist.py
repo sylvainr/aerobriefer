@@ -19,7 +19,8 @@ def test_checklist_contient_entete_et_sections():
     assert "LFCY" in html and "LFBD" in html
     assert "21:18" in html and "21:48" in html
     assert "40" in html
-    # Les grandes sections de la prépa.
-    for section in ("MÉTÉO", "NOTAM", "PERFORMANCES", "NAVIGATION", "SÉCURITÉ"):
+    # Les grandes sections de la prépa (casse du gabarit ; l'affichage MAJUSCULE
+    # vient du CSS text-transform).
+    for section in ("Météo", "NOTAM", "performances", "Navigation", "sécurité"):
         assert section in html
-    assert "☐" in html  # cases à cocher
+    assert "☐" in html  # cases à cocher (CSS ::before)
