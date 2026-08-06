@@ -48,6 +48,12 @@ class BriefingContext:
     """Route de navigation (points tournants + altitudes), pour une nav. La
     géométrie du contexte est alors un `Corridor` le long de cette route."""
 
+    weather_points: Sequence[tuple[str, Position]] = field(default_factory=tuple)
+    """Points nommés où échantillonner la prévision de modèle (met.no) : départ,
+    arrivée, dégagements. Sur une nav, la météo doit décrire TOUTE la trajectoire,
+    pas seulement le centre du couloir. Vide = un seul point au centre de la
+    géométrie (comportement historique)."""
+
     @classmethod
     def navigation(
         cls,

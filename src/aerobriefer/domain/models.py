@@ -420,6 +420,10 @@ class ForecastPoint:
     cloud_base_ft: float | None = None
     precipitation_mm: float | None = None
     qnh_hpa: float | None = None
+    label: str = ""
+    """Point d'échantillonnage nommé (OACI du départ, de l'arrivée, d'un
+    dégagement…) : sur une nav, met.no est interrogé à PLUSIEURS points et le
+    rendu groupe les échéances par point. Vide = point unique au centre."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "valid_at", UtcDateTime.of(self.valid_at, "valid_at"))

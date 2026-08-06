@@ -14,6 +14,8 @@ __pycache__/
 # Météo-France embarquées. Artefacts reproductibles, jamais versionnés.
 briefing_*.html
 briefing_*.pdf
+brief_*.html
+brief_*.pdf
 exemple_briefing.pdf
 viewer_*.html
 

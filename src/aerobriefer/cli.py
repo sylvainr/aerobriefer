@@ -52,15 +52,29 @@ def build_context(
         # Nav : le terrain `icao` est le DÉPART, la route donne le reste.
         parsed = parse_route(route, default_first=aerodrome.icao)
         last = parsed.waypoints[-1].name
+        dest = airports.lookup(last)
         context = BriefingContext.navigation(
             route=parsed,
             window=window,
             half_width_nm=largeur_nm,
             origin_icao=aerodrome.icao,
-            destination_icao=last if airports.lookup(last) else None,
+            destination_icao=dest.icao if dest else None,
             aircraft_id=aeronef,
         )
-        return replace(context, observation_stations=_fallback_stations(aerodrome))
+        # La météo d'une nav doit couvrir TOUTE la trajectoire : on ancre sur
+        # chaque terrain du vol (départ, points tournants qui sont des terrains,
+        # arrivée) et on rabat le filet de stations d'observation autour de
+        # chacun — plus le milieu du couloir, pour l'en-route.
+        anchors = _flight_aerodromes(parsed, aerodrome, dest)
+        enroute = context.geometry.bounding_circle().center
+        return replace(
+            context,
+            weather_points=tuple((a.icao, a.position) for a in anchors),
+            observation_stations=_observation_stations(
+                [a.position for a in anchors] + [enroute],
+                exclude={a.icao for a in anchors},
+            ),
+        )
 
     context = BriefingContext.local(
         center=aerodrome.position,
@@ -69,7 +83,11 @@ def build_context(
         icao=aerodrome.icao,
         aircraft_id=aeronef,
     )
-    return replace(context, observation_stations=_fallback_stations(aerodrome))
+    return replace(
+        context,
+        weather_points=((aerodrome.icao, aerodrome.position),),
+        observation_stations=_observation_stations([aerodrome.position], exclude={aerodrome.icao}),
+    )
 
 
 def parse_route(spec: str, *, default_first: str | None = None) -> Route:
@@ -133,22 +151,50 @@ def _is_number(text: str) -> bool:
         return False
 
 
-def _fallback_stations(
-    aerodrome: Aerodrome, *, within_nm: float = 70.0, limit: int = 20
+def _flight_aerodromes(route: Route, origin: Aerodrome, dest: Aerodrome | None) -> list[Aerodrome]:
+    """Terrains du vol résolus, dans l'ordre : départ, points tournants qui sont
+    des terrains, arrivée. Dédoublonnés en gardant le premier vu.
+
+    Sert d'ancres météo : c'est autour d'eux qu'on veut observations ET prévisions.
+    """
+    out: dict[str, Aerodrome] = {origin.icao: origin}
+    for waypoint in route.waypoints:
+        aerodrome = airports.lookup(waypoint.name)
+        if aerodrome is not None:
+            out.setdefault(aerodrome.icao, aerodrome)
+    if dest is not None:
+        out.setdefault(dest.icao, dest)
+    return list(out.values())
+
+
+def _observation_stations(
+    anchors: list[Position],
+    *,
+    exclude: set[str],
+    within_nm: float = 70.0,
+    per_anchor: int = 20,
 ) -> tuple[str, ...]:
-    """Stations candidates au repli météo, par distance croissante.
+    """Stations candidates au repli météo autour de CHAQUE ancre, dédoublonnées.
 
     On ne sait pas hors ligne lesquelles observent réellement : NOAA omet
-    silencieusement les stations sans données, donc on propose largement et la
-    source tranche. Le filet doit être large : autour de Royan, les six terrains
-    les plus proches sont des plateformes sans observation, et les premières
-    stations exploitables (La Rochelle ~38 NM, Bordeaux ~48 NM) n'arrivent qu'au
-    delà. Un filet trop serré ne ramènerait rien.
+    silencieusement les stations sans données, donc on propose largement autour
+    de chaque ancre et la source tranche. Le filet doit être large : autour de
+    Royan, les six terrains les plus proches sont des plateformes sans
+    observation, et les premières stations exploitables (La Rochelle ~38 NM,
+    Bordeaux ~48 NM) n'arrivent qu'au-delà — un filet trop serré ne ramènerait
+    rien. Sur une nav, on rabat ce filet autour du départ, de l'arrivée et des
+    points tournants (et du milieu du couloir), pas seulement du départ.
 
     NOAA groupe toutes les stations en une seule requête : élargir ne coûte rien.
     """
-    neighbours = airports.nearest(aerodrome.position, within_nm=within_nm, limit=limit + 1)
-    return tuple(found.icao for found, _ in neighbours if found.icao != aerodrome.icao)
+    excluded = {icao.upper() for icao in exclude}
+    seen: dict[str, None] = {}
+    for anchor in anchors:
+        for found, _ in airports.nearest(anchor, within_nm=within_nm, limit=per_anchor + 1):
+            icao = found.icao.upper()
+            if icao not in excluded:
+                seen.setdefault(icao, None)
+    return tuple(seen)
 
 
 def _hours(value: float) -> timedelta:

@@ -335,6 +335,64 @@ class HtmlRenderer:
     def _stale_count(self, items: Iterable[Sourced[Any]], now: UtcDateTime) -> int:
         return sum(1 for i in items if i.is_stale(max_age_minutes(i.value), now))
 
+    def _forecast_groups(
+        self, package: BriefingPackage, moment: UtcDateTime, window: TimeWindow
+    ) -> list[dict[str, Any]]:
+        """Prévisions met.no groupées par point d'échantillonnage (départ,
+        arrivée, dégagements). Pour un point qui est un terrain avec des pistes,
+        on ajoute le QFU favorable et les composantes face/arrière + traversier,
+        heure par heure — même lecture que le tableau METAR, mais prévue."""
+        by_label: dict[str, list[Sourced[Any]]] = {}
+        for forecast in sorted(package.forecasts, key=lambda f: f.value.valid_at):
+            by_label.setdefault(forecast.value.label, []).append(forecast)
+
+        names = _name_index(package)
+        groups: list[dict[str, Any]] = []
+        for label, items in by_label.items():
+            aerodrome = airports_lookup(label) if label else None
+            has_runways = aerodrome is not None and bool(aerodrome.runways)
+            rows: list[dict[str, Any]] = []
+            for forecast in items:
+                value = forecast.value
+                components = None
+                if (
+                    has_runways
+                    and value.wind_dir_deg is not None
+                    and value.wind_speed_kt is not None
+                ):
+                    assert aerodrome is not None
+                    components = aerodrome.favoured_wind_components(
+                        value.wind_dir_deg, value.wind_speed_kt
+                    )
+                rows.append(
+                    {
+                        "value": value,
+                        "valid_local": format_local_only(value.valid_at, self._tz),
+                        "in_window": window.contains(value.valid_at),
+                        "source": self._source_info(forecast, moment),
+                        "qfu": components.runway_ident if components else None,
+                        "headwind": round(components.headwind_kt) if components else None,
+                        "crosswind": round(components.crosswind_kt) if components else None,
+                        "arrow": components.arrow if components else None,
+                        "from_right": components.from_right if components else None,
+                        "tailwind": components.is_tailwind if components else None,
+                    }
+                )
+            groups.append(
+                {
+                    "label": label,
+                    "name": names.get(label.upper()) if label else None,
+                    "runways": (
+                        ", ".join(r.ident for r in aerodrome.runways)
+                        if has_runways and aerodrome is not None
+                        else None
+                    ),
+                    "source": rows[0]["source"] if rows else None,
+                    "rows": rows,
+                }
+            )
+        return groups
+
     # -- API ---------------------------------------------------------------
 
     def build_view(
@@ -455,6 +513,7 @@ class HtmlRenderer:
             "metars": metars,
             "tafs": tafs,
             "forecasts": forecasts,
+            "forecast_groups": self._forecast_groups(package, moment, window),
             "notams": notams,
             "charts": charts,
             "chart_groups": chart_groups,

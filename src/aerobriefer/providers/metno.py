@@ -227,15 +227,61 @@ class MetNoProvider:
     # -- Protocol -------------------------------------------------------
 
     def fetch(self, context: BriefingContext) -> Sequence[Sourced[ForecastPoint]]:
-        """Une prévision par échéance dans la fenêtre, au centre de la géométrie.
+        """Une prévision par échéance dans la fenêtre, à CHAQUE point météo.
+
+        Sur une nav, `context.weather_points` porte le départ, l'arrivée et les
+        dégagements : la météo doit décrire toute la trajectoire, pas seulement le
+        centre du couloir. À défaut de points, on retombe sur le centre unique.
 
         Lève `ProviderError` sur tout échec, y compris « la fenêtre est hors de
         portée du modèle » : rendre une liste vide laisserait croire à une
         absence de météo plutôt qu'à une absence de donnée.
         """
-        center = context.geometry.bounding_circle().center
-        payload = self._payload(center.lat, center.lon)
-        url = f"{self._endpoint}?lat={center.lat:.4f}&lon={center.lon:.4f}"
+        window = _padded(context.window, self._padding_hours)
+        results: list[Sourced[ForecastPoint]] = []
+        coverage: tuple[UtcDateTime, UtcDateTime] | None = None
+
+        for label, position in self._sample_points(context):
+            entries, provenance = self._series_at(position)
+            selected = self._select(entries, window)
+            if not selected:
+                coverage = coverage or (entries[0][0], entries[-1][0])
+                continue
+            results.extend(
+                Sourced(
+                    value=self._to_forecast_point(valid_at, data, position, label),
+                    provenance=provenance,
+                )
+                for valid_at, data in selected
+            )
+
+        if not results:
+            span = (
+                f" ; le modèle couvre {coverage[0]:%Y-%m-%dT%H:%MZ} à {coverage[1]:%Y-%m-%dT%H:%MZ}"
+                if coverage
+                else ""
+            )
+            raise ProviderError(
+                self.name,
+                f"aucune échéance dans la fenêtre {context.window.start:%Y-%m-%dT%H:%MZ}"
+                f"/{context.window.end:%Y-%m-%dT%H:%MZ}{span}",
+            )
+
+        return tuple(results)
+
+    def _sample_points(self, context: BriefingContext) -> list[tuple[str, Any]]:
+        """Points (nom, position) où interroger le modèle : les points météo du
+        contexte, ou à défaut le centre unique de la géométrie."""
+        if context.weather_points:
+            return [(label, position) for label, position in context.weather_points]
+        return [("", context.geometry.bounding_circle().center)]
+
+    def _series_at(
+        self, position: Any
+    ) -> tuple[list[tuple[UtcDateTime, Mapping[str, Any]]], Provenance]:
+        """Série d'échéances + provenance pour un point donné."""
+        payload = self._payload(position.lat, position.lon)
+        url = f"{self._endpoint}?lat={position.lat:.4f}&lon={position.lon:.4f}"
 
         raw_properties = payload.get("properties")
         sanity_check(self.name, isinstance(raw_properties, dict), "réponse sans 'properties'")
@@ -249,29 +295,13 @@ class MetNoProvider:
         )
         series = cast("list[Any]", series)
 
-        issued_at = self._issued_at(properties)
         provenance = Provenance(
             source=self.name,
             retrieved_at=utcnow(),
-            issued_at=issued_at,
+            issued_at=self._issued_at(properties),
             url=url,
         )
-
-        entries = self._parse_entries(series)
-        selected = self._select(entries, _padded(context.window, self._padding_hours))
-        if not selected:
-            first, last = entries[0][0], entries[-1][0]
-            raise ProviderError(
-                self.name,
-                f"aucune échéance dans la fenêtre {context.window.start:%Y-%m-%dT%H:%MZ}"
-                f"/{context.window.end:%Y-%m-%dT%H:%MZ} ; le modèle couvre "
-                f"{first:%Y-%m-%dT%H:%MZ} à {last:%Y-%m-%dT%H:%MZ}",
-            )
-
-        return tuple(
-            Sourced(value=self._to_forecast_point(valid_at, data, center), provenance=provenance)
-            for valid_at, data in selected
-        )
+        return self._parse_entries(series), provenance
 
     # -- Sélection temporelle -------------------------------------------
 
@@ -309,7 +339,8 @@ class MetNoProvider:
         self,
         valid_at: UtcDateTime,
         data: Mapping[str, Any],
-        center: Any,
+        position: Any,
+        label: str = "",
     ) -> ForecastPoint:
         instant = data.get("instant", {})
         details = instant.get("details", {}) if isinstance(instant, dict) else {}
@@ -321,7 +352,8 @@ class MetNoProvider:
 
         return ForecastPoint(
             valid_at=valid_at,
-            position=center,
+            position=position,
+            label=label,
             wind_dir_deg=_number(details.get("wind_from_direction")),
             wind_speed_kt=None if wind_ms is None else round(ms_to_knots(wind_ms), 1),
             # `compact` ne porte pas de rafale : cf. docstring du module.

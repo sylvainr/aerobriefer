@@ -190,6 +190,12 @@
      Une feuille de briefing se lit par blocs — météo d'un côté, NOTAM de
      l'autre — pas en flux continu où le premier NOTAM colle au dernier TAF. */
   .macro { break-before: page; page-break-before: always; }
+  /* À l'écran, il n'y a pas de saut de page pour aérer : on met explicitement de
+     l'air au-dessus de chaque macro-section, sinon « MÉTÉO » colle à la synthèse
+     qui précède. */
+  @media screen {
+    .macro { margin-top: 14mm; padding-top: 6mm; border-top: 1pt solid #d0d0d0; }
+  }
   .macro-title {
     font-size: 22pt; letter-spacing: 2px; margin: 0 0 1mm;
     border-bottom: 3pt solid #12232e; padding-bottom: 2mm;
@@ -245,7 +251,8 @@
       <h1>BRIEFING VFR{% if stations %} — {{ stations | join(' / ') }}{% set nom = aerodrome_names.get(stations[0] | upper) if stations else None %}{% if nom %} · {{ nom }}{% endif %}{% endif %}</h1>
       {% if observation_stations %}
       <p class="note">
-        {{ stations | join(' / ') }} n'observe pas : météo issue des stations voisines —
+        Météo d'appoint issue des stations voisines (un terrain sans observation propre
+        se lit sur ses voisines) —
         {% for s in observation_stations %}{{ s.icao }}{% if aerodrome_names.get(s.icao) %} {{ aerodrome_names.get(s.icao) }}{% endif %} ({{ s.distance_nm }}&nbsp;NM){% if not loop.last %}, {% endif %}{% endfor %}.
         Une observation distante ne décrit pas forcément le régime local (brise de mer, brume côtière).
       </p>
@@ -518,22 +525,32 @@
 </section>
 
 {# =================== PRÉVISIONS HORAIRES =================== #}
-{% if forecasts %}
+{# Un tableau PAR point d'échantillonnage (départ, arrivée, dégagements) : la
+   météo d'une nav décrit toute la trajectoire, pas seulement le milieu. Quand le
+   point est un terrain avec des pistes, on ajoute le QFU favorable et les
+   composantes face/arrière + traversier, comme pour les METAR mais heure par heure. #}
+{% if forecast_groups %}
 <section>
   <h2>Prévisions horaires</h2>
-  {% set fsrc = forecasts[0].source %}
+  {% set fsrc = forecast_groups[0].source %}
   <p class="small muted" style="margin-bottom:1.5mm">
-    Prévisions de modèle au point {{ stations[0] if stations else '' }}, source
-    <b>{{ fsrc.source }}</b> (Institut météorologique norvégien){% if fsrc.issued_dual %} ·
-    tour de modèle {{ fsrc.issued_dual }}{% endif %} · récupéré {{ fsrc.retrieved_dual }}.
-    Le vent est un vent moyen de modèle — pour les rafales, se référer aux TAF ci-dessus.
+    Prévisions de modèle, source <b>{{ fsrc.source }}</b> (Institut météorologique
+    norvégien){% if fsrc.issued_dual %} · tour de modèle {{ fsrc.issued_dual }}{% endif %} ·
+    récupéré {{ fsrc.retrieved_dual }}. Un tableau par point du vol. Le vent est un
+    vent moyen de modèle — pour les rafales, se référer aux TAF ci-dessus.
   </p>
+  {% for grp in forecast_groups %}
+  <h3 style="margin-top:4mm">
+    Prévisions — {{ grp.label if grp.label else 'milieu de route' }}{% if grp.name %} <span class="aptname">· {{ grp.name }}</span>{% endif %}{% if grp.runways %} <span class="aptname">· pistes {{ grp.runways }}</span>{% endif %}
+  </h3>
   <table>
     <tr>
       <th>Échéance (locale)</th><th>Vent</th><th>Rafales</th><th>T</th>
-      <th>Nuages</th><th>Base</th><th>Précip.</th><th>QNH</th><th>Âge</th>
+      <th>Nuages</th><th>Base</th><th>Précip.</th><th>QNH</th>
+      {% if grp.runways %}<th>QFU fav.</th><th>Face / arrière</th><th>Traversier</th>{% endif %}
+      <th>Âge</th>
     </tr>
-    {% for f in forecasts %}
+    {% for f in grp.rows %}
     <tr class="{% if not f.in_window %}pad-row{% endif %}{% if f.source.is_stale %} stale-row{% endif %}">
       <td class="mono">{{ f.valid_local }}{% if not f.in_window %} <span class="pad-tag">hors créneau</span>{% endif %}</td>
       <td>{% if f.value.wind_speed_kt is not none %}{{ f.value.wind_dir_deg | round | int if f.value.wind_dir_deg is not none else 'VRB' }}° / {{ f.value.wind_speed_kt | round | int }} kt{% else %}—{% endif %}</td>
@@ -543,11 +560,22 @@
       <td class="num">{{ (f.value.cloud_base_ft | round | int) ~ ' ft' if f.value.cloud_base_ft is not none else '—' }}</td>
       <td class="num">{{ (f.value.precipitation_mm | round(1)) ~ ' mm' if f.value.precipitation_mm is not none else '—' }}</td>
       <td class="num">{{ (f.value.qnh_hpa | round | int) if f.value.qnh_hpa is not none else '—' }}</td>
+      {% if grp.runways %}
+      <td class="mono">{% if f.qfu %}<b>{{ f.qfu }}</b>{% else %}—{% endif %}</td>
+      <td class="num">{% if f.qfu %}{% if f.tailwind %}<span class="gust">arrière {{ -f.headwind }} kt</span>{% else %}face {{ f.headwind }} kt{% endif %}{% else %}—{% endif %}</td>
+      <td class="num">{% if f.qfu %}<b>{{ f.crosswind }} kt</b> <span class="xarrow" title="{{ 'de la droite' if f.from_right else 'de la gauche' }}">{{ f.arrow }}</span> <span class="aptname">{{ 'droite' if f.from_right else 'gauche' }}</span>{% else %}—{% endif %}</td>
+      {% endif %}
       <td class="num">{{ f.source.age_label }}{% if f.source.is_stale %} <span class="stale">périmé</span>{% endif %}</td>
     </tr>
     {% endfor %}
   </table>
-  <p class="prov">Source <b>{{ fsrc.source }}</b> · licence CC-BY 4.0 — {{ forecasts | length }} échéance(s) dans la fenêtre de vol.</p>
+  {% endfor %}
+  <p class="prov">
+    Source <b>{{ fsrc.source }}</b> · licence CC-BY 4.0. QFU/traversier : estimation
+    dérivée du vent PRÉVU appliqué aux pistes du terrain — le vent réel sur place
+    peut différer (relief, brise de mer). La flèche pointe dans le sens où le vent
+    pousse l'avion.
+  </p>
 </section>
 {% endif %}
 
