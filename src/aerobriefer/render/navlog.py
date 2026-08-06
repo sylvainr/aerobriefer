@@ -162,6 +162,7 @@ def render_navlog_html(
     vac_links: list[Any] | None = None,
     safety_ft: list[float] | None = None,
     fuel_plan: Any | None = None,
+    perfs: list[Any] | None = None,
     display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
     now: UtcDateTime | None = None,
 ) -> str:
@@ -188,6 +189,18 @@ def render_navlog_html(
         "rows": _rows(navlog, tz, annotations, safety_ft),
         "vac_links": [{"icao": v.icao, "name": v.name, "url": v.url} for v in (vac_links or [])],
         "fuel_plan": _fuel_view(fuel_plan),
+        "perfs": [
+            {
+                "label": p.label,
+                "runway": p.runway,
+                "conditions": p.conditions,
+                "required": p.required_m,
+                "available": p.available_m,
+                "margin_pct": f"{p.margin_pct:+.0f}",
+                "ok": p.ok,
+            }
+            for p in (perfs or [])
+        ],
         "total_distance": f"{navlog.total_distance_nm:.1f}",
         "total_time": _duration(navlog.total_time),
         "total_fuel": f"{total_fuel:.1f} L" if total_fuel is not None else "—",

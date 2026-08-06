@@ -15,11 +15,13 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from .aircraft.model import Aircraft
+from .aircraft.model import Aircraft, Conditions, isa_temperature_c
+from .aircraft.runway import assess_runway
 from .data import airports, frequencies, navaids
 from .data.elevation import DEFAULT_MARGIN_FT, Elevation, sample_positions, zmin_ft
 from .data.winds import WindsAloft
 from .domain.geo import Position
+from .domain.models import Aerodrome, Runway
 from .domain.navlog import NavLog, Wind, compute_navlog
 from .domain.route import Leg, Route
 from .domain.window import UtcDateTime
@@ -130,6 +132,76 @@ def annotate_navlog(
         note_field(end.name)
 
     return annotations, list(vac.values())
+
+
+@dataclass(frozen=True, slots=True)
+class PerfAssessment:
+    """Verdict perf piste pour le dossier, aux conditions CONSERVATRICES (masse
+    maxi, ISA+15, sans vent) : si ça passe là, ça passe le jour du vol."""
+
+    label: str
+    runway: str
+    conditions: str
+    required_m: int
+    available_m: int
+    margin_pct: float
+    ok: bool
+
+
+def _longest_runway(icao: str) -> tuple[Aerodrome | None, Runway | None]:
+    aerodrome = airports.lookup(icao)
+    if aerodrome is None or not aerodrome.runways:
+        return None, None
+    runways = [r for r in aerodrome.runways if r.length_m]
+    if not runways:
+        return aerodrome, None
+    return aerodrome, max(runways, key=lambda r: r.length_m)
+
+
+def _assess(
+    icao: str, aircraft: Aircraft, *, operation: str, mass_kg: float
+) -> PerfAssessment | None:
+    aerodrome, runway = _longest_runway(icao)
+    if aerodrome is None or runway is None:
+        return None
+    elevation = float(aerodrome.elevation_ft)
+    conditions = Conditions(
+        pressure_altitude_ft=elevation,
+        temperature_c=isa_temperature_c(elevation) + 15.0,  # ISA+15, jour chaud conservateur
+        mass_kg=mass_kg,
+        headwind_kt=0.0,
+    )
+    verdict = assess_runway(aircraft, runway, conditions, operation=operation)
+    label = "Décollage" if operation == "takeoff" else "Atterrissage"
+    surface = f", {runway.surface}" if runway.surface else ""
+    return PerfAssessment(
+        label=f"{label} {icao}",
+        runway=f"piste {runway.ident} ({runway.length_m} m{surface})",
+        conditions=f"{mass_kg:.0f} kg · {elevation:.0f} ft · ISA+15 · sans vent",
+        required_m=verdict.required_m,
+        available_m=verdict.available_m,
+        margin_pct=verdict.margin_pct,
+        ok=verdict.ok,
+    )
+
+
+def runway_performance(
+    aircraft: Aircraft, origin_icao: str, dest_icao: str
+) -> list[PerfAssessment]:
+    """Perfs décollage (départ) et atterrissage (arrivée), aux conditions
+    conservatrices. Terrains sans piste connue : ignorés."""
+    out: list[PerfAssessment] = []
+    takeoff = _assess(
+        origin_icao, aircraft, operation="takeoff", mass_kg=aircraft.max_takeoff_mass_kg
+    )
+    if takeoff is not None:
+        out.append(takeoff)
+    landing = _assess(
+        dest_icao, aircraft, operation="landing", mass_kg=aircraft.max_landing_mass_kg
+    )
+    if landing is not None:
+        out.append(landing)
+    return out
 
 
 def safety_altitudes(

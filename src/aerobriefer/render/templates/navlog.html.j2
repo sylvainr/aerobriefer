@@ -105,6 +105,13 @@
   </tbody>
 </table>
 
+{% if perfs %}
+<p class="vac"><b>Perfs piste</b> <span class="sub">(conditions conservatrices : masse maxi, ISA+15, sans vent)</span> —
+  {% for p in perfs %}{{ p.label }} {{ p.runway }} : requis {{ p.required }} m / dispo {{ p.available }} m
+  ({% if p.ok %}<b style="color:#1f6b3a">GO {{ p.margin_pct }} %</b>{% else %}<b style="color:#b3261e">NO-GO {{ p.margin_pct }} %</b>{% endif %}){% if not loop.last %} · {% endif %}{% endfor %}.
+</p>
+{% endif %}
+
 {% if fuel_plan %}
 <p class="vac"><b>Bilan carburant</b> —
   roulage {{ fuel_plan.taxi }} L · trajet {{ fuel_plan.trip }} L{% if fuel_plan.alternate != '0.0' %} · dégagement {{ fuel_plan.alternate }} L{% endif %} · réserve 30 min {{ fuel_plan.reserve }} L

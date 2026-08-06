@@ -430,7 +430,12 @@ def _render_navlog(
     d'Open-Meteo, échantillonné à l'heure de départ.
     """
     from .aircraft.examples.dr400 import DR400_160
-    from .navlog_build import annotate_navlog, build_navlog, safety_altitudes
+    from .navlog_build import (
+        annotate_navlog,
+        build_navlog,
+        runway_performance,
+        safety_altitudes,
+    )
     from .render.navlog import render_navlog_pdf
 
     assert context.route is not None
@@ -457,6 +462,10 @@ def _render_navlog(
             fuel_flow_lph=aircraft.cruise_fuel_lph,
             capacity_l=capacity_l,
         )
+
+    origin_icao = context.origin_icao or context.route.waypoints[0].name
+    dest_icao = context.destination_icao or context.route.waypoints[-1].name
+    perfs = runway_performance(aircraft, origin_icao, dest_icao)
     render_navlog_pdf(
         navlog,
         output,
@@ -470,6 +479,7 @@ def _render_navlog(
         vac_links=vac_links,
         safety_ft=safety_ft,
         fuel_plan=fuel_plan,
+        perfs=perfs,
     )
 
 
