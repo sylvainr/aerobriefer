@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from .aircraft.model import Aircraft
 from .data import airports, frequencies, navaids
+from .data.elevation import DEFAULT_MARGIN_FT, Elevation, sample_positions, zmin_ft
 from .data.winds import WindsAloft
 from .domain.geo import Position
 from .domain.navlog import NavLog, Wind, compute_navlog
@@ -57,11 +58,20 @@ def _magnetic(true_deg: float, magnetic_variation_deg: float) -> float:
     return (true_deg - magnetic_variation_deg) % 360.0
 
 
+def _is_vhf_comm(freq_mhz: str) -> bool:
+    """Vraie fréquence VHF air (118–137 MHz) : écarte les scories de la source
+    (ex. un « 29.372 » égaré dans OurAirports)."""
+    try:
+        return 118.0 <= float(freq_mhz) <= 137.0
+    except ValueError:
+        return False
+
+
 def _radios_for(icao: str, *, limit: int = 3) -> str | None:
-    freqs = frequencies.for_icao(icao)[:limit]
+    freqs = [f for f in frequencies.for_icao(icao) if _is_vhf_comm(f.freq_mhz)][:limit]
     if not freqs:
         return None
-    return " · ".join(f"{f.kind} {f.freq_mhz}" for f in freqs if f.freq_mhz)
+    return " · ".join(f"{f.kind} {f.freq_mhz}" for f in freqs)
 
 
 def _vor_for(point: Position, magnetic_variation_deg: float) -> str | None:
@@ -120,6 +130,21 @@ def annotate_navlog(
         note_field(end.name)
 
     return annotations, list(vac.values())
+
+
+def safety_altitudes(
+    navlog: NavLog, *, elevation: Elevation | None = None, margin_ft: float = DEFAULT_MARGIN_FT
+) -> list[float]:
+    """Zmin par branche : relief le plus haut du couloir + marge, arrondi.
+
+    Une seule requête d'élévation pour TOUTES les branches (batch). TERRAIN seul —
+    les obstacles ponctuels ne sont pas couverts (à vérifier NOTAM/VAC)."""
+    source = elevation if elevation is not None else Elevation()
+    per_leg_points = [
+        sample_positions(leg.leg.start.position, leg.leg.end.position) for leg in navlog.legs
+    ]
+    source.elevation_m([point for points in per_leg_points for point in points])  # pré-charge
+    return [zmin_ft(source.max_terrain_m(points), margin_ft=margin_ft) for points in per_leg_points]
 
 
 def _leg_midpoint(leg: Leg) -> Position:

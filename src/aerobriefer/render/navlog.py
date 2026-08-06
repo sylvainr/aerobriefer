@@ -56,7 +56,12 @@ def _drift_label(wind_correction_deg: float) -> str:
     return f"{value:+d}° {'▶' if value > 0 else '◀'}"
 
 
-def _rows(navlog: NavLog, tz: ZoneInfo, annotations: list[Any] | None) -> list[dict[str, Any]]:
+def _rows(
+    navlog: NavLog,
+    tz: ZoneInfo,
+    annotations: list[Any] | None,
+    safety_ft: list[float] | None,
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     total = navlog.total_distance_nm
     cumulative = 0.0
@@ -66,6 +71,7 @@ def _rows(navlog: NavLog, tz: ZoneInfo, annotations: list[Any] | None) -> list[d
         if leg.fuel_l is not None:
             cumulative_fuel += leg.fuel_l
         note = annotations[index] if annotations and index < len(annotations) else None
+        zmin = safety_ft[index] if safety_ft and index < len(safety_ft) else None
         rows.append(
             _row(
                 leg,
@@ -74,6 +80,7 @@ def _rows(navlog: NavLog, tz: ZoneInfo, annotations: list[Any] | None) -> list[d
                 remaining_nm=total - cumulative,
                 cumulative_fuel=cumulative_fuel,
                 note=note,
+                zmin_ft=zmin,
             )
         )
     return rows
@@ -91,12 +98,14 @@ def _row(
     remaining_nm: float,
     cumulative_fuel: float,
     note: Any | None,
+    zmin_ft: float | None,
 ) -> dict[str, Any]:
     local = leg.eta.astimezone(tz)
     tsv_h = leg.distance_nm / leg.tas_kt if leg.tas_kt else 0.0
     return {
         "branch": f"{leg.leg.start.name} → {leg.leg.end.name}",
         "altitude": f"{leg.altitude_ft:.0f}" if leg.altitude_ft is not None else "—",
+        "zmin": f"{zmin_ft:.0f}" if zmin_ft is not None else None,
         "true_track": f"{leg.true_track_deg:03.0f}",
         "magnetic_track": f"{leg.magnetic_track_deg:03.0f}",
         "magnetic_heading": f"{leg.magnetic_heading_deg:03.0f}",
@@ -130,6 +139,7 @@ def render_navlog_html(
     magnetic_variation_deg: float = 0.0,
     annotations: list[Any] | None = None,
     vac_links: list[Any] | None = None,
+    safety_ft: list[float] | None = None,
     display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
     now: UtcDateTime | None = None,
 ) -> str:
@@ -153,7 +163,7 @@ def render_navlog_html(
         "departure_dual": _dual(navlog.departure_time, tz, with_date=True),
         "arrival_dual": _dual(navlog.eta_arrival, tz, with_date=True),
         "arrival_local": _dual(navlog.eta_arrival, tz),
-        "rows": _rows(navlog, tz, annotations),
+        "rows": _rows(navlog, tz, annotations, safety_ft),
         "vac_links": [{"icao": v.icao, "name": v.name, "url": v.url} for v in (vac_links or [])],
         "total_distance": f"{navlog.total_distance_nm:.1f}",
         "total_time": _duration(navlog.total_time),

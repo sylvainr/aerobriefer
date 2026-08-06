@@ -70,7 +70,7 @@
       <td class="mono">{{ r.branch }}</td>
       <td class="c">
         <span class="big">{{ r.altitude }}</span><span class="sub"> ft</span>
-        <span class="lbl">Zmin</span><span class="blank"></span>
+        {% if r.zmin %}<div class="auto"><span class="lbl">Zmin</span> <b>{{ r.zmin }} ft</b></div>{% else %}<span class="lbl">Zmin</span><span class="blank"></span>{% endif %}
       </td>
       <td class="c">
         <span class="big">{{ r.magnetic_heading }}°</span>
@@ -117,6 +117,7 @@
   <b>RM = Rv − déclinaison</b> ({{ mag_var_label }}, à confirmer sur la carte). DI = distance de branche, DTG = distance restante,
   Tsv/Tav = temps sans / avec vent. VOR = radiale magnétique depuis le VOR le plus proche vers le point ; déroutement = terrain le plus proche.
   Vent en altitude interpolé — source <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ.
-  <b>TAS et conso PROVISOIRES</b> (valeurs typiques DR400/160, avion d'exemple F-ZZZZ fictif). Zmin à compléter à la main pour l'instant.
+  <b>TAS et conso PROVISOIRES</b> (valeurs typiques DR400/160, avion d'exemple F-ZZZZ fictif).
+  Zmin = relief max du couloir + 1000 ft (Open-Meteo/SRTM, <b>terrain seul</b> — obstacles ponctuels à vérifier NOTAM/VAC).
   Heures locales = {{ display_timezone }}, Z indiqué. Généré le {{ generated_dual }}.
 </p>

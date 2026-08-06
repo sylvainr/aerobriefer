@@ -371,7 +371,7 @@ def _render_navlog(
     d'Open-Meteo, échantillonné à l'heure de départ.
     """
     from .aircraft.examples.dr400 import DR400_160
-    from .navlog_build import annotate_navlog, build_navlog
+    from .navlog_build import annotate_navlog, build_navlog, safety_altitudes
     from .render.navlog import render_navlog_pdf
 
     assert context.route is not None
@@ -383,6 +383,10 @@ def _render_navlog(
         magnetic_variation_deg=magnetic_variation_deg,
     )
     annotations, vac_links = annotate_navlog(navlog, magnetic_variation_deg=magnetic_variation_deg)
+    try:
+        safety_ft = safety_altitudes(navlog)
+    except Exception:  # noqa: BLE001 - élévation indisponible : Zmin à la main, pas fatal
+        safety_ft = None
     render_navlog_pdf(
         navlog,
         output,
@@ -394,6 +398,7 @@ def _render_navlog(
         magnetic_variation_deg=magnetic_variation_deg,
         annotations=annotations,
         vac_links=vac_links,
+        safety_ft=safety_ft,
     )
 
 
