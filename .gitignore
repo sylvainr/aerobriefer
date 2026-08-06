@@ -28,3 +28,5 @@ viewer_*.html
 # Divers OS/éditeur
 .DS_Store
 *.swp
+exemple_*.pdf
+exemple_*.html
