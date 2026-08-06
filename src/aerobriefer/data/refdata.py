@@ -34,6 +34,8 @@ import httpx
 
 OURAIRPORTS_AIRPORTS = "https://davidmegginson.github.io/ourairports-data/airports.csv"
 OURAIRPORTS_RUNWAYS = "https://davidmegginson.github.io/ourairports-data/runways.csv"
+OURAIRPORTS_NAVAIDS = "https://davidmegginson.github.io/ourairports-data/navaids.csv"
+OURAIRPORTS_FREQ = "https://davidmegginson.github.io/ourairports-data/airport-frequencies.csv"
 #: Export officiel de la base SIA, miroir ouvert (sans compte). Cycle daté : la
 #: géométrie des pistes ne bouge quasi jamais, un export ancien reste valable.
 #: Pour rafraîchir au cycle AIRAC courant : store officiel sia.aviation-civile.gouv.fr.
@@ -45,6 +47,11 @@ _DEFAULT_DIR = Path(".cache/refdata")
 #: Europe de l'Ouest : on ne garde qu'une région, pas la planète.
 _EU_PREFIXES = ("LF", "EG", "ED", "LE", "LI", "EB", "EH", "LS", "LP", "LK", "LO")
 _KEEP_TYPES = {"small_airport", "medium_airport", "large_airport"}
+
+#: Pays retenus pour les navaids (mêmes zones que les préfixes OACI ci-dessus).
+_EU_COUNTRIES = {"FR", "GB", "DE", "ES", "IT", "BE", "NL", "CH", "PT", "CZ", "AT"}
+#: Types de navaids gardés : la famille VOR (radiales) et le DME (distance).
+_KEEP_NAVAIDS = {"VOR", "VOR-DME", "VORTAC", "DME", "TACAN"}
 
 #: Surfaces AIXM (SIA) → codes du domaine (cf. Runway.is_paved).
 _SIA_SURFACE = {
@@ -83,11 +90,27 @@ def runways_fr_csv() -> Path:
     return data_dir() / "runways_fr.csv"
 
 
+def navaids_csv() -> Path:
+    _ensure_built()
+    return data_dir() / "navaids_eu.csv"
+
+
+def frequencies_csv() -> Path:
+    _ensure_built()
+    return data_dir() / "frequencies_eu.csv"
+
+
 def _ensure_built() -> None:
     """Construit le cache si absent. Ne fait rien si un override est fourni : la
     fixture est censée être pré-remplie, on ne télécharge jamais par surprise."""
     directory = data_dir()
-    targets = ["airports_eu.csv", "runways_eu.csv", "runways_fr.csv"]
+    targets = [
+        "airports_eu.csv",
+        "runways_eu.csv",
+        "runways_fr.csv",
+        "navaids_eu.csv",
+        "frequencies_eu.csv",
+    ]
     if all((directory / name).exists() for name in targets):
         return
     if os.environ.get(ENV_DIR):
@@ -100,6 +123,8 @@ def _ensure_built() -> None:
     icaos = _build_airports(directory / "airports_eu.csv")
     _build_runways_eu(directory / "runways_eu.csv", icaos)
     _build_runways_fr(directory / "runways_fr.csv")
+    _build_navaids(directory / "navaids_eu.csv")
+    _build_frequencies(directory / "frequencies_eu.csv", icaos)
 
 
 def _get(url: str) -> bytes:
@@ -242,6 +267,61 @@ def _build_runways_fr(dest: Path) -> None:
                     "lighted": "",
                 }
             )
+
+
+def _build_navaids(dest: Path) -> None:
+    """OurAirports navaids → famille VOR + DME d'Europe de l'Ouest.
+
+    On garde ce qui sert à une radiale VFR (VOR/VORTAC/VOR-DME) et à une distance
+    (DME). Fréquence en kHz dans la source → MHz ici (VOR/DME sont en MHz)."""
+    text = _get(OURAIRPORTS_NAVAIDS).decode("utf-8")
+    with dest.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(
+            fh, fieldnames=["ident", "name", "type", "freq_mhz", "lat", "lon", "elev_ft", "country"]
+        )
+        writer.writeheader()
+        for row in csv.DictReader(io.StringIO(text)):
+            if row["type"] not in _KEEP_NAVAIDS or row["iso_country"] not in _EU_COUNTRIES:
+                continue
+            writer.writerow(
+                {
+                    "ident": row["ident"],
+                    "name": row["name"],
+                    "type": row["type"],
+                    "freq_mhz": _khz_to_mhz(row["frequency_khz"]),
+                    "lat": row["latitude_deg"],
+                    "lon": row["longitude_deg"],
+                    "elev_ft": row["elevation_ft"] or "",
+                    "country": row["iso_country"],
+                }
+            )
+
+
+def _build_frequencies(dest: Path, icaos: set[str]) -> None:
+    """OurAirports airport-frequencies → fréquences des terrains retenus."""
+    text = _get(OURAIRPORTS_FREQ).decode("utf-8")
+    with dest.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=["icao", "type", "description", "freq_mhz"])
+        writer.writeheader()
+        for row in csv.DictReader(io.StringIO(text)):
+            icao = row["airport_ident"]
+            if icao not in icaos:
+                continue
+            writer.writerow(
+                {
+                    "icao": icao,
+                    "type": row["type"],
+                    "description": row["description"],
+                    "freq_mhz": row["frequency_mhz"],
+                }
+            )
+
+
+def _khz_to_mhz(value: str | None) -> str:
+    try:
+        return f"{float(value) / 1000.0:.3f}".rstrip("0").rstrip(".") if value else ""
+    except (TypeError, ValueError):
+        return ""
 
 
 def _ft_to_m(value: str | None) -> str:
