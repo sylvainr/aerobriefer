@@ -24,6 +24,8 @@
   .auto { font-size: 6.2pt; color: #12232e; }
   .auto b { color: #2b6cb0; }
   .arrow { font-size: 9pt; font-weight: 700; }
+  .morse { font-family: "SF Mono", Menlo, Consolas, monospace; letter-spacing: 1px; color: #2b6cb0; }
+  th.big-h { font-size: 8pt; background: #35618e; }
   .lbl { font-size: 5.3pt; color: #888; text-transform: uppercase; letter-spacing: .3px; }
   .blank { display: block; border-bottom: .5pt solid #bbb; height: 3mm; }
   th.fill { background: #35618e; }
@@ -51,9 +53,9 @@
 
 <table>
   <colgroup>
-    <col style="width:12%"><col style="width:9%"><col style="width:10%"><col style="width:7%">
-    <col style="width:7%"><col style="width:7%"><col style="width:5%"><col style="width:5%">
-    <col style="width:16%"><col style="width:22%">
+    <col style="width:10%"><col style="width:8%"><col style="width:9%"><col style="width:6%">
+    <col style="width:5%"><col style="width:6%"><col style="width:6%"><col style="width:6%">
+    <col style="width:22%"><col style="width:22%">
   </colgroup>
   <thead>
     <tr>
@@ -62,10 +64,10 @@
       <th>RM <span style="font-weight:400">(Rv·Dv)</span></th>
       <th>Dist</th>
       <th>Temps</th>
-      <th>Conso</th>
-      <th class="fill">HE</th>
-      <th class="fill">HR</th>
-      <th>Observations <span style="font-weight:400">(VOR·radios)</span></th>
+      <th>Conso<br>(L)</th>
+      <th class="fill big-h">HE</th>
+      <th class="fill big-h">HR</th>
+      <th>Radios <span style="font-weight:400">· VOR · notes</span></th>
       <th>Déroutement</th>
     </tr>
   </thead>
@@ -84,17 +86,17 @@
       </td>
       <td class="c"><span class="big">{{ r.distance }}</span><div class="sub">cum {{ r.cumulative }}<br>DTG {{ r.dtg }}</div></td>
       <td class="c"><span class="big">{{ r.tav }}′</span><div class="sub">svt {{ r.tsv }}′</div></td>
-      <td class="c"><span class="big">{{ r.fuel }}</span><div class="sub">cum {{ r.fuel_cumulative }}</div></td>
+      <td class="c"><span class="big">{{ r.fuel }}</span> <span class="sub">L</span><div class="sub">cum {{ r.fuel_cumulative }}</div></td>
       <td class="fill"></td>
       <td class="fill"></td>
       <td class="auto">
-        {% if r.vor %}<div>VOR <b>{{ r.vor }}</b></div>{% endif %}
-        {% if r.radios %}<div>{{ r.radios }}</div>{% endif %}
-        {% if not r.vor and not r.radios %}<span class="sub">—</span>{% endif %}
+        {% for radio in r.radios %}<div><b>{{ radio.label }}</b> {{ radio.freq }}</div>{% endfor %}
+        {% if r.vor %}<div class="sub">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span> {{ r.vor.freq }} · R{{ r.vor.radial }}/{{ r.vor.distance }}</div>{% endif %}
+        <span class="blank"></span><span class="blank"></span><span class="blank"></span>
       </td>
       <td class="auto">
         {% if r.diversion %}
-        <div><b>{{ r.diversion.icao }}</b> <span class="arrow">{{ r.diversion.arrow }}</span> {{ r.diversion.distance }} NM / {{ r.diversion.bearing }}°</div>
+        <div><b>{{ r.diversion.icao }}</b> <span class="arrow">{{ r.diversion.arrow }}</span> {{ r.diversion.relative }} · {{ r.diversion.distance }} NM</div>
         {% if r.diversion.runway %}<div class="sub">piste {{ r.diversion.runway }}</div>{% endif %}
         {% if r.diversion.required %}<div class="sub">atterro {{ r.diversion.required }} m ·
           {% if r.diversion.ok %}<span class="go">marge {{ r.diversion.margin_pct }} %</span>{% else %}<span class="nogo">{{ r.diversion.margin_pct }} %</span>{% endif %}</div>{% endif %}
@@ -142,8 +144,9 @@
 <p class="disclaimer">
   <b>AIDE À LA PRÉPARATION — ne remplace pas le calcul officiel ni le jugement du commandant de bord.</b>
   HE/HR = heure estimée / réelle, à remplir. <b>RM = Rv − déclinaison</b> ({{ mag_var_label }}, à confirmer sur la carte).
-  Dist : DI branche, cumul, DTG restante. Temps : avec vent (svt = sans vent). VOR = radiale magnétique du VOR le plus proche.
-  Déroutement = terrain le plus proche (flèche = cap), avec sa piste et la marge d'atterrissage DR400.
+  Dist : DI branche, cumul, DTG restante. Temps : avec vent (svt = sans vent). Radios : terrains + espaces traversés (étiquetés).
+  VOR (secondaire) : ident + Morse + radiale. Déroutement = terrain le plus proche, direction RELATIVE à la route (flèche + G/D de X°),
+  avec sa piste et la marge d'atterrissage DR400.
   Vent : <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ. <b>TAS/conso PROVISOIRES</b> (avion fictif F-ZZZZ).
   Zmin = relief max du couloir + 1000 ft (Open-Meteo/SRTM, <b>terrain seul</b>).
   Généré le {{ generated_dual }}.

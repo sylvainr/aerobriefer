@@ -96,12 +96,24 @@ def _diversion_view(div: Any | None) -> dict[str, Any] | None:
     return {
         "icao": div.icao,
         "distance": div.distance_nm,
-        "bearing": f"{div.bearing_deg:03d}",
+        "relative": f"{div.side}{div.relative_deg}°",  # ex. « G16° »
         "arrow": div.arrow,
         "runway": div.runway,
         "required": div.landing_required_m,
         "margin_pct": f"{div.margin_pct:+.0f}" if div.margin_pct is not None else None,
         "ok": div.ok,
+    }
+
+
+def _vor_view(vor: Any | None) -> dict[str, Any] | None:
+    if vor is None:
+        return None
+    return {
+        "ident": vor.ident,
+        "morse": vor.morse,
+        "freq": vor.freq,
+        "radial": f"{vor.radial_deg:03d}",
+        "distance": vor.distance_nm,
     }
 
 
@@ -134,9 +146,9 @@ def _row(
         "fuel": f"{leg.fuel_l:.1f}" if leg.fuel_l is not None else "—",
         "fuel_cumulative": f"{cumulative_fuel:.1f}" if leg.fuel_l is not None else "—",
         # Auto-remplis depuis la donnée de référence.
-        "vor": getattr(note, "vor", None),
-        "radios": getattr(note, "radios", None),
-        "diversion": _diversion_view(getattr(note, "diversion", None)),
+        "radios": [{"label": r.label, "freq": r.freq} for r in (note.radios if note else [])],
+        "vor": _vor_view(note.vor if note else None),
+        "diversion": _diversion_view(note.diversion if note else None),
     }
 
 

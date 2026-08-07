@@ -17,12 +17,12 @@ from dataclasses import dataclass
 
 from .aircraft.model import Aircraft, Conditions, isa_temperature_c
 from .aircraft.runway import assess_runway
-from .data import airports, frequencies, navaids
+from .data import airports, airspace, frequencies, navaids
 from .data.elevation import DEFAULT_MARGIN_FT, Elevation, sample_positions, zmin_ft
 from .data.winds import WindsAloft
-from .domain.geo import Position
+from .domain.geo import Corridor, Position
 from .domain.models import Aerodrome, Runway
-from .domain.navlog import NavLog, Wind, compute_navlog
+from .domain.navlog import LegComputation, NavLog, Wind, compute_navlog
 from .domain.route import Leg, Route
 from .domain.window import UtcDateTime
 
@@ -36,20 +36,83 @@ SIA_VAIP = "https://www.sia.aviation-civile.gouv.fr/vaip"
 
 _ARROWS = ("↑", "↗", "→", "↘", "↓", "↙", "←", "↖")
 
+#: Code Morse international (lettres + chiffres) — pour vérifier l'ident d'un VOR.
+_MORSE = {
+    "A": ".-",
+    "B": "-...",
+    "C": "-.-.",
+    "D": "-..",
+    "E": ".",
+    "F": "..-.",
+    "G": "--.",
+    "H": "....",
+    "I": "..",
+    "J": ".---",
+    "K": "-.-",
+    "L": ".-..",
+    "M": "--",
+    "N": "-.",
+    "O": "---",
+    "P": ".--.",
+    "Q": "--.-",
+    "R": ".-.",
+    "S": "...",
+    "T": "-",
+    "U": "..-",
+    "V": "...-",
+    "W": ".--",
+    "X": "-..-",
+    "Y": "-.--",
+    "Z": "--..",
+    "0": "-----",
+    "1": ".----",
+    "2": "..---",
+    "3": "...--",
+    "4": "....-",
+    "5": ".....",
+    "6": "-....",
+    "7": "--...",
+    "8": "---..",
+    "9": "----.",
+}
 
-def _bearing_arrow(bearing_deg: float) -> str:
-    """Flèche 8 directions pointant vers le cap (0° = ↑ nord, 90° = → est)."""
-    return _ARROWS[round(bearing_deg / 45.0) % 8]
+#: Plafond de radios listées par branche (au-delà, la case déborde).
+_MAX_RADIOS = 8
+
+
+def _morse(text: str) -> str:
+    """Ident en Morse, lettre par lettre (ex. « CNA » → « -.-. -. .- »)."""
+    return " ".join(_MORSE.get(c, "") for c in text.upper() if c in _MORSE)
+
+
+@dataclass(frozen=True, slots=True)
+class Radio:
+    """Une radio dont le pilote a besoin sur la branche, ÉTIQUETÉE par sa source
+    (terrain ou espace) : « LFBD TWR », « TMA BORDEAUX », etc."""
+
+    label: str
+    freq: str
+
+
+@dataclass(frozen=True, slots=True)
+class Vor:
+    ident: str
+    morse: str
+    freq: str
+    radial_deg: int
+    distance_nm: int
 
 
 @dataclass(frozen=True, slots=True)
 class Diversion:
-    """Terrain de déroutement le plus proche, avec de quoi décider vite : où
-    (cap + flèche + distance), et est-ce que ça pose (QFU le plus long + marge)."""
+    """Terrain de déroutement le plus proche. La direction est RELATIVE à la route
+    suivie (tourne à gauche/droite de X°, flèche où ↑ = droit devant), pas un cap
+    absolu — c'est ce qu'on manœuvre. Plus la piste et la marge d'atterrissage."""
 
     icao: str
     distance_nm: int
-    bearing_deg: int
+    relative_deg: int
+    side: str  # "G" (gauche) | "D" (droite)
     arrow: str
     runway: str | None  # QFU le plus long + longueur, ex. « 11/29 · 1090 m »
     landing_required_m: int | None
@@ -59,12 +122,12 @@ class Diversion:
 
 @dataclass(frozen=True, slots=True)
 class LegAnnotation:
-    """Ce que le navlog affiche EN PLUS du calcul pur, pour le point d'ARRIVÉE de
-    la branche : radiale VOR, radios, déroutement — auto-remplis depuis la donnée
-    de référence, pour que le pilote n'ait rien à chercher."""
+    """Ce que le navlog affiche EN PLUS du calcul pur, pour une branche :
+    TOUTES les radios utiles (terrains + espaces traversés), le VOR le plus proche
+    (avec Morse, en secondaire), et le déroutement — auto-remplis."""
 
-    vor: str | None
-    radios: str | None
+    radios: list[Radio]
+    vor: Vor | None
     diversion: Diversion | None
 
 
@@ -79,10 +142,6 @@ def _vac_url(icao: str) -> str:
     return SIA_VAC_SEARCH.format(icao=icao)
 
 
-def _magnetic(true_deg: float, magnetic_variation_deg: float) -> float:
-    return (true_deg - magnetic_variation_deg) % 360.0
-
-
 def _is_vhf_comm(freq_mhz: str) -> bool:
     """Vraie fréquence VHF air (118–137 MHz) : écarte les scories de la source
     (ex. un « 29.372 » égaré dans OurAirports)."""
@@ -92,14 +151,66 @@ def _is_vhf_comm(freq_mhz: str) -> bool:
         return False
 
 
-def _radios_for(icao: str, *, limit: int = 3) -> str | None:
-    freqs = [f for f in frequencies.for_icao(icao) if _is_vhf_comm(f.freq_mhz)][:limit]
-    if not freqs:
-        return None
-    return " · ".join(f"{f.kind} {f.freq_mhz}" for f in freqs)
+def _relative(bearing_true_deg: float, track_true_deg: float) -> tuple[int, str, str]:
+    """Position d'un cap PAR RAPPORT à la route suivie.
+
+    Renvoie (écart |°| arrondi, côté 'G'/'D', flèche relative où ↑ = droit devant).
+    L'écart est indépendant de la déclinaison (différence de deux caps vrais)."""
+    rel = (bearing_true_deg - track_true_deg + 180.0) % 360.0 - 180.0  # (-180, 180]
+    side = "G" if rel < 0 else "D"
+    arrow = _ARROWS[round((rel % 360.0) / 45.0) % 8]  # 0 = ↑ devant, +90 = → droite
+    return round(abs(rel)), side, arrow
 
 
-def _vor_for(point: Position, magnetic_variation_deg: float) -> str | None:
+def _airport_radios(icao: str) -> list[Radio]:
+    """Radios VHF d'un terrain, étiquetées « OACI TYPE » (TWR/GND/APP/ATIS…)."""
+    return [
+        Radio(label=f"{icao} {freq.kind}", freq=freq.freq_mhz)
+        for freq in frequencies.for_icao(icao)
+        if _is_vhf_comm(freq.freq_mhz)
+    ][:4]
+
+
+def _airspace_radios(leg: LegComputation) -> list[Radio]:
+    """Radios des espaces (TMA/CTR/SIV…) que la branche traverse à son altitude."""
+    corridor = Corridor([leg.leg.start.position, leg.leg.end.position], 3.0)
+    altitude = leg.altitude_ft
+    out: list[Radio] = []
+    for space in airspace.intersecting(corridor):
+        if not space.frequency or not _is_vhf_comm(space.frequency):
+            continue
+        if altitude is not None and not (
+            space.lower.feet_amsl - 500.0 <= altitude <= space.upper.feet_amsl + 500.0
+        ):
+            continue
+        out.append(Radio(label=space.name, freq=space.frequency))
+    return out
+
+
+def _leg_radios(
+    leg: LegComputation, *, departure_icao: str | None, arrival_icao: str | None
+) -> list[Radio]:
+    """TOUTES les radios utiles de la branche, dédoublonnées : terrain de départ
+    (1re branche), espaces traversés, terrain d'arrivée."""
+    radios: list[Radio] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(items: list[Radio]) -> None:
+        for radio in items:
+            key = (radio.label, radio.freq)
+            if key not in seen:
+                seen.add(key)
+                radios.append(radio)
+
+    if departure_icao:
+        add(_airport_radios(departure_icao))
+    add(_airspace_radios(leg))
+    if arrival_icao:
+        add(_airport_radios(arrival_icao))
+    return radios[:_MAX_RADIOS]
+
+
+def _vor_for(point: Position, magnetic_variation_deg: float) -> Vor | None:
     found = navaids.nearest(point)
     if found is None:
         return None
@@ -107,21 +218,25 @@ def _vor_for(point: Position, magnetic_variation_deg: float) -> str | None:
     radial, distance = navaids.radial_and_distance(
         navaid, point, magnetic_variation_deg=magnetic_variation_deg
     )
-    freq = f" {navaid.freq_mhz}" if navaid.freq_mhz else ""
-    return f"{navaid.ident}{freq} R{radial:03.0f}°/{distance:.0f} NM"
+    return Vor(
+        ident=navaid.ident,
+        morse=_morse(navaid.ident),
+        freq=navaid.freq_mhz,
+        radial_deg=round(radial),
+        distance_nm=round(distance),
+    )
 
 
 def _diversion_for(
-    point: Position, exclude: str | None, aircraft: Aircraft, magnetic_variation_deg: float
+    point: Position, exclude: str | None, aircraft: Aircraft, track_true_deg: float
 ) -> Diversion | None:
-    """Déroutement le plus proche + de quoi décider : cap/flèche/distance, et sa
-    piste la plus longue avec la marge d'atterrissage (DR400 à masse maxi)."""
+    """Déroutement le plus proche, exprimé RELATIVEMENT à la route suivie (tourner
+    à G/D de X°), avec sa piste la plus longue et la marge d'atterrissage DR400."""
     for aerodrome, distance in airports.nearest(point, within_nm=45.0, limit=3):
         if exclude and aerodrome.icao == exclude:
             continue
-        bearing = _magnetic(
-            math.degrees(point.bearing_to(aerodrome.position)) % 360.0, magnetic_variation_deg
-        )
+        bearing_true = math.degrees(point.bearing_to(aerodrome.position)) % 360.0
+        angle, side, arrow = _relative(bearing_true, track_true_deg)
         _, runway = _longest_runway(aerodrome.icao)
         landing = _assess(
             aerodrome.icao, aircraft, operation="landing", mass_kg=aircraft.max_landing_mass_kg
@@ -129,8 +244,9 @@ def _diversion_for(
         return Diversion(
             icao=aerodrome.icao,
             distance_nm=round(distance),
-            bearing_deg=round(bearing),
-            arrow=_bearing_arrow(bearing),
+            relative_deg=angle,
+            side=side,
+            arrow=arrow,
             runway=f"{runway.ident} · {runway.length_m} m" if runway is not None else None,
             landing_required_m=landing.required_m if landing is not None else None,
             margin_pct=landing.margin_pct if landing is not None else None,
@@ -142,8 +258,8 @@ def _diversion_for(
 def annotate_navlog(
     navlog: NavLog, aircraft: Aircraft, *, magnetic_variation_deg: float = 0.0
 ) -> tuple[list[LegAnnotation], list[VacLink]]:
-    """Enrichit chaque branche (VOR/radios/déroutement du point d'arrivée) et
-    collecte les liens VAC de tous les terrains de la route."""
+    """Enrichit chaque branche (radios, VOR, déroutement) et collecte les liens
+    VAC de tous les terrains de la route."""
     annotations: list[LegAnnotation] = []
     vac: dict[str, VacLink] = {}
 
@@ -152,22 +268,29 @@ def annotate_navlog(
         if aerodrome is not None and aerodrome.icao not in vac:
             vac[aerodrome.icao] = VacLink(aerodrome.icao, aerodrome.name, _vac_url(aerodrome.icao))
 
-    # Départ (début de la 1re branche) dans la liste VAC.
     if navlog.legs:
         note_field(navlog.legs[0].leg.start.name)
 
-    for leg in navlog.legs:
-        end = leg.leg.end
-        aerodrome = airports.lookup(end.name)
-        icao = aerodrome.icao if aerodrome is not None else None
+    for index, leg in enumerate(navlog.legs):
+        start_ad = airports.lookup(leg.leg.start.name)
+        end_ad = airports.lookup(leg.leg.end.name)
         annotations.append(
             LegAnnotation(
-                vor=_vor_for(end.position, magnetic_variation_deg),
-                radios=_radios_for(icao) if icao else None,
-                diversion=_diversion_for(end.position, icao, aircraft, magnetic_variation_deg),
+                radios=_leg_radios(
+                    leg,
+                    departure_icao=start_ad.icao if (index == 0 and start_ad) else None,
+                    arrival_icao=end_ad.icao if end_ad else None,
+                ),
+                vor=_vor_for(leg.leg.end.position, magnetic_variation_deg),
+                diversion=_diversion_for(
+                    leg.leg.end.position,
+                    end_ad.icao if end_ad else None,
+                    aircraft,
+                    leg.true_track_deg,
+                ),
             )
         )
-        note_field(end.name)
+        note_field(leg.leg.end.name)
 
     return annotations, list(vac.values())
 

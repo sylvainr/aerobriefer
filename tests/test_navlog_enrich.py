@@ -37,15 +37,32 @@ def test_annotations_remplissent_vor_radios_deroutement():
     annotations, vac = annotate_navlog(_navlog(), DR400_160(), magnetic_variation_deg=1.0)
     assert len(annotations) == 1
     note = annotations[0]
-    # LFBD est une grande plateforme : VOR proche + radios + un déroutement.
-    assert note.vor and "R" in note.vor and "NM" in note.vor
-    assert note.radios  # LFBD a des fréquences dans la fixture
-    # Déroutement enrichi : terrain, cap+flèche, et marge d'atterrissage.
+    # VOR le plus proche : ident + Morse + radiale.
+    assert note.vor is not None
+    assert note.vor.morse and set(note.vor.morse) <= {".", "-", " "}
+    # Radios ÉTIQUETÉES (au moins les fréquences de LFBD, terrain d'arrivée).
+    assert note.radios
+    assert any("LFBD" in r.label for r in note.radios)
+    assert all(r.freq for r in note.radios)
+    # Déroutement RELATIF à la route + marge d'atterrissage.
     div = note.diversion
     assert div is not None
-    assert div.icao and div.distance_nm >= 0
+    assert div.side in {"G", "D"}
+    assert 0 <= div.relative_deg <= 180
     assert div.arrow in {"↑", "↗", "→", "↘", "↓", "↙", "←", "↖"}
-    assert 0 <= div.bearing_deg <= 360
+
+
+def test_deroutement_relatif_a_la_route():
+    from aerobriefer.navlog_build import _relative
+
+    # Route au 161°, déroutement au cap 145° → 16° à GAUCHE, presque devant.
+    angle, side, arrow = _relative(145.0, 161.0)
+    assert angle == 16
+    assert side == "G"
+    # Route au 161°, déroutement au 200° → 39° à DROITE.
+    angle2, side2, _ = _relative(200.0, 161.0)
+    assert angle2 == 39
+    assert side2 == "D"
 
 
 def test_liste_vac_contient_depart_et_arrivee():
