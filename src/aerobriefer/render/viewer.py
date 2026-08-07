@@ -139,10 +139,33 @@ def viewer_data(package: BriefingPackage) -> dict[str, Any]:
             "aerodromes": aerodromes,
         },
         "airspaces": airspaces,
+        "reporting_points": _region_reporting_points(center, region_radius_nm),
         "route": _route(context),
         "class_colors": CLASS_COLORS,
         "ground": ground,
     }
+
+
+def _region_reporting_points(center: Any, region_radius_nm: float) -> list[dict[str, Any]]:
+    """Points de report VFR de la région, pour le viewer (affichables/filtrables).
+
+    Source communautaire (fetch+cache) : si indisponible (hors ligne), on rend une
+    liste vide plutôt que d'échouer — le viewer reste utilisable sans."""
+    try:
+        from ..data import reporting_points
+
+        return [
+            {
+                "icao": p.icao,
+                "ident": p.ident,
+                "name": p.name,
+                "lon": p.position.lon,
+                "lat": p.position.lat,
+            }
+            for p in reporting_points.near(center, within_nm=region_radius_nm)
+        ]
+    except Exception:  # noqa: BLE001 - source indisponible : viewer sans points VFR
+        return []
 
 
 def _route(context: BriefingContext) -> dict[str, Any] | None:

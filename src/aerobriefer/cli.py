@@ -131,6 +131,16 @@ def _parse_waypoint(token: str, _prev: list[Waypoint]) -> Waypoint:
     aerodrome = airports.lookup(name_part)
     if aerodrome is not None:
         return Waypoint(name=aerodrome.icao, position=aerodrome.position, altitude_ft=altitude)
+    # Point de report VFR « OACI/IDENT » (ex. « LFBD/N » = point November de LFBD).
+    if "/" in name_part:
+        from .data import reporting_points
+
+        point = reporting_points.resolve(name_part)
+        if point is None:
+            raise ValueError(f"point de report VFR inconnu : {name_part}")
+        return Waypoint(
+            name=f"{point.icao}/{point.ident}", position=point.position, altitude_ft=altitude
+        )
     # sinon on suppose une moitié de coordonnée « lat » ou « lat lon »
     return Waypoint(name=name_part, position=Position(0.0, 0.0), altitude_ft=altitude)
 

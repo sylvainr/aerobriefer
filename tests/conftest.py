@@ -14,3 +14,5 @@ _FIXTURE = Path(__file__).parent / "fixtures" / "refdata"
 os.environ.setdefault("AEROBRIEFER_REFDATA_DIR", str(_FIXTURE))
 _AIRSPACE_FIXTURE = Path(__file__).parent / "fixtures" / "airspace"
 os.environ.setdefault("AEROBRIEFER_AIRSPACE_DIR", str(_AIRSPACE_FIXTURE))
+_RP_FIXTURE = Path(__file__).parent / "fixtures" / "reporting_points"
+os.environ.setdefault("AEROBRIEFER_REPORTING_POINTS_DIR", str(_RP_FIXTURE))
