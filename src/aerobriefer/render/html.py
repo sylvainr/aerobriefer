@@ -564,12 +564,40 @@ class HtmlRenderer:
             "stale_after_minutes": None,  # remplacé par un seuil PAR TYPE (cf. domain.freshness)
             "unembedded_charts": sum(1 for c in charts if c.data_uri is None),
             "display_timezone": self.display_timezone,
+            "document_kind": "all",
+            "doc_label": "BRIEFING VFR",
         }
 
-    def render(self, package: BriefingPackage, *, now: UtcDateTime | None = None) -> str:
-        """Rend le dossier en HTML autonome (CSS inline, images en data: URI)."""
+    def render(
+        self, package: BriefingPackage, *, now: UtcDateTime | None = None, kind: str = "all"
+    ) -> str:
+        """Rend le dossier en HTML autonome (CSS inline, images en data: URI).
+
+        `kind` sépare le dossier : « meteo » (météo + cartes, sans NOTAM),
+        « notam » (NOTAM seuls) ou « all » (tout, comportement historique). La
+        météo et les NOTAM viennent de sources distinctes (Météo-France vs
+        SIA/SOFIA) — deux dossiers focalisés valent mieux qu'un fourre-tout."""
         template = self._env.get_template(TEMPLATE_NAME)
-        return template.render(**self.build_view(package, now=now))
+        view = self.build_view(package, now=now)
+        view["document_kind"] = kind
+        if kind == "meteo":
+            view["notams"] = []
+            view["notam_count"] = 0
+            view["doc_label"] = "BRIEFING MÉTÉO"
+        elif kind == "notam":
+            for empty in (
+                "metars",
+                "tafs",
+                "forecasts",
+                "forecast_groups",
+                "charts",
+                "chart_groups",
+                "sigmets",
+            ):
+                view[empty] = []
+            view["sun"] = None
+            view["doc_label"] = "BRIEFING NOTAM"
+        return template.render(**view)
 
 
 def render_html(
@@ -578,12 +606,13 @@ def render_html(
     display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
     stale_after_minutes: float = DEFAULT_STALE_AFTER_MINUTES,
     now: UtcDateTime | None = None,
+    kind: str = "all",
 ) -> str:
-    """Raccourci fonctionnel pour le cas courant."""
+    """Raccourci fonctionnel pour le cas courant. `kind` : all/meteo/notam."""
     renderer = HtmlRenderer(
         display_timezone=display_timezone, stale_after_minutes=stale_after_minutes
     )
-    return renderer.render(package, now=now)
+    return renderer.render(package, now=now, kind=kind)
 
 
 __all__ = [

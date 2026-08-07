@@ -156,12 +156,13 @@ class PdfRenderer:
         now: UtcDateTime | None = None,
         display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
         stale_after_minutes: float = DEFAULT_STALE_AFTER_MINUTES,
+        kind: str = "all",
     ) -> Path:
-        """`BriefingPackage` → PDF A4 prêt à imprimer."""
+        """`BriefingPackage` → PDF A4 prêt à imprimer. `kind` : all/meteo/notam."""
         html = HtmlRenderer(
             display_timezone=display_timezone,
             stale_after_minutes=stale_after_minutes,
-        ).render(package, now=now)
+        ).render(package, now=now, kind=kind)
         return self.html_to_pdf(html, output_path)
 
 
@@ -173,14 +174,16 @@ def render_pdf(
     display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
     stale_after_minutes: float = DEFAULT_STALE_AFTER_MINUTES,
     chrome_path: str | None = None,
+    kind: str = "all",
 ) -> Path:
-    """Raccourci fonctionnel pour le cas courant."""
+    """Raccourci fonctionnel pour le cas courant. `kind` : all/meteo/notam."""
     return PdfRenderer(chrome_path=chrome_path).render(
         package,
         output_path,
         now=now,
         display_timezone=display_timezone,
         stale_after_minutes=stale_after_minutes,
+        kind=kind,
     )
 
 

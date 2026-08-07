@@ -636,8 +636,12 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         marker = "CRITIQUE" if failure.is_critical else "mineur"
         print(f"    [{marker}] {failure.source} : {failure.reason}")
 
-    (out_dir / f"brief_{label}.html").write_text(render_html(package), encoding="utf-8")
-    render_pdf(package, out_dir / f"brief_{label}.pdf")
+    # Deux dossiers distincts : météo (Météo-France) et NOTAM (SIA/SOFIA).
+    for kind in ("meteo", "notam"):
+        (out_dir / f"brief_{kind}_{label}.html").write_text(
+            render_html(package, kind=kind), encoding="utf-8"
+        )
+        render_pdf(package, out_dir / f"brief_{kind}_{label}.pdf", kind=kind)
     (out_dir / f"viewer_{label}.html").write_text(render_viewer(package), encoding="utf-8")
     registration = plan.aeronef or DEFAULT_REGISTRATION
     (out_dir / f"masse_centrage_{registration}.html").write_text(

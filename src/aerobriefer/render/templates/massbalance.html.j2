@@ -40,6 +40,11 @@
   .data table { width:100%; border-collapse:collapse; font-size:12px; }
   .data th, .data td { border:1px solid var(--line); padding:5px 9px; text-align:left; vertical-align:top; }
   .data th { background:#f4f7f9; font-weight:600; white-space:nowrap; width:1%; }
+  #wbsheet td { text-align:right; font-variant-numeric:tabular-nums; width:auto; }
+  #wbsheet thead th { text-align:right; background:#eef3f7; }
+  #wbsheet thead th:first-child, #wbsheet tbody th { text-align:left; }
+  #wbsheet tr.tot th, #wbsheet tr.tot td { font-weight:700; border-top:2px solid var(--ink); background:#eaf0f4; }
+  #wbsheet tr.bad td, #wbsheet tr.bad th { color:var(--bad); }
 </style>
 </head>
 <body>
@@ -68,6 +73,8 @@
     </div>
   </section>
 </main>
+
+<section id="wbsheet" class="panel data"></section>
 
 <section id="wbdata" class="panel data"></section>
 
@@ -203,6 +210,28 @@ function drawStatic() {
 const dyn = el('g', {}); svg.appendChild(dyn);
 drawStatic(); svg.appendChild(dyn);
 
+// feuille de calcul détaillée (poids × bras = moment, somme en bas)
+function renderSheet(full) {
+  const rows = [];
+  const push = (name, w, arm) => rows.push([name, w, arm, w * arm]);
+  push('Masse à vide', DATA.empty.mass_kg, DATA.empty.arm_m);
+  DATA.stations.forEach((s, i) => push(s.name, loads[i], s.arm_m));
+  DATA.fuels.forEach((t, i) =>
+    push(t.name + ' (' + fuelsL[i].toFixed(0) + ' L)', fuelsL[i] * t.density_kg_per_l, t.arm_m));
+  const body = rows.map(r =>
+    '<tr><th>' + r[0] + '</th><td>' + r[1].toFixed(1) + '</td><td>' + r[2].toFixed(3) +
+    '</td><td>' + r[3].toFixed(1) + '</td></tr>').join('');
+  const cls = (full.within && full.mass <= DATA.max_mass_kg) ? 'tot' : 'tot bad';
+  const total = '<tr class="' + cls + '"><th>TOTAL</th><td>' + full.mass.toFixed(1) +
+    '</td><td>' + full.arm.toFixed(3) + '</td><td>' + (full.mass * full.arm).toFixed(1) + '</td></tr>';
+  document.getElementById('wbsheet').innerHTML =
+    '<h2>Feuille de masse &amp; centrage</h2>' +
+    '<p class="src">Poids × bras = moment, additionnés comme sur le papier. ' +
+    'Bras du TOTAL = centrage = Σ moments ÷ Σ poids.</p>' +
+    '<table><thead><tr><th>Poste</th><th>Poids (kg)</th><th>Bras (m)</th><th>Moment (kg·m)</th></tr></thead>' +
+    '<tbody>' + body + total + '</tbody></table>';
+}
+
 function render() {
   while (dyn.firstChild) dyn.removeChild(dyn.firstChild);
   const full = state(loads, fuelsL);
@@ -226,6 +255,7 @@ function render() {
   st.className = 'status ' + (ok ? 'ok' : 'bad');
   st.textContent = ok ? '✓ Dans l\'enveloppe' :
     (overweight ? '⚠ Masse maxi dépassée' : '⚠ Hors enveloppe de centrage');
+  renderSheet(full);
 }
 render();
 </script>

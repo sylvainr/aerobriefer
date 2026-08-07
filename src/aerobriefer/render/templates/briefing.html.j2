@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>Briefing {{ stations | join(' / ') if stations else 'VFR' }}</title>
+<title>{{ doc_label }}{% if stations %} — {{ stations | join(' / ') }}{% endif %}</title>
 <style>
   /* Feuille emportée en vol : noir sur blanc, aucun aplat sombre qui viderait
      une cartouche d'encre. Les seuls remplissages sont des gris très clairs. */
@@ -248,7 +248,7 @@
 <header class="head">
   <div class="head-top">
     <div>
-      <h1>BRIEFING VFR{% if stations %} — {{ stations | join(' / ') }}{% set nom = aerodrome_names.get(stations[0] | upper) if stations else None %}{% if nom %} · {{ nom }}{% endif %}{% endif %}</h1>
+      <h1>{{ doc_label }}{% if stations %} — {{ stations | join(' / ') }}{% set nom = aerodrome_names.get(stations[0] | upper) if stations else None %}{% if nom %} · {{ nom }}{% endif %}{% endif %}</h1>
       {% if observation_stations %}
       <p class="note">
         Météo d'appoint issue des stations voisines (un terrain sans observation propre
@@ -319,6 +319,7 @@
 </section>
 {% endif %}
 
+{% if document_kind != 'notam' %}
 {# =================== SYNTHÈSE =================== #}
 <section>
   <h2>Synthèse</h2>
@@ -371,6 +372,7 @@
   <h1 class="macro-title">MÉTÉO</h1>
   <p class="macro-sub">Observations, prévisions de terrain et cartes. Sources indiquées bloc par bloc.</p>
 </section>
+{% endif %}
 
 {# =================== SIGMET (phénomènes dangereux) — en tête, sécurité === #}
 <section>
@@ -588,6 +590,7 @@
 </section>
 {% endif %}
 
+{% if document_kind != 'meteo' %}
 {# =================== MACRO-SECTION NOTAM =================== #}
 <section class="macro macro-notam">
   <h1 class="macro-title">NOTAM</h1>
@@ -636,6 +639,7 @@
      échec ci-dessus : une liste vide peut traduire une panne de collecte.</p>
   {% endfor %}
 </section>
+{% endif %}
 
 {# =================== CARTES =================== #}
 {# Un GROUPE par type de carte. Plusieurs échéances → lecteur animé (slider +
