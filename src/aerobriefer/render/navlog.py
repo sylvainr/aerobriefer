@@ -143,11 +143,11 @@ def _diversion_view(div: Any | None) -> dict[str, Any] | None:
 
 
 def _endpoint(name: str) -> dict[str, Any]:
-    """Point de branche : si c'est un terrain, on le rend CLIQUABLE vers sa VAC."""
+    """Point de branche : code + nom du terrain (si connu), cliquable vers sa VAC."""
     aerodrome = airports.lookup(name)
     if aerodrome is not None:
-        return {"name": aerodrome.icao, "url": vac_url(aerodrome.icao)}
-    return {"name": name, "url": None}
+        return {"code": aerodrome.icao, "name": aerodrome.name, "url": vac_url(aerodrome.icao)}
+    return {"code": name, "name": "", "url": None}
 
 
 def _vor_view(vor: Any | None) -> dict[str, Any] | None:

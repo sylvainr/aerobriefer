@@ -33,6 +33,15 @@
     background: no-repeat center/contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2312232e" stroke-width="2.2" stroke-linecap="round"><path d="M2 9h11a2.6 2.6 0 1 0-2.6-2.6"/><path d="M2 14h15a2.6 2.6 0 1 1-2.6 2.6"/></svg>'); }
   .qfu { font-size: 7.4pt; font-weight: 700; color: #12232e; background: #d6ecd9; padding: 0.4mm 1mm; border-radius: 0.6mm; margin: 0.5mm 0; }
   .qfu b { font-size: 8.5pt; }
+  /* Colonne Branche : verticale (départ ↓ arrivée), avec le nom du terrain. */
+  .branche { text-align: left; }
+  .branche .b { font-size: 8.5pt; font-weight: 700; }
+  .branche .down { color: #888; font-size: 8pt; line-height: 1; margin: 0.3mm 0; }
+  /* Radios en TABLE alignée : libellé à gauche, fréquence à droite (mono). */
+  table.radiotbl { width: 100%; border-collapse: collapse; }
+  table.radiotbl td { height: auto; border: 0; padding: 0 0 0.3mm 0; vertical-align: top; font-size: 6.4pt; }
+  .radiotbl .rlabel { font-weight: 700; padding-right: 1.5mm; }
+  .radiotbl .rfreq { text-align: right; white-space: nowrap; font-family: "SF Mono", Menlo, Consolas, monospace; }
   .morse { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 5pt; letter-spacing: -0.3px; color: #2b6cb0; }
   th.big-h { font-size: 8pt; background: #35618e; }
   .lbl { font-size: 5.3pt; color: #888; text-transform: uppercase; letter-spacing: .3px; }
@@ -66,9 +75,9 @@
 
 <table>
   <colgroup>
-    <col style="width:10%"><col style="width:8%"><col style="width:9%"><col style="width:6%">
-    <col style="width:5%"><col style="width:6%"><col style="width:6%"><col style="width:6%">
-    <col style="width:22%"><col style="width:22%">
+    <col style="width:9%"><col style="width:6%"><col style="width:9%"><col style="width:6%">
+    <col style="width:5%"><col style="width:5%"><col style="width:6%"><col style="width:6%">
+    <col style="width:25%"><col style="width:23%">
   </colgroup>
   <thead>
     <tr>
@@ -80,17 +89,19 @@
       <th>Conso</th>
       <th class="fill big-h">HE</th>
       <th class="fill big-h">HR</th>
-      <th>Radios <span style="font-weight:400">· VOR · notes</span></th>
+      <th>Radios <span style="font-weight:400">(MHz) · VOR · notes</span></th>
       <th>Déroutement</th>
     </tr>
   </thead>
   <tbody>
     {% for r in rows %}
     <tr>
-      <td class="mono">
-        {% if r.from.url %}<a href="{{ r.from.url }}">{{ r.from.name }}</a>{% else %}{{ r.from.name }}{% endif %}
-        →
-        {% if r.to.url %}<a href="{{ r.to.url }}">{{ r.to.name }}</a>{% else %}{{ r.to.name }}{% endif %}
+      <td class="branche">
+        <div class="mono b">{% if r.from.url %}<a href="{{ r.from.url }}">{{ r.from.code }}</a>{% else %}{{ r.from.code }}{% endif %}</div>
+        {% if r.from.name %}<div class="sub">{{ r.from.name }}</div>{% endif %}
+        <div class="down">↓</div>
+        <div class="mono b">{% if r.to.url %}<a href="{{ r.to.url }}">{{ r.to.code }}</a>{% else %}{{ r.to.code }}{% endif %}</div>
+        {% if r.to.name %}<div class="sub">{{ r.to.name }}</div>{% endif %}
       </td>
       <td class="c">
         <span class="big">{{ r.altitude }}</span><span class="sub"> ft</span>
@@ -107,9 +118,11 @@
       <td class="fill"></td>
       <td class="fill"></td>
       <td class="auto">
-        {% for radio in r.radios %}<div><b>{{ radio.label }}</b> <span class="nw">{{ radio.freq }} MHz</span></div>{% endfor %}
-        {% if r.vor %}<div class="sub">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span> <span class="nw">{{ r.vor.freq }} MHz</span> <span class="nw">R{{ r.vor.radial }}°</span> <span class="nw">{{ r.vor.distance }} NM</span></div>{% endif %}
-        <span class="blank"></span><span class="blank"></span><span class="blank"></span>
+        {% if r.radios %}<table class="radiotbl">
+          {% for radio in r.radios %}<tr><td class="rlabel">{{ radio.label }}</td><td class="rfreq">{{ radio.freq }}</td></tr>{% endfor %}
+        </table>{% endif %}
+        {% if r.vor %}<div class="sub" style="margin-top:0.6mm">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span> <span class="nw">{{ r.vor.freq }}</span> <span class="nw">R{{ r.vor.radial }}°</span> <span class="nw">{{ r.vor.distance }} NM</span></div>{% endif %}
+        <span class="blank"></span><span class="blank"></span>
       </td>
       <td class="auto">
         {% if r.diversion %}
