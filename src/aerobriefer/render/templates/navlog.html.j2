@@ -104,7 +104,7 @@
       <td class="fill"></td>
       <td class="auto">
         {% for radio in r.radios %}<div><b>{{ radio.label }}</b> <span class="nw">{{ radio.freq }} MHz</span></div>{% endfor %}
-        {% if r.vor %}<div class="sub">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span> <span class="nw">{{ r.vor.freq }} MHz</span> <span class="nw">R{{ r.vor.radial }}°</span> <span class="nw">{{ r.vor.distance }} NM</span> <span class="lbl">(→ pt)</span></div>{% endif %}
+        {% if r.vor %}<div class="sub">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span> <span class="nw">{{ r.vor.freq }} MHz</span> <span class="nw">R{{ r.vor.radial }}°</span> <span class="nw">{{ r.vor.distance }} NM</span></div>{% endif %}
         <span class="blank"></span><span class="blank"></span><span class="blank"></span>
       </td>
       <td class="auto">
