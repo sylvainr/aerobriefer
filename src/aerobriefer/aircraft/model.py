@@ -199,12 +199,7 @@ class WBState:
 @dataclass(frozen=True, slots=True)
 class WeightBalance:
     """Données de masse & centrage d'un appareil : masse à vide, postes, réservoir
-    et enveloppe de centrage (polygone bras×masse).
-
-    `is_placeholder` : vrai tant que les valeurs ne sont pas celles de l'appareil
-    réel (fiche de pesée + bras du manuel). Le rendu DOIT l'afficher en évidence :
-    un centrage faux est dangereux.
-    """
+    et enveloppe de centrage (polygone bras×masse)."""
 
     empty_mass_kg: float
     empty_arm_m: float
@@ -212,7 +207,6 @@ class WeightBalance:
     fuel: FuelTank
     envelope: tuple[tuple[float, float], ...]  # sommets (bras_m, masse_kg), polygone fermé
     max_mass_kg: float
-    is_placeholder: bool = False
 
     def state(self, loads_kg: Mapping[str, float], fuel_l: float) -> WBState:
         """Masse, bras et respect d'enveloppe pour un chargement donné."""

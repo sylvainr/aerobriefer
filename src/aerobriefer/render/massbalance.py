@@ -6,8 +6,8 @@ bouge, AVEC et SANS carburant, comme SDVFR). Ouvrable en local, aucun réseau.
 
 Le calcul de référence (masse, bras, respect d'enveloppe) vit dans le domaine
 (`aircraft.model.WeightBalance.state`), testé ; le JS le reproduit pour
-l'interactivité. Si les données sont fictives (`is_placeholder`), la page l'affiche
-en très gros : un centrage faux est dangereux.
+l'interactivité. L'immatriculation de l'avion (ex. F-ZZZZ, fictif) suffit à
+signaler des données d'exemple ; la page n'ajoute pas d'avertissement séparé.
 """
 
 from __future__ import annotations
@@ -29,7 +29,6 @@ def massbalance_data(aircraft: Aircraft) -> dict[str, Any]:
         raise ValueError(f"{aircraft.name} n'a pas de données de masse & centrage")
     return {
         "aircraft": aircraft.name,
-        "is_placeholder": wb.is_placeholder,
         "empty": {"mass_kg": wb.empty_mass_kg, "arm_m": wb.empty_arm_m},
         "max_mass_kg": wb.max_mass_kg,
         "stations": [

@@ -482,9 +482,6 @@ def _render_navlog(
         safety_ft=safety_ft,
         fuel_plan=fuel_plan,
         perfs=perfs,
-        # L'avertissement « provisoire » n'apparaît QUE si la donnée avion est
-        # marquée fictive dans son propre code (aucun texte inventé au rendu).
-        provisional=bool(aircraft.weight_balance and aircraft.weight_balance.is_placeholder),
     )
 
 

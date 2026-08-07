@@ -199,15 +199,10 @@ def render_navlog_html(
     safety_ft: list[float] | None = None,
     fuel_plan: Any | None = None,
     perfs: list[Any] | None = None,
-    provisional: bool = False,
     display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
     now: UtcDateTime | None = None,
 ) -> str:
-    """Log de navigation en HTML A4 portrait autosuffisant.
-
-    `provisional` (drapeau venu du modèle avion, `weight_balance.is_placeholder`)
-    déclenche l'avertissement « TAS/conso provisoires » : il n'est affiché QUE si
-    la donnée avion est marquée fictive dans son propre code."""
+    """Log de navigation en HTML A4 portrait autosuffisant."""
     tz = ZoneInfo(display_timezone)
     moment = now if now is not None else utcnow()
     total_fuel = navlog.total_fuel_l
@@ -255,7 +250,6 @@ def render_navlog_html(
             f"Open-Meteo (modèle GFS/ARPEGE) · échéance {navlog.departure_time:%d/%m %H:%M}Z"
             " · interpolé à l'altitude de branche"
         ),
-        "provisional": provisional,
         "total_distance": f"{navlog.total_distance_nm:.1f}",
         "total_time": _duration(navlog.total_time),
         "total_fuel": f"{total_fuel:.1f} L" if total_fuel is not None else "—",

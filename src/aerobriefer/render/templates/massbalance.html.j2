@@ -11,8 +11,6 @@
   header { padding:14px 20px; background:#fff; border-bottom:1px solid var(--line); }
   h1 { margin:0; font-size:18px; letter-spacing:.3px; }
   h1 small { color:var(--soft); font-weight:400; font-size:13px; }
-  .placeholder { background:var(--bad); color:#fff; padding:10px 20px; font-weight:700; font-size:14px; }
-  .placeholder small { display:block; font-weight:400; opacity:.9; }
   main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; align-items:flex-start; }
   .panel { background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; }
   .controls { flex:1 1 320px; min-width:300px; }
@@ -42,7 +40,6 @@
 <header>
   <h1>Masse &amp; centrage — <span id="acName"></span> <small id="mtow"></small></h1>
 </header>
-<div id="placeholderBanner"></div>
 
 <main>
   <section class="panel controls">
@@ -99,12 +96,6 @@ function state(loads, fuelL) {
 // ---- contrôles -------------------------------------------------------------
 document.getElementById('acName').textContent = DATA.aircraft;
 document.getElementById('mtow').textContent = '· MTOW ' + DATA.max_mass_kg + ' kg';
-if (DATA.is_placeholder) {
-  const b = document.getElementById('placeholderBanner');
-  b.className = 'placeholder';
-  b.innerHTML = '⚠ DONNÉES FICTIVES — bras et enveloppe NON conformes à l\'avion réel.' +
-    '<small>À remplacer par la fiche de pesée et les bras du manuel avant tout usage. Ne pas utiliser pour un vol.</small>';
-}
 
 const loads = DATA.stations.map(s => s.default_kg);
 let fuelL = DATA.fuel.default_l;

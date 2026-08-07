@@ -54,7 +54,6 @@ def test_hors_enveloppe_si_bras_trop_arriere():
 
 def test_contrat_de_donnees_de_la_page_dr400():
     data = massbalance_data(DR400_160())
-    assert data["is_placeholder"] is True  # DR400 d'exemple = valeurs fictives
     assert data["max_mass_kg"] == 1050.0
     assert {s["name"] for s in data["stations"]} == {"Sièges avant", "Sièges arrière", "Bagages"}
     assert data["fuel"]["capacity_l"] == 110.0

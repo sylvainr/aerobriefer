@@ -10,9 +10,9 @@ Provenance MIXTE, à ne pas confondre :
 - Tables de distances décollage/atterrissage + vitesses limites : recopiées d'un
   MANUEL DE VOL réel (DR400/160, éd. 1972), chaque case = (roulement_m,
   distance_pour_15 m_m). Vitesses en km/h EAS converties en nœuds ici.
-- Croisière (TAS/conso) et **masse & centrage** (bras, enveloppe) : PLACEHOLDERS
-  fictifs, signalés comme tels (`is_placeholder`). À remplacer par les données de
-  l'appareil réel avant tout usage.
+- Croisière (TAS/conso) et **masse & centrage** (bras, enveloppe) : valeurs
+  typiques, PAS celles d'un appareil réel (l'immat F-ZZZZ le signale). À remplacer
+  par les données de votre appareil.
 """
 
 from __future__ import annotations
@@ -161,9 +161,9 @@ class DR400_160(Aircraft):
     #: et régime). Utilisées telles quelles par le log de navigation.
     cruise_tas_kt = 130.0
     cruise_fuel_lph = 32.0
-    #: Masse & centrage — VALEURS FICTIVES (is_placeholder=True). Les bras et
-    #: l'enveloppe NE sont PAS ceux du manuel/de la fiche de pesée F-ZZZZ : à
-    #: remplacer avant tout usage réel. Le cadre est bon, les nombres non.
+    #: Masse & centrage — valeurs typiques, PAS celles d'un appareil réel (F-ZZZZ
+    #: est fictif). Le cadre est bon, les nombres sont à remplacer par la fiche de
+    #: pesée et les bras du manuel de VOTRE avion.
     weight_balance = WeightBalance(
         empty_mass_kg=620.0,
         empty_arm_m=0.32,
@@ -182,7 +182,6 @@ class DR400_160(Aircraft):
             (0.520, 500.0),
         ),
         max_mass_kg=1050.0,
-        is_placeholder=True,
     )
 
     def _takeoff_table(self, surface: Surface) -> PerfTable:

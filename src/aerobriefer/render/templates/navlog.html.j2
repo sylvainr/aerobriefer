@@ -150,7 +150,7 @@
   roulage {{ fuel_plan.taxi }} L · trajet {{ fuel_plan.trip }} L{% if fuel_plan.alternate != '0.0' %} · dégagement {{ fuel_plan.alternate }} L{% endif %} · réserve 30 min {{ fuel_plan.reserve }} L
   = <b>minimum {{ fuel_plan.total }} L</b> · capacité {{ fuel_plan.capacity }} L ·
   {% if fuel_plan.sufficient %}marge {{ fuel_plan.margin }} L{% else %}<span class="nogo">INSUFFISANT ({{ fuel_plan.margin }} L)</span>{% endif %}
-  · endurance {{ fuel_plan.endurance }}.{% if provisional %} <span class="nogo">Conso provisoire ({{ aircraft_name }} — données d'exemple).</span>{% endif %}
+  · endurance {{ fuel_plan.endurance }}.
 </p>
 {% endif %}
 
@@ -167,7 +167,7 @@
   Dist : DI branche, cumul, DTG restante. Temps : avec vent (svt = sans vent). Radios : terrains + espaces traversés (étiquetés).
   VOR (secondaire) : ident + Morse + radiale. Déroutement = terrain le plus proche, direction RELATIVE à la route (flèche + G/D de X°),
   avec sa piste et la marge d'atterrissage DR400.
-  Vent : <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ.{% if provisional %} <b>TAS/conso PROVISOIRES</b> ({{ aircraft_name }} — données d'exemple, à remplacer par les vôtres).{% endif %}
+  Vent : <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ.
   Zmin = relief max du couloir + 1000 ft (Open-Meteo/SRTM, <b>terrain seul</b>).
   Généré le {{ generated_dual }}.
 </p>
