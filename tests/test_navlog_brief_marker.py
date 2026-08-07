@@ -15,20 +15,14 @@ _TZ = ZoneInfo("Europe/Paris")
 
 
 def _navlog(distances_nm: list[float], tas_kt: float = 60.0):
-    # 60 kt → 1 NM = 1 min : les distances valent directement des minutes.
-    pts = [
-        Waypoint(f"P{i}", Position(45.0 + i * (d / 60.0), 0.0), altitude_ft=2000.0)
-        for i, d in enumerate([0.0] + distances_nm)
-    ]
-    for i, d in enumerate(distances_nm):
-        pts[i + 1] = Waypoint(
-            pts[i + 1].name,
-            Position(45.0 + sum(distances_nm[: i + 1]) / 60.0, 0.0),
-            altitude_ft=2000.0,
-        )
-    route = Route(pts)
+    # 60 kt → 1 NM = 1 min ; 1° de latitude ≈ 60 NM. Les distances valent donc
+    # directement des minutes, et chaque branche monte plein nord.
+    lats = [45.0]
+    for d in distances_nm:
+        lats.append(lats[-1] + d / 60.0)
+    pts = [Waypoint(f"P{i}", Position(lat, 0.0), altitude_ft=2000.0) for i, lat in enumerate(lats)]
     return compute_navlog(
-        route,
+        Route(pts),
         departure_time=UtcDateTime(2026, 8, 7, 13, 0, tzinfo=UTC),
         tas_kt=tas_kt,
         winds=[Wind(0.0, 0.0)] * len(distances_nm),
