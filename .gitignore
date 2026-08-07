@@ -30,3 +30,6 @@ viewer_*.html
 *.swp
 exemple_*.pdf
 exemple_*.html
+
+# Répertoire d'exemples générés (le brief contient des images © Météo-France)
+exemples_nav/
