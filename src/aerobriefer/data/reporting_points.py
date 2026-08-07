@@ -83,18 +83,88 @@ def _load() -> dict[tuple[str, str], ReportingPoint]:
 
 
 def resolve(spec: str) -> ReportingPoint | None:
-    """« LFBD/N » → le point de report, ou None si inconnu."""
+    """« LFBD/N » → le point de report, ou None si inconnu.
+
+    Source privilégiée : OpenAIP (si clé configurée), bien plus complète. Sinon
+    repli sur vrp_france. OpenAIP n'attache pas d'OACI au point : on requête autour
+    de la position de l'aérodrome et on garde l'OACI demandé."""
     icao, _, ident = spec.partition("/")
-    return _load().get((icao.strip().upper(), ident.strip().upper()))
+    icao = icao.strip().upper()
+    ident = ident.strip().upper()
+    if _openaip_available():
+        point = _openaip_resolve(icao, ident)
+        if point is not None:
+            return point
+    return _load().get((icao, ident))
 
 
 def for_icao(icao: str) -> list[ReportingPoint]:
-    return [p for (i, _), p in _load().items() if i == icao.strip().upper()]
+    icao = icao.strip().upper()
+    if _openaip_available():
+        points = _openaip_for_icao(icao)
+        if points:
+            return points
+    return [p for (i, _), p in _load().items() if i == icao]
 
 
 def near(position: Position, *, within_nm: float) -> list[ReportingPoint]:
     """Points de report dans un rayon, du plus proche au plus loin."""
+    if _openaip_available():
+        points = _openaip_near(position, within_nm)
+        if points:
+            return points
     scored = [(p, position.distance_nm(p.position)) for p in _load().values()]
     close = [p for p, d in scored if d <= within_nm]
     close.sort(key=lambda p: position.distance_nm(p.position))
     return close
+
+
+# --- Source OpenAIP (préférée quand une clé est configurée) -----------------
+
+
+def _openaip_available() -> bool:
+    from . import openaip
+
+    return openaip.available()
+
+
+def _openaip_resolve(icao: str, ident: str) -> ReportingPoint | None:
+    from . import airports, openaip
+
+    aerodrome = airports.lookup(icao)
+    if aerodrome is None:
+        return None
+    for point in openaip.reporting_points_near(aerodrome.position):
+        if point.ident == ident:
+            return ReportingPoint(
+                icao=icao, ident=point.ident, name=point.name, position=point.position
+            )
+    return None
+
+
+def _openaip_for_icao(icao: str) -> list[ReportingPoint]:
+    from . import airports, openaip
+
+    aerodrome = airports.lookup(icao)
+    if aerodrome is None:
+        return []
+    return [
+        ReportingPoint(icao=icao, ident=p.ident, name=p.name, position=p.position)
+        for p in openaip.reporting_points_near(aerodrome.position)
+    ]
+
+
+def _openaip_near(position: Position, within_nm: float) -> list[ReportingPoint]:
+    from . import airports, openaip
+
+    dist_m = int(within_nm * 1852)
+    points = openaip.reporting_points_near(position, dist_m=dist_m)
+    out: list[ReportingPoint] = []
+    for point in points:
+        nearby = airports.nearest(point.position, within_nm=12.0, limit=1)
+        icao = nearby[0][0].icao if nearby else ""
+        out.append(
+            ReportingPoint(icao=icao, ident=point.ident, name=point.name, position=point.position)
+        )
+    out.sort(key=lambda p: position.distance_nm(p.position))
+    return out

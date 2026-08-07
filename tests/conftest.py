@@ -16,3 +16,6 @@ _AIRSPACE_FIXTURE = Path(__file__).parent / "fixtures" / "airspace"
 os.environ.setdefault("AEROBRIEFER_AIRSPACE_DIR", str(_AIRSPACE_FIXTURE))
 _RP_FIXTURE = Path(__file__).parent / "fixtures" / "reporting_points"
 os.environ.setdefault("AEROBRIEFER_REPORTING_POINTS_DIR", str(_RP_FIXTURE))
+# Les tests ne doivent JAMAIS interroger OpenAIP (réseau + clé du dev) : on force
+# le repli sur la fixture vrp_france, quel que soit l'environnement.
+os.environ.pop("OPENAIP_KEY", None)
