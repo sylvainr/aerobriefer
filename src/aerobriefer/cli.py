@@ -251,8 +251,17 @@ def default_providers() -> list[Provider]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="aerobriefer", description="Briefing de vol VFR local")
-    parser.add_argument("icao", help="code OACI du terrain, ex. LFCY")
-    parser.add_argument("--date", required=True, help="AAAA-MM-JJ (locale)")
+    parser.add_argument("icao", nargs="?", help="code OACI du terrain, ex. LFCY (ou --nav)")
+    parser.add_argument(
+        "--nav",
+        type=Path,
+        default=None,
+        help="fichier de navigation JSON ; génère TOUT le dossier dans --out",
+    )
+    parser.add_argument(
+        "--out", type=Path, default=None, help="répertoire de sortie du dossier (avec --nav)"
+    )
+    parser.add_argument("--date", help="AAAA-MM-JJ (locale)")
     parser.add_argument("--heure", default="10:00", help="HH:MM locale (défaut 10:00)")
     parser.add_argument("--duree", type=float, default=3.0, help="durée en heures (défaut 3)")
     parser.add_argument("--rayon", type=float, default=20.0, help="rayon en NM (défaut 20)")
@@ -299,6 +308,15 @@ def main(argv: list[str] | None = None) -> int:
         help="chemin de la checklist de préparation nav à produire (PDF, exige --route)",
     )
     args = parser.parse_args(argv)
+
+    # Mode « fichier de navigation » : lit le JSON et génère TOUT le dossier.
+    if args.nav:
+        if args.out is None:
+            parser.error("--nav exige --out (répertoire de sortie du dossier)")
+        return _run_navplan(args.nav, args.out)
+
+    if not args.icao or not args.date:
+        parser.error("fournir un code OACI et --date, OU --nav fichier.json --out dossier/")
 
     context = build_context(
         args.icao,
@@ -495,6 +513,71 @@ def _render_navlog(
         output.write_text(render_navlog_html(navlog, **meta), encoding="utf-8")
     else:
         render_navlog_pdf(navlog, output, **meta)
+
+
+def _run_navplan(nav_path: Path, out_dir: Path) -> int:
+    """Lit un fichier de navigation JSON et génère TOUT le dossier dans `out_dir`
+    (briefing HTML+PDF, navlog HTML+PDF, viewer 3D, masse & centrage, checklist)."""
+    from pydantic import ValidationError
+
+    from .aircraft.examples.dr400 import DR400_160
+    from .navplan import load_navplan
+    from .render.html import render_html
+    from .render.massbalance import render_massbalance
+    from .render.pdf import render_pdf
+    from .render.viewer import render_viewer
+
+    try:
+        plan = load_navplan(nav_path)
+    except (ValidationError, ValueError) as exc:
+        print(f"NAVIGATION INVALIDE — {nav_path}\n{exc}")
+        return 2
+    context = build_context(
+        plan.depart,
+        date=plan.date,
+        heure=plan.heure,
+        duree_h=plan.duree_h,
+        rayon_nm=20.0,
+        zone=plan.zone,
+        aeronef=plan.aeronef,
+        route=plan.route_spec or None,
+        largeur_nm=plan.demi_couloir_nm,
+    )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    package = assemble_briefing(context, default_providers())
+    origin = context.origin_icao or plan.depart
+    dest = context.destination_icao or "nav"
+    slug = f"{origin}_{dest}"
+
+    print(f"Dossier « {plan.title} » — {context.window.start:%d/%m/%Y %H:%MZ} → {out_dir}")
+    print(
+        f"  METAR {len(package.metars)} | TAF {len(package.tafs)}"
+        f" | NOTAM {len(package.notams)} | prévisions {len(package.forecasts)}"
+        f" | cartes {len(package.charts)}"
+    )
+    if not package.is_complete:
+        print("  ATTENTION : dossier INCOMPLET")
+    for failure in package.failures:
+        marker = "CRITIQUE" if failure.is_critical else "mineur"
+        print(f"    [{marker}] {failure.source} : {failure.reason}")
+
+    (out_dir / f"brief_{slug}.html").write_text(render_html(package), encoding="utf-8")
+    render_pdf(package, out_dir / f"brief_{slug}.pdf")
+    (out_dir / f"viewer_{slug}.html").write_text(render_viewer(package), encoding="utf-8")
+    (out_dir / "masse_centrage_DR400.html").write_text(
+        render_massbalance(DR400_160()), encoding="utf-8"
+    )
+    if context.route is not None:
+        _render_navlog(
+            context, out_dir / f"navlog_{slug}.html", magnetic_variation_deg=plan.declinaison_deg
+        )
+        _render_navlog(
+            context, out_dir / f"navlog_{slug}.pdf", magnetic_variation_deg=plan.declinaison_deg
+        )
+        _render_checklist(context, out_dir / f"checklist_{slug}.pdf", zone=plan.zone)
+
+    print(f"  → dossier complet écrit dans {out_dir}")
+    return 0 if package.is_complete else 1
 
 
 if __name__ == "__main__":
