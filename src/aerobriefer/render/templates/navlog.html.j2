@@ -28,7 +28,11 @@
   .arrow { font-size: 9pt; font-weight: 700; }
   .nw { white-space: nowrap; }               /* groupes valeur+unité insécables */
   .lr { font-weight: 700; color: #12232e; }  /* flèche compacte gauche/droite (◀/▶) */
-  .rwyfav { background: #d6ecd9; font-weight: 700; padding: 0 0.5mm; border-radius: 0.5mm; }
+  /* Petite icône « vent » (lignes d'air), SVG inline — remplace le mot « Vent ». */
+  .wico { display: inline-block; width: .95em; height: .95em; vertical-align: -0.12em;
+    background: no-repeat center/contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2312232e" stroke-width="2.2" stroke-linecap="round"><path d="M2 9h11a2.6 2.6 0 1 0-2.6-2.6"/><path d="M2 14h15a2.6 2.6 0 1 1-2.6 2.6"/></svg>'); }
+  .qfu { font-size: 7.4pt; font-weight: 700; color: #12232e; background: #d6ecd9; padding: 0.4mm 1mm; border-radius: 0.6mm; margin: 0.5mm 0; }
+  .qfu b { font-size: 8.5pt; }
   .morse { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 5pt; letter-spacing: -0.3px; color: #2b6cb0; }
   th.big-h { font-size: 8pt; background: #35618e; }
   .lbl { font-size: 5.3pt; color: #888; text-transform: uppercase; letter-spacing: .3px; }
@@ -111,9 +115,9 @@
         {% if r.diversion %}
         <div><a href="{{ r.diversion.url }}"><b>{{ r.diversion.icao }}</b></a> <span class="sub">{{ r.diversion.name }}</span></div>
         <div><span class="nw"><span class="lr">{{ r.diversion.dir_arrow }}</span> <b>{{ r.diversion.relative }}</b></span> · <span class="nw">{{ r.diversion.distance }} NM</span> · <span class="nw">{{ r.diversion.time_min }} min</span></div>
-        {% if r.diversion.wind %}<div class="sub"><span class="nw">Vent {{ r.diversion.wind }}</span>{% if r.diversion.headwind is not none %} · <span class="nw">{% if r.diversion.headwind >= 0 %}face {{ r.diversion.headwind }}{% else %}arr. {{ -r.diversion.headwind }}{% endif %} kt</span> · <span class="nw">trav {{ r.diversion.crosswind }} kt {{ r.diversion.xwind_arrow }}</span>{% endif %}</div>{% endif %}
-        {% if r.diversion.runways %}<div class="sub">Pistes : {% for rw in r.diversion.runways %}<span class="nw{% if rw.favoured %} rwyfav{% endif %}">{{ rw.ident }} {{ rw.length_m }} m</span>{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
-        {% for rw in r.diversion.runways %}{% if rw.favoured and rw.required %}<div class="sub"><span class="nw">Dist. atterrissage {{ rw.ident }} : {{ rw.required }} m {% if rw.ok %}<span class="go">✓</span>{% else %}<span class="nogo">✗</span>{% endif %}</span></div>{% endif %}{% endfor %}
+        {% if r.diversion.wind %}<div class="sub"><span class="nw"><span class="wico" title="vent"></span> {{ r.diversion.wind }}</span>{% if r.diversion.headwind is not none %} · <span class="nw">{% if r.diversion.headwind >= 0 %}face {{ r.diversion.headwind }}{% else %}arr. {{ -r.diversion.headwind }}{% endif %} kt</span> · <span class="nw">trav {{ r.diversion.crosswind }} kt {{ r.diversion.xwind_arrow }}</span>{% endif %}</div>{% endif %}
+        {% if r.diversion.favoured_qfu %}<div class="qfu"><span class="nw">QFU <b>{{ r.diversion.favoured_qfu }}</b></span> · <span class="nw">{{ r.diversion.favoured_length_m }} m</span>{% if r.diversion.favoured_required_m %} · <span class="nw">atterro {{ r.diversion.favoured_required_m }} m {% if r.diversion.favoured_ok %}<span class="go">✓</span>{% else %}<span class="nogo">✗</span>{% endif %}</span>{% endif %}</div>{% endif %}
+        {% if r.diversion.runways|length > 1 %}<div class="sub">autres pistes : {% for rw in r.diversion.runways %}{% if not rw.favoured %}<span class="nw">{{ rw.ident }} {{ rw.length_m }} m</span>{% if not loop.last %} · {% endif %}{% endif %}{% endfor %}</div>{% endif %}
         {% else %}<span class="sub">—</span>{% endif %}
       </td>
     </tr>
@@ -135,7 +139,7 @@
 {% if winds %}
 <p class="vac" style="margin-bottom:1mm"><b>Vent en altitude considéré</b> <span class="sub">— source {{ winds_caption }}</span></p>
 <table class="mini">
-  <thead><tr><th class="left">Branche</th><th>Altitude</th><th>Vent (provenance° / force kt)</th></tr></thead>
+  <thead><tr><th class="left">Branche</th><th>Altitude</th><th><span class="wico"></span> (provenance° / force kt)</th></tr></thead>
   <tbody>
     {% for w in winds %}
     <tr><td class="left mono">{{ w.branch }}</td><td class="c mono">{{ w.altitude }} ft</td><td class="c mono">{{ w.from_deg }}° / {{ w.speed_kt }} kt</td></tr>

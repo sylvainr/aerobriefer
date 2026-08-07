@@ -107,6 +107,9 @@ def _minutes(hours: float) -> str:
 def _diversion_view(div: Any | None) -> dict[str, Any] | None:
     if div is None:
         return None
+    # Piste favorable (celle à utiliser) : QFU + longueur + distance d'atterrissage,
+    # mises en avant.
+    favoured = next((rw for rw in div.runways if rw.favoured), None)
     return {
         "icao": div.icao,
         "url": vac_url(div.icao),
@@ -116,6 +119,10 @@ def _diversion_view(div: Any | None) -> dict[str, Any] | None:
         "relative": f"{div.side}{div.relative_deg}°",  # ex. « G16° »
         # Flèche compacte gauche/droite (relatif à la route), même style que Dv.
         "dir_arrow": "◀" if div.side == "G" else "▶",
+        "favoured_qfu": div.favoured_qfu,
+        "favoured_length_m": favoured.length_m if favoured is not None else None,
+        "favoured_required_m": favoured.landing_required_m if favoured is not None else None,
+        "favoured_ok": favoured.landing_ok if favoured is not None else None,
         "runways": [
             {
                 "ident": rw.ident,

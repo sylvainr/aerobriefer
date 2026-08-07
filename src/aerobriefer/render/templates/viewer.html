@@ -213,6 +213,7 @@
     </div>
   </div>
   <label class="chk-row"><input type="checkbox" id="aeroLabelsOn" checked> Étiquettes aérodromes</label>
+  <label class="chk-row" id="reportRow"><input type="checkbox" id="reportOn" checked> Points de report VFR</label>
   <div id="groundBlock">
     <div class="ctl ctl-col">
       <label>Fond de carte</label>
@@ -283,6 +284,7 @@ const classColors = data.class_colors || {};
 const ground = data.ground || null;
 const groundLayers = (ground && ground.layers) || {};
 const route = (data.route && Array.isArray(data.route.waypoints) && data.route.waypoints.length >= 2) ? data.route : null;
+const reportingPoints = Array.isArray(data.reporting_points) ? data.reporting_points : [];
 
 // ---- Projection plan tangent (equirectangulaire) ---------------------------
 const lat0 = center.lat * DEG;
@@ -513,6 +515,9 @@ function roundRect(ctx, x, y, w, h, r) {
 // ---- Aérodromes ------------------------------------------------------------
 const aeroMeshes = [];   // cônes cliquables (raycasting)
 const aeroLabels = [];   // étiquettes ICAO (masquées de près / par toggle)
+const reportMarkers = []; // marqueurs points de report VFR (sprites)
+const reportLabels = [];  // étiquettes « OACI/IDENT » des points VFR
+let reportingOn = true;   // toggle points de report (affichés par défaut)
 function buildAerodromes() {
   aerodromes.forEach((ad, idx) => {
     const [x, y] = project(ad.lon, ad.lat);
@@ -574,6 +579,58 @@ function buildCompass() {
   const n = makeLabel('N', { fontSize: 48, screenPx: 22, color: '#d11a2a', bg: null });
   n.position.set(0, base + arrowLen + radiusM * 0.04, 1);
   worldGroup.add(n);
+}
+
+// ---- Points de report VFR --------------------------------------------------
+// Marqueur = petit triangle creux (sprite TAILLE ÉCRAN FIXE, distinct des cônes
+// d'aérodrome), + label court « OACI/IDENT ». Toggle + masquage auto de près.
+function makeSymbolSprite(px, drawFn) {
+  const size = 48, dpr = 2;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size * dpr;
+  const ctx = cv.getContext('2d');
+  ctx.scale(dpr, dpr);
+  drawFn(ctx, size);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.minFilter = THREE.LinearFilter;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, depthTest: false, transparent: true, sizeAttenuation: false,
+  }));
+  sp.userData.px = px; sp.userData.aspect = 1;
+  sp.renderOrder = 9;
+  applyLabelScale(sp);
+  screenLabels.push(sp);   // suit updateLabelScales() au resize
+  return sp;
+}
+function drawVfrTriangle(ctx, s) {
+  const m = s / 2, r = s * 0.34;
+  ctx.beginPath();
+  ctx.moveTo(m, m - r);
+  ctx.lineTo(m + r * 0.87, m + r * 0.5);
+  ctx.lineTo(m - r * 0.87, m + r * 0.5);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(123,47,191,0.30)';
+  ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#7b2fbf';
+  ctx.stroke();
+}
+function buildReportingPoints() {
+  reportingPoints.forEach((p) => {
+    const [x, y] = project(p.lon, p.lat);
+    const marker = makeSymbolSprite(13, drawVfrTriangle);
+    marker.position.set(x, y, 3);
+    worldGroup.add(marker);
+    reportMarkers.push(marker);
+
+    const txt = (p.icao || '') + (p.ident ? '/' + p.ident : '');
+    const lab = makeLabel(txt, {
+      fontSize: 26, screenPx: 11, color: '#5a1f8a', bg: 'rgba(244,238,252,0.92)',
+    });
+    lab.center.set(0.5, -0.35);   // flotte juste au-dessus du marqueur
+    lab.position.set(x, y, 3);
+    worldGroup.add(lab);
+    reportLabels.push(lab);
+  });
 }
 
 // ---- Règle verticale (échelle en pieds AMSL) -------------------------------
@@ -757,6 +814,7 @@ function buildNavPanel() {
 // ---- Construction ----------------------------------------------------------
 buildGround();
 buildAerodromes();
+buildReportingPoints();
 buildRoute();
 buildNavPanel();
 buildCompass();
@@ -799,6 +857,14 @@ const XYZ_LAYERS = {
     label: 'Satellite Esri (monde)', maxZoom: 19,
     url: (z, x, y) => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'
       + z + '/' + y + '/' + x,
+  },
+  // Carte VFR officielle raster (1/500 000, France). Pas de detail au-dela de
+  // z~11 -> on plafonne pour eviter des requetes inutiles.
+  'oaci': {
+    label: 'Carte OACI 500k (IGN)', maxZoom: 11,
+    url: (z, x, y) => 'https://data.geopf.fr/private/wmts?apikey=ign_scan_ws&SERVICE=WMTS&REQUEST=GetTile'
+      + '&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN-OACI&TILEMATRIXSET=PM&STYLE=normal'
+      + '&FORMAT=image/jpeg&TILEMATRIX=' + z + '&TILEROW=' + y + '&TILECOL=' + x,
   },
 };
 
@@ -986,10 +1052,21 @@ function updateAeroVisibility() {
   const near = camera.position.distanceTo(controls.target) < AERO_HIDE_DIST;
   aeroLabels.forEach((l) => { l.visible = aeroLabelsOn && !near; });
   aeroMeshes.forEach((c) => { c.visible = !near; });   // cônes masqués de près
+  // Points VFR : marqueurs suivent le toggle ; labels masqués de très près pour
+  // ne pas couvrir la piste / le tour de piste.
+  reportMarkers.forEach((m) => { m.visible = reportingOn; });
+  reportLabels.forEach((l) => { l.visible = reportingOn && !near; });
 }
 const aeroLabelsCb = document.getElementById('aeroLabelsOn');
 if (aeroLabelsCb) {
   aeroLabelsCb.addEventListener('change', () => { aeroLabelsOn = aeroLabelsCb.checked; updateAeroVisibility(); });
+}
+const reportCb = document.getElementById('reportOn');
+if (reportCb) {
+  reportCb.addEventListener('change', () => { reportingOn = reportCb.checked; updateAeroVisibility(); });
+}
+if (!reportingPoints.length) {          // pas de points VFR : masquer le toggle
+  const rr = document.getElementById('reportRow'); if (rr) rr.style.display = 'none';
 }
 controls.addEventListener('change', updateAeroVisibility);
 updateAeroVisibility();
@@ -1451,6 +1528,10 @@ window.__aerobriefer = {
   get tileZooms() { const z=new Set(); for (const k of activeTiles.keys()) z.add(k.split('/')[1]); return [...z].sort(); },
   get labelInfo() { const l = screenLabels[0]; return l ? { count: screenLabels.length, sizeAttenuation: l.material.sizeAttenuation, scaleY: +l.scale.y.toFixed(4) } : null; },
   get aeroLabelsShown() { return aeroLabels.filter(l => l.visible).length; },
+  get reportMarkers() { return reportMarkers.length; },
+  get reportMarkersShown() { return reportMarkers.filter(m => m.visible).length; },
+  get reportLabelsShown() { return reportLabels.filter(l => l.visible).length; },
+  get groundLayerKeys() { return Object.keys(XYZ_LAYERS); },
   // Verifie que TOUTE la plage de tuiles demandee est presente (pas de trous).
   get tileCoverageOk() { if (!lastRange) return null; let miss = 0, total = 0; for (let x = lastRange.tx0; x <= lastRange.tx1; x++) for (let y = lastRange.ty0; y <= lastRange.ty1; y++) { total++; if (!activeTiles.has(lastRange.layer + '/' + lastRange.z + '/' + x + '/' + y)) miss++; } return { z: lastRange.z, total, missing: miss }; },
   ready: true,

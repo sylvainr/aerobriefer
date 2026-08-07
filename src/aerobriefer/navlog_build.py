@@ -128,6 +128,7 @@ class Diversion:
     relative_deg: int
     side: str  # "G" (gauche) | "D" (droite)
     relative_signed_deg: int  # < 0 = gauche, > 0 = droite (rotation de la flèche)
+    favoured_qfu: str | None  # QFU (extrémité) à utiliser, alignée au vent — la piste À UTILISER
     runways: tuple[RunwayInfo, ...]
     wind: str | None  # vent de surface, ex. « 270°/12 kt »
     headwind_kt: int | None  # + face, − arrière, sur la piste favorable
@@ -338,6 +339,7 @@ def _diversion_for(
             relative_deg=angle,
             side=side,
             relative_signed_deg=signed,
+            favoured_qfu=favoured_qfu,
             runways=tuple(infos),
             wind=wind_label,
             headwind_kt=headwind,
