@@ -386,12 +386,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  Navlog : {args.navlog}")
 
     if args.masse_centrage:
-        from .aircraft.examples.dr400 import DR400_160
+        from .aircraft.registry import resolve as resolve_aircraft
         from .render.massbalance import render_massbalance
 
-        # Web-app par avion (DR400 d'exemple pour l'instant) : centrage interactif.
-        args.masse_centrage.write_text(render_massbalance(DR400_160()), encoding="utf-8")
-        print(f"  Masse & centrage : {args.masse_centrage}")
+        # Web-app par avion, résolu par immatriculation (--aeronef, défaut F-ZZZZ).
+        aircraft = resolve_aircraft(args.aeronef)
+        args.masse_centrage.write_text(render_massbalance(aircraft), encoding="utf-8")
+        print(f"  Masse & centrage ({aircraft.name}) : {args.masse_centrage}")
 
     if args.checklist:
         if context.route is None:
@@ -458,7 +459,7 @@ def _render_navlog(
     perfs de croisière sont encore provisoires. Le vent en altitude vient
     d'Open-Meteo, échantillonné à l'heure de départ.
     """
-    from .aircraft.examples.dr400 import DR400_160
+    from .aircraft.registry import resolve as resolve_aircraft
     from .navlog_build import (
         annotate_navlog,
         build_navlog,
@@ -468,7 +469,7 @@ def _render_navlog(
     from .render.navlog import render_navlog_pdf
 
     assert context.route is not None
-    aircraft = DR400_160()
+    aircraft = resolve_aircraft(context.aircraft_id)
     navlog = build_navlog(
         context.route,
         aircraft,
@@ -530,7 +531,8 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
     (briefing HTML+PDF, navlog HTML+PDF, viewer 3D, masse & centrage, checklist)."""
     from pydantic import ValidationError
 
-    from .aircraft.examples.dr400 import DR400_160
+    from .aircraft.registry import DEFAULT_REGISTRATION
+    from .aircraft.registry import resolve as resolve_aircraft
     from .navplan import load_navplan
     from .render.html import render_html
     from .render.massbalance import render_massbalance
@@ -574,8 +576,9 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
     (out_dir / f"brief_{slug}.html").write_text(render_html(package), encoding="utf-8")
     render_pdf(package, out_dir / f"brief_{slug}.pdf")
     (out_dir / f"viewer_{slug}.html").write_text(render_viewer(package), encoding="utf-8")
-    (out_dir / "masse_centrage_DR400.html").write_text(
-        render_massbalance(DR400_160()), encoding="utf-8"
+    registration = plan.aeronef or DEFAULT_REGISTRATION
+    (out_dir / f"masse_centrage_{registration}.html").write_text(
+        render_massbalance(resolve_aircraft(plan.aeronef)), encoding="utf-8"
     )
     if context.route is not None:
         _render_navlog(
