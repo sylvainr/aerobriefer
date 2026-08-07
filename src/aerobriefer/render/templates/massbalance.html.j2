@@ -13,24 +13,30 @@
   h1 small { color:var(--soft); font-weight:400; font-size:13px; }
   main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; align-items:flex-start; }
   .panel { background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; }
-  .controls { flex:1 1 320px; min-width:300px; }
+  .controls { flex:1 1 400px; min-width:340px; }
   .plot { flex:1 1 460px; min-width:340px; }
-  .st { margin-bottom:14px; }
-  .st .row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
-  .st label { font-weight:600; font-size:14px; }
-  .st .arm { color:var(--soft); font-size:12px; font-weight:400; }
-  .st .val { font-variant-numeric:tabular-nums; font-weight:700; min-width:96px; text-align:right; }
-  input[type=range] { width:100%; accent-color:var(--accent); }
-  .fuel label { color:var(--accent); }
-  .readout { display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; margin-top:6px; }
-  .box { border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
-  .box b { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--soft); margin-bottom:2px; }
-  .box .big { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
-  .status { grid-column:1/-1; text-align:center; font-weight:700; font-size:16px; padding:10px; border-radius:6px; }
+  h2 { font-size:15px; margin:0 0 10px; }
+  /* Feuille unique : réglage + poids × bras = moment, tout ensemble. */
+  table.sheet { width:100%; border-collapse:collapse; font-size:13px; }
+  table.sheet th, table.sheet td { border:1px solid var(--line); padding:5px 8px; vertical-align:middle; }
+  table.sheet thead th { background:#eef3f7; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--soft); text-align:right; }
+  table.sheet thead th:first-child, table.sheet thead th.reg { text-align:left; }
+  table.sheet tbody th { text-align:left; font-weight:600; white-space:nowrap; }
+  table.sheet td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  table.sheet td.reg { width:46%; }
+  table.sheet tr.grp th { background:#f4f7f9; color:var(--accent); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  table.sheet tr.tot th, table.sheet tr.tot td { font-weight:700; border-top:2px solid var(--ink); background:#eaf0f4; }
+  table.sheet tr.tot.bad th, table.sheet tr.tot.bad td { color:var(--bad); }
+  .reg .rrow { display:flex; align-items:center; gap:8px; }
+  .reg input[type=range] { flex:1; accent-color:var(--accent); min-width:80px; }
+  .reg .rv { font-variant-numeric:tabular-nums; font-weight:700; min-width:64px; text-align:right; }
+  .arm { color:var(--soft); font-weight:400; font-size:11px; }
+  .status { text-align:center; font-weight:700; font-size:15px; padding:10px; border-radius:6px; margin-top:12px; }
   .status.ok { background:#e3f2e8; color:var(--ok); }
   .status.bad { background:#fdecea; color:var(--bad); }
+  .zfw { color:var(--soft); font-size:12px; margin-top:8px; text-align:center; }
   svg { width:100%; height:auto; display:block; }
-  .legend { font-size:12px; color:var(--soft); margin-top:8px; display:flex; gap:16px; flex-wrap:wrap; }
+  .legend { font-size:12px; color:var(--soft); margin-top:8px; display:flex; gap:14px; flex-wrap:wrap; }
   .legend span { display:inline-flex; align-items:center; gap:5px; }
   .dot { width:11px; height:11px; border-radius:50%; display:inline-block; }
   footer { padding:12px 20px; color:var(--soft); font-size:12px; }
@@ -40,11 +46,6 @@
   .data table { width:100%; border-collapse:collapse; font-size:12px; }
   .data th, .data td { border:1px solid var(--line); padding:5px 9px; text-align:left; vertical-align:top; }
   .data th { background:#f4f7f9; font-weight:600; white-space:nowrap; width:1%; }
-  #wbsheet td { text-align:right; font-variant-numeric:tabular-nums; width:auto; }
-  #wbsheet thead th { text-align:right; background:#eef3f7; }
-  #wbsheet thead th:first-child, #wbsheet tbody th { text-align:left; }
-  #wbsheet tr.tot th, #wbsheet tr.tot td { font-weight:700; border-top:2px solid var(--ink); background:#eaf0f4; }
-  #wbsheet tr.bad td, #wbsheet tr.bad th { color:var(--bad); }
 </style>
 </head>
 <body>
@@ -54,34 +55,35 @@
 
 <main>
   <section class="panel controls">
-    <div id="stations"></div>
-    <div class="readout">
-      <div class="box"><b>Masse totale</b><span class="big"><span id="mTotal">—</span> kg</span></div>
-      <div class="box"><b>Centrage (bras)</b><span class="big"><span id="cg">—</span> m</span></div>
-      <div class="box"><b>Sans carburant</b><span id="zfw">—</span> kg · <span id="zfcg">—</span> m</div>
-      <div class="box"><b>Carburant</b><span id="fuelKg">—</span> kg</div>
-      <div id="status" class="status">—</div>
-    </div>
+    <h2>Feuille de masse &amp; centrage</h2>
+    <table class="sheet">
+      <thead>
+        <tr><th>Poste</th><th class="reg">Réglage</th><th>Poids (kg)</th><th>Bras (m)</th><th>Moment (kg·m)</th></tr>
+      </thead>
+      <tbody id="sheetBody"></tbody>
+    </table>
+    <div id="status" class="status">—</div>
+    <div class="zfw">Sans carburant : <span id="zfw">—</span> kg · centrage <span id="zfcg">—</span> m
+      — Carburant : <span id="fuelKg">—</span> kg</div>
   </section>
 
   <section class="panel plot">
+    <h2>Enveloppe de centrage</h2>
     <svg id="chart" viewBox="0 0 520 420" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="legend">
-      <span><span class="dot" style="background:#2b6cb0"></span> Avec carburant</span>
-      <span><span class="dot" style="background:#fff;border:2px solid #2b6cb0"></span> Sans carburant</span>
-      <span><span class="dot" style="background:#b3261e"></span> Hors enveloppe</span>
+      <span><span class="dot" style="background:#2b6cb0"></span> config. carburant (chaque réservoir plein ou vide)</span>
+      <span><span class="dot" style="background:#12232e"></span> config. actuelle</span>
+      <span><span class="dot" style="background:#b3261e"></span> hors enveloppe</span>
     </div>
   </section>
 </main>
 
-<section id="wbsheet" class="panel data"></section>
-
 <section id="wbdata" class="panel data"></section>
 
 <footer>
-  Enveloppe de centrage : bras (m) en abscisse, masse (kg) en ordonnée. La ligne relie le point AVEC
-  carburant au point SANS carburant : toute la ligne doit rester dans l'enveloppe (le centrage se
-  déplace en consommant). Calcul local, aucune donnée n'est envoyée.
+  Bras (m) en abscisse, masse (kg) en ordonnée. Chaque point est une configuration de remplissage
+  des réservoirs (chacun plein ou vide) : <b>tous</b> doivent rester dans l'enveloppe, car le centrage
+  se déplace en consommant selon les réservoirs utilisés. Calcul local, aucune donnée n'est envoyée.
 </footer>
 
 <script>
@@ -99,75 +101,84 @@ function inPolygon(x, y, poly) {
   }
   return inside;
 }
-function state(loads, fuelsL) {
+function state(loadsArr, fuelsArr) {
   let mass = DATA.empty.mass_kg, moment = DATA.empty.mass_kg * DATA.empty.arm_m;
-  DATA.stations.forEach((s, i) => { mass += loads[i]; moment += loads[i] * s.arm_m; });
+  DATA.stations.forEach((s, i) => { mass += loadsArr[i]; moment += loadsArr[i] * s.arm_m; });
   let fuelKg = 0;
-  DATA.fuels.forEach((t, i) => { const kg = fuelsL[i] * t.density_kg_per_l; fuelKg += kg; moment += kg * t.arm_m; });
+  DATA.fuels.forEach((t, i) => { const kg = fuelsArr[i] * t.density_kg_per_l; fuelKg += kg; moment += kg * t.arm_m; });
   mass += fuelKg;
   const arm = mass > 0 ? moment / mass : 0;
-  return { mass, arm, fuelKg, within: inPolygon(arm, mass, DATA.envelope) };
+  return { mass, arm, fuelKg, within: inPolygon(arm, mass, DATA.envelope) && mass <= DATA.max_mass_kg };
 }
 
-// ---- contrôles -------------------------------------------------------------
+// ---- état courant ----------------------------------------------------------
 document.getElementById('acName').textContent = DATA.aircraft;
 document.getElementById('mtow').textContent = '· MTOW ' + DATA.max_mass_kg + ' kg';
-
 const loads = DATA.stations.map(s => s.default_kg);
 const fuelsL = DATA.fuels.map(t => t.default_l);
 
-const host = document.getElementById('stations');
-DATA.stations.forEach((s, i) => {
-  const wrap = document.createElement('div');
-  wrap.className = 'st';
-  wrap.innerHTML =
-    '<div class="row"><label>' + s.name + ' <span class="arm">bras ' + s.arm_m.toFixed(2) + ' m · max ' + s.max_kg.toFixed(0) + ' kg</span></label>' +
-    '<span class="val"><span id="v' + i + '">' + s.default_kg.toFixed(0) + '</span> kg</span></div>' +
-    '<input type="range" min="0" max="' + s.max_kg + '" step="1" value="' + s.default_kg + '" id="r' + i + '">';
-  host.appendChild(wrap);
-  wrap.querySelector('#r' + i).addEventListener('input', e => {
-    loads[i] = parseFloat(e.target.value);
-    document.getElementById('v' + i).textContent = loads[i].toFixed(0);
-    render();
+// ---- feuille unique (sliders + poids × bras = moment) ----------------------
+function slider(id, value, max, unit) {
+  return '<div class="rrow"><input type="range" min="0" max="' + max + '" step="1" value="' + value +
+    '" id="' + id + '"><span class="rv"><span id="v_' + id + '">' + value.toFixed(0) + '</span> ' + unit + '</span></div>';
+}
+(function buildSheet() {
+  let html = '';
+  html += '<tr><th>Masse à vide</th><td class="reg">—</td>' +
+    '<td class="num">' + DATA.empty.mass_kg.toFixed(1) + '</td>' +
+    '<td class="num">' + DATA.empty.arm_m.toFixed(3) + '</td>' +
+    '<td class="num">' + (DATA.empty.mass_kg * DATA.empty.arm_m).toFixed(1) + '</td></tr>';
+  html += '<tr class="grp"><th colspan="5">Chargement</th></tr>';
+  DATA.stations.forEach((s, i) => {
+    html += '<tr><th>' + s.name + '<br><span class="arm">max ' + s.max_kg.toFixed(0) + ' kg</span></th>' +
+      '<td class="reg">' + slider('s' + i, s.default_kg, s.max_kg, 'kg') + '</td>' +
+      '<td class="num" id="w_s' + i + '">—</td><td class="num">' + s.arm_m.toFixed(3) + '</td>' +
+      '<td class="num" id="m_s' + i + '">—</td></tr>';
   });
-});
-// carburant : un curseur par réservoir (les bras diffèrent)
-DATA.fuels.forEach((t, i) => {
-  const fw = document.createElement('div');
-  fw.className = 'st fuel';
-  fw.innerHTML =
-    '<div class="row"><label>' + t.name + ' <span class="arm">bras ' + t.arm_m.toFixed(2) + ' m · max ' + t.capacity_l.toFixed(0) + ' L</span></label>' +
-    '<span class="val"><span id="vf' + i + '">' + fuelsL[i].toFixed(0) + '</span> L</span></div>' +
-    '<input type="range" min="0" max="' + t.capacity_l + '" step="1" value="' + fuelsL[i] + '" id="rf' + i + '">';
-  host.appendChild(fw);
-  fw.querySelector('#rf' + i).addEventListener('input', e => {
-    fuelsL[i] = parseFloat(e.target.value);
-    document.getElementById('vf' + i).textContent = fuelsL[i].toFixed(0);
-    render();
+  html += '<tr class="grp"><th colspan="5">Carburant</th></tr>';
+  DATA.fuels.forEach((t, i) => {
+    html += '<tr><th>' + t.name + '<br><span class="arm">' + t.capacity_l.toFixed(0) + ' L · ' +
+      t.density_kg_per_l.toFixed(2) + ' kg/L</span></th>' +
+      '<td class="reg">' + slider('f' + i, t.default_l, t.capacity_l, 'L') + '</td>' +
+      '<td class="num" id="w_f' + i + '">—</td><td class="num">' + t.arm_m.toFixed(3) + '</td>' +
+      '<td class="num" id="m_f' + i + '">—</td></tr>';
   });
-});
+  html += '<tr class="tot" id="totRow"><th>TOTAL</th><td class="reg">—</td>' +
+    '<td class="num" id="t_mass">—</td><td class="num" id="t_cg">—</td><td class="num" id="t_moment">—</td></tr>';
+  document.getElementById('sheetBody').innerHTML = html;
 
-// ---- Données utilisées (transparence : d'où vient chaque chiffre) -----------
+  DATA.stations.forEach((s, i) => {
+    document.getElementById('s' + i).addEventListener('input', e => {
+      loads[i] = parseFloat(e.target.value);
+      document.getElementById('v_s' + i).textContent = loads[i].toFixed(0);
+      render();
+    });
+  });
+  DATA.fuels.forEach((t, i) => {
+    document.getElementById('f' + i).addEventListener('input', e => {
+      fuelsL[i] = parseFloat(e.target.value);
+      document.getElementById('v_f' + i).textContent = fuelsL[i].toFixed(0);
+      render();
+    });
+  });
+})();
+
+// ---- Données utilisées (transparence) --------------------------------------
 (function () {
   const rows = [];
-  rows.push(['Masse à vide', DATA.empty.mass_kg.toFixed(0) + ' kg', 'bras ' + DATA.empty.arm_m.toFixed(3) + ' m']);
-  DATA.stations.forEach(s => rows.push([
-    s.name, 'max ' + s.max_kg.toFixed(0) + ' kg', 'bras ' + s.arm_m.toFixed(3) + ' m',
-  ]));
+  rows.push(['Masse à vide', DATA.empty.mass_kg.toFixed(1) + ' kg', 'bras ' + DATA.empty.arm_m.toFixed(3) + ' m']);
+  DATA.stations.forEach(s => rows.push([s.name, 'max ' + s.max_kg.toFixed(0) + ' kg', 'bras ' + s.arm_m.toFixed(3) + ' m']));
   DATA.fuels.forEach(t => rows.push([
-    t.name,
+    'Carburant · ' + t.name,
     'capacité ' + t.capacity_l.toFixed(0) + ' L · densité ' + t.density_kg_per_l.toFixed(2) + ' kg/L',
-    'bras ' + t.arm_m.toFixed(3) + ' m',
-  ]));
+    'bras ' + t.arm_m.toFixed(3) + ' m']));
   rows.push(['MTOW', DATA.max_mass_kg.toFixed(0) + ' kg', '']);
   const env = DATA.envelope.map(p => '(' + p[0].toFixed(3) + ' m, ' + p[1].toFixed(0) + ' kg)').join(' · ');
   rows.push(['Enveloppe (bras, masse)', env, '']);
-  const body = rows.map(r =>
-    '<tr><th>' + r[0] + '</th><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('');
+  const body = rows.map(r => '<tr><th>' + r[0] + '</th><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('');
   document.getElementById('wbdata').innerHTML =
-    '<h2>Données utilisées</h2><p class="src">Toutes issues du modèle de l\'avion (code) — ' +
-    'aucune valeur inventée au rendu. À remplacer par les données de VOTRE appareil.</p>' +
-    '<table>' + body + '</table>';
+    '<h2>Données utilisées</h2><p class="src">Toutes issues du modèle de l\'avion — aucune valeur ' +
+    'inventée au rendu.</p><table>' + body + '</table>';
 })();
 
 // ---- tracé -----------------------------------------------------------------
@@ -175,87 +186,112 @@ const svg = document.getElementById('chart');
 const W = 520, H = 420, M = { l: 56, r: 16, t: 16, b: 44 };
 const arms = DATA.envelope.map(p => p[0]), masses = DATA.envelope.map(p => p[1]);
 const xMin = Math.min(...arms) - 0.03, xMax = Math.max(...arms) + 0.03;
-const yMin = Math.min(...masses) - 40, yMax = Math.max(DATA.max_mass_kg, ...masses) + 40;
+// yMin inclut la masse à vide : à zéro chargement, le point (sous l'enveloppe)
+// reste visible — on VOIT que rien n'est chargé plutôt qu'un point hors cadre.
+const yMin = Math.min(...masses, DATA.empty.mass_kg) - 40;
+const yMax = Math.max(DATA.max_mass_kg, ...masses) + 40;
 const X = a => M.l + (a - xMin) / (xMax - xMin) * (W - M.l - M.r);
 const Y = m => H - M.b - (m - yMin) / (yMax - yMin) * (H - M.t - M.b);
 const NS = 'http://www.w3.org/2000/svg';
 function el(tag, attrs) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
 
 function drawStatic() {
-  // axes
   svg.appendChild(el('line', { x1: M.l, y1: H - M.b, x2: W - M.r, y2: H - M.b, stroke: '#888' }));
   svg.appendChild(el('line', { x1: M.l, y1: M.t, x2: M.l, y2: H - M.b, stroke: '#888' }));
-  // graduations masse
   for (let m = Math.ceil(yMin / 100) * 100; m <= yMax; m += 100) {
     const gy = Y(m);
     svg.appendChild(el('line', { x1: M.l, y1: gy, x2: W - M.r, y2: gy, stroke: '#eef1f4' }));
     const t = el('text', { x: M.l - 6, y: gy + 3, 'text-anchor': 'end', 'font-size': 10, fill: '#5a6b76' });
     t.textContent = m; svg.appendChild(t);
   }
-  // graduations bras
   for (let a = Math.ceil(xMin / 0.05) * 0.05; a <= xMax; a += 0.05) {
     const gx = X(a);
     const t = el('text', { x: gx, y: H - M.b + 14, 'text-anchor': 'middle', 'font-size': 10, fill: '#5a6b76' });
     t.textContent = a.toFixed(2); svg.appendChild(t);
   }
   svg.appendChild(el('text', { x: (W + M.l) / 2, y: H - 6, 'text-anchor': 'middle', 'font-size': 11, fill: '#12232e' })).textContent = 'Bras (m)';
-  const yl = el('text', { x: 14, y: (H) / 2, 'text-anchor': 'middle', 'font-size': 11, fill: '#12232e', transform: 'rotate(-90 14 ' + (H / 2) + ')' });
+  const yl = el('text', { x: 14, y: H / 2, 'text-anchor': 'middle', 'font-size': 11, fill: '#12232e', transform: 'rotate(-90 14 ' + (H / 2) + ')' });
   yl.textContent = 'Masse (kg)'; svg.appendChild(yl);
-  // enveloppe
   const pts = DATA.envelope.map(p => X(p[0]) + ',' + Y(p[1])).join(' ');
   svg.appendChild(el('polygon', { points: pts, fill: 'rgba(43,108,176,.10)', stroke: '#2b6cb0', 'stroke-width': 1.6 }));
-  // MTOW
   svg.appendChild(el('line', { x1: M.l, y1: Y(DATA.max_mass_kg), x2: W - M.r, y2: Y(DATA.max_mass_kg), stroke: '#b3261e', 'stroke-dasharray': '5 4', 'stroke-width': 1.2 }));
 }
-const dyn = el('g', {}); svg.appendChild(dyn);
-drawStatic(); svg.appendChild(dyn);
+const dyn = el('g', {}); drawStatic(); svg.appendChild(dyn);
 
-// feuille de calcul détaillée (poids × bras = moment, somme en bas)
-function renderSheet(full) {
-  const rows = [];
-  const push = (name, w, arm) => rows.push([name, w, arm, w * arm]);
-  push('Masse à vide', DATA.empty.mass_kg, DATA.empty.arm_m);
-  DATA.stations.forEach((s, i) => push(s.name, loads[i], s.arm_m));
-  DATA.fuels.forEach((t, i) =>
-    push(t.name + ' (' + fuelsL[i].toFixed(0) + ' L)', fuelsL[i] * t.density_kg_per_l, t.arm_m));
-  const body = rows.map(r =>
-    '<tr><th>' + r[0] + '</th><td>' + r[1].toFixed(1) + '</td><td>' + r[2].toFixed(3) +
-    '</td><td>' + r[3].toFixed(1) + '</td></tr>').join('');
-  const cls = (full.within && full.mass <= DATA.max_mass_kg) ? 'tot' : 'tot bad';
-  const total = '<tr class="' + cls + '"><th>TOTAL</th><td>' + full.mass.toFixed(1) +
-    '</td><td>' + full.arm.toFixed(3) + '</td><td>' + (full.mass * full.arm).toFixed(1) + '</td></tr>';
-  document.getElementById('wbsheet').innerHTML =
-    '<h2>Feuille de masse &amp; centrage</h2>' +
-    '<p class="src">Poids × bras = moment, additionnés comme sur le papier. ' +
-    'Bras du TOTAL = centrage = Σ moments ÷ Σ poids.</p>' +
-    '<table><thead><tr><th>Poste</th><th>Poids (kg)</th><th>Bras (m)</th><th>Moment (kg·m)</th></tr></thead>' +
-    '<tbody>' + body + total + '</tbody></table>';
+// enveloppe convexe (monotone chain) sur des points {x, y} en espace données
+function hull(points) {
+  const p = points.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+  if (p.length < 3) return p;
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower = [];
+  for (const q of p) { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop(); lower.push(q); }
+  const upper = [];
+  for (let i = p.length - 1; i >= 0; i--) { const q = p[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop(); upper.push(q); }
+  lower.pop(); upper.pop();
+  return lower.concat(upper);
 }
 
 function render() {
   while (dyn.firstChild) dyn.removeChild(dyn.firstChild);
+  const n = DATA.fuels.length;
   const full = state(loads, fuelsL);
-  const zero = state(loads, fuelsL.map(() => 0));
-  // ligne consommation
-  dyn.appendChild(el('line', { x1: X(full.arm), y1: Y(full.mass), x2: X(zero.arm), y2: Y(zero.mass), stroke: '#2b6cb0', 'stroke-width': 1.4 }));
-  // point sans carburant (creux)
-  dyn.appendChild(el('circle', { cx: X(zero.arm), cy: Y(zero.mass), r: 5, fill: '#fff', stroke: '#2b6cb0', 'stroke-width': 2 }));
-  // point avec carburant (plein, rouge si hors)
-  const col = full.within ? '#2b6cb0' : '#b3261e';
-  dyn.appendChild(el('circle', { cx: X(full.arm), cy: Y(full.mass), r: 6.5, fill: col }));
 
-  document.getElementById('mTotal').textContent = full.mass.toFixed(0);
-  document.getElementById('cg').textContent = full.arm.toFixed(3);
+  // 2^n configurations : chaque réservoir soit vide, soit à sa valeur courante.
+  const configs = [];
+  for (let mask = 0; mask < (1 << n); mask++) {
+    const f = DATA.fuels.map((t, i) => (mask >> i & 1) ? fuelsL[i] : 0);
+    const st = state(loads, f);
+    configs.push({ x: st.arm, y: st.mass, within: st.within, current: mask === (1 << n) - 1 });
+  }
+  // domaine (enveloppe convexe des configs)
+  const h = hull(configs);
+  if (h.length >= 3) {
+    dyn.appendChild(el('polygon', {
+      points: h.map(p => X(p.x) + ',' + Y(p.y)).join(' '),
+      fill: 'rgba(18,35,46,.06)', stroke: '#12232e', 'stroke-width': 1, 'stroke-dasharray': '3 3',
+    }));
+  } else if (configs.length >= 2) {
+    dyn.appendChild(el('line', {
+      x1: X(configs[0].x), y1: Y(configs[0].y), x2: X(configs[configs.length - 1].x), y2: Y(configs[configs.length - 1].y),
+      stroke: '#12232e', 'stroke-width': 1, 'stroke-dasharray': '3 3',
+    }));
+  }
+  // points de configuration
+  configs.forEach(c => {
+    const color = c.within ? '#2b6cb0' : '#b3261e';
+    if (c.current) {
+      dyn.appendChild(el('circle', { cx: X(c.x), cy: Y(c.y), r: 6.5, fill: color, stroke: '#12232e', 'stroke-width': 2 }));
+    } else {
+      dyn.appendChild(el('circle', { cx: X(c.x), cy: Y(c.y), r: 4, fill: color, 'fill-opacity': .85 }));
+    }
+  });
+
+  // feuille : poids & moments par poste + total
+  DATA.stations.forEach((s, i) => {
+    document.getElementById('w_s' + i).textContent = loads[i].toFixed(1);
+    document.getElementById('m_s' + i).textContent = (loads[i] * s.arm_m).toFixed(1);
+  });
+  DATA.fuels.forEach((t, i) => {
+    const kg = fuelsL[i] * t.density_kg_per_l;
+    document.getElementById('w_f' + i).textContent = kg.toFixed(1);
+    document.getElementById('m_f' + i).textContent = (kg * t.arm_m).toFixed(1);
+  });
+  document.getElementById('t_mass').textContent = full.mass.toFixed(1);
+  document.getElementById('t_cg').textContent = full.arm.toFixed(3);
+  document.getElementById('t_moment').textContent = (full.mass * full.arm).toFixed(1);
+
+  const zero = state(loads, fuelsL.map(() => 0));
   document.getElementById('zfw').textContent = zero.mass.toFixed(0);
   document.getElementById('zfcg').textContent = zero.arm.toFixed(3);
   document.getElementById('fuelKg').textContent = full.fuelKg.toFixed(0);
+
+  const allWithin = configs.every(c => c.within);
+  document.getElementById('totRow').className = allWithin ? 'tot' : 'tot bad';
   const st = document.getElementById('status');
-  const overweight = full.mass > DATA.max_mass_kg;
-  const ok = full.within && zero.within && !overweight;
-  st.className = 'status ' + (ok ? 'ok' : 'bad');
-  st.textContent = ok ? '✓ Dans l\'enveloppe' :
-    (overweight ? '⚠ Masse maxi dépassée' : '⚠ Hors enveloppe de centrage');
-  renderSheet(full);
+  st.className = 'status ' + (allWithin ? 'ok' : 'bad');
+  st.textContent = allWithin
+    ? '✓ Dans l\'enveloppe pour toutes les configurations carburant'
+    : '⚠ Hors enveloppe / masse maxi dans au moins une configuration carburant';
 }
 render();
 </script>

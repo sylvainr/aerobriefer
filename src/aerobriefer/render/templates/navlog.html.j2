@@ -43,6 +43,12 @@
   .radiotbl .rlabel { font-weight: 700; padding-right: 1.5mm; }
   .radiotbl .rfreq { text-align: right; white-space: nowrap; font-family: "SF Mono", Menlo, Consolas, monospace; }
   .morse { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 5pt; letter-spacing: -0.3px; color: #2b6cb0; }
+  /* Sous-blocs dans une case : petit titre + léger fond/séparateur, sobre à l'impression. */
+  .subblock { margin-top: 1mm; padding-top: 0.7mm; border-top: .5pt solid #ccc; }
+  .subhead { font-size: 5.2pt; font-weight: 700; text-transform: uppercase; letter-spacing: .4px;
+    color: #35618e; margin-bottom: 0.5mm; }
+  .obs-vor { font-size: 6.4pt; background: #eef3f8; padding: 0.5mm 1mm; border-radius: 0.6mm; margin-bottom: 0.6mm; }
+  .obs-vor b { color: #12232e; }
   th.big-h { font-size: 8pt; background: #35618e; }
   .lbl { font-size: 5.3pt; color: #888; text-transform: uppercase; letter-spacing: .3px; }
   .blank { display: block; border-bottom: .5pt solid #bbb; height: 3mm; }
@@ -75,13 +81,13 @@
 
 <table>
   <colgroup>
-    <col style="width:9%"><col style="width:6%"><col style="width:9%"><col style="width:6%">
-    <col style="width:5%"><col style="width:5%"><col style="width:6%"><col style="width:6%">
-    <col style="width:25%"><col style="width:23%">
+    <col style="width:22%"><col style="width:6%"><col style="width:10%"><col style="width:7%">
+    <col style="width:6%"><col style="width:6%"><col style="width:7%"><col style="width:7%">
+    <col style="width:29%">
   </colgroup>
   <thead>
     <tr>
-      <th class="left">Branche</th>
+      <th class="left">Branche <span style="font-weight:400">· radios (MHz)</span></th>
       <th>Alt / Zmin</th>
       <th>RM <span style="font-weight:400">(Rv·Dv)</span></th>
       <th>Dist</th>
@@ -89,8 +95,7 @@
       <th>Conso</th>
       <th class="fill big-h">HE</th>
       <th class="fill big-h">HR</th>
-      <th>Radios <span style="font-weight:400">(MHz) · VOR · notes</span></th>
-      <th>Déroutement</th>
+      <th>Déroutements / Observations</th>
     </tr>
   </thead>
   <tbody>
@@ -102,6 +107,12 @@
         <div class="down">↓</div>
         <div class="mono b">{% if r.to.url %}<a href="{{ r.to.url }}">{{ r.to.code }}</a>{% else %}{{ r.to.code }}{% endif %}</div>
         {% if r.to.name %}<div class="sub">{{ r.to.name }}</div>{% endif %}
+        {% if r.radios %}<div class="subblock">
+          <div class="subhead">Radios</div>
+          <table class="radiotbl">
+            {% for radio in r.radios %}<tr><td class="rlabel">{{ radio.label }}</td><td class="rfreq">{{ radio.freq }}</td></tr>{% endfor %}
+          </table>
+        </div>{% endif %}
       </td>
       <td class="c">
         <span class="big">{{ r.altitude }}</span><span class="sub"> ft</span>
@@ -118,13 +129,7 @@
       <td class="fill"></td>
       <td class="fill"></td>
       <td class="auto">
-        {% if r.radios %}<table class="radiotbl">
-          {% for radio in r.radios %}<tr><td class="rlabel">{{ radio.label }}</td><td class="rfreq">{{ radio.freq }}</td></tr>{% endfor %}
-        </table>{% endif %}
-        {% if r.vor %}<div class="sub" style="margin-top:0.6mm">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span> <span class="nw">{{ r.vor.freq }}</span> <span class="nw">R{{ r.vor.radial }}°</span> <span class="nw">{{ r.vor.distance }} NM</span></div>{% endif %}
-        <span class="blank"></span><span class="blank"></span>
-      </td>
-      <td class="auto">
+        <div class="subhead">Déroutement</div>
         {% if r.diversion %}
         <div><a href="{{ r.diversion.url }}"><b>{{ r.diversion.icao }}</b></a> <span class="sub">{{ r.diversion.name }}</span></div>
         <div><span class="nw"><span class="lr">{{ r.diversion.dir_arrow }}</span> <b>{{ r.diversion.relative }}</b></span> · <span class="nw">{{ r.diversion.distance }} NM</span> · <span class="nw">{{ r.diversion.time_min }} min</span></div>
@@ -132,6 +137,11 @@
         {% if r.diversion.favoured_qfu %}<div class="qfu"><span class="nw">QFU <b>{{ r.diversion.favoured_qfu }}</b></span> · <span class="nw">{{ r.diversion.favoured_length_m }} m</span>{% if r.diversion.favoured_required_m %} · <span class="nw">atterro {{ r.diversion.favoured_required_m }} m {% if r.diversion.favoured_ok %}<span class="go">✓</span>{% else %}<span class="nogo">✗</span>{% endif %}</span>{% endif %}</div>{% endif %}
         {% if r.diversion.runways|length > 1 %}<div class="sub">autres pistes : {% for rw in r.diversion.runways %}{% if not rw.favoured %}<span class="nw">{{ rw.ident }} {{ rw.length_m }} m</span>{% if not loop.last %} · {% endif %}{% endif %}{% endfor %}</div>{% endif %}
         {% else %}<span class="sub">—</span>{% endif %}
+        <div class="subblock">
+          <div class="subhead">Observations</div>
+          {% if r.vor %}<div class="obs-vor"><span class="nw"><b>{{ r.vor.ident }}</b> <span class="morse">{{ r.vor.morse }}</span></span> · <span class="nw">QDR <b>{{ r.vor.radial }}°</b></span> · <span class="nw">DME {{ r.vor.distance }} NM</span></div>{% endif %}
+          <span class="blank"></span><span class="blank"></span>
+        </div>
       </td>
     </tr>
     {% endfor %}
@@ -144,7 +154,7 @@
       <td class="c">{{ total_fuel }}</td>
       <td class="fill"></td>
       <td class="fill"></td>
-      <td class="c" colspan="2">—</td>
+      <td class="c">—</td>
     </tr>
   </tbody>
 </table>
@@ -187,9 +197,12 @@
 <p class="disclaimer">
   <b>AIDE À LA PRÉPARATION — ne remplace pas le calcul officiel ni le jugement du commandant de bord.</b>
   HE/HR = heure estimée / réelle, à remplir. <b>RM = Rv − déclinaison</b> ({{ mag_var_label }}, à confirmer sur la carte).
-  Dist : DI branche, cumul, DTG restante. Temps : avec vent (svt = sans vent). Radios : terrains + espaces traversés (étiquetés).
-  VOR (secondaire) : ident + Morse + radiale. Déroutement = terrain le plus proche, direction RELATIVE à la route (flèche + G/D de X°),
+  Dist : DI branche, cumul, DTG restante. Temps : avec vent (svt = sans vent).
+  Branche : départ ↓ arrivée + radios (terrains et espaces traversés, étiquetés, en MHz).
+  Déroutement = terrain le plus proche, direction RELATIVE à la route (flèche + G/D de X°),
   avec sa piste et la marge d'atterrissage DR400.
+  Observations : radiale VOR en <b>QDR</b> (relèvement magnétique DEPUIS la station) — ident + Morse · QDR · DME ;
+  lignes vides à remplir à la main.
   Vent : <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ.
   Zmin = relief max du couloir + 1000 ft (Open-Meteo/SRTM, <b>terrain seul</b>).
   Généré le {{ generated_dual }}.
