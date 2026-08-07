@@ -355,7 +355,7 @@ def main(argv: list[str] | None = None) -> int:
         if context.route is None:
             parser.error("--navlog exige une route : ajouter --route")
         _render_navlog(context, args.navlog, magnetic_variation_deg=args.declinaison)
-        print(f"  Navlog PDF : {args.navlog}")
+        print(f"  Navlog : {args.navlog}")
 
     if args.masse_centrage:
         from .aircraft.examples.dr400 import DR400_160
