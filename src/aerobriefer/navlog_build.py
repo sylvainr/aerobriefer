@@ -34,6 +34,29 @@ SIA_VAC_SEARCH = "https://www.sia.aviation-civile.gouv.fr/catalogsearch/result/?
 SIA_VAIP = "https://www.sia.aviation-civile.gouv.fr/vaip"
 
 
+_ARROWS = ("↑", "↗", "→", "↘", "↓", "↙", "←", "↖")
+
+
+def _bearing_arrow(bearing_deg: float) -> str:
+    """Flèche 8 directions pointant vers le cap (0° = ↑ nord, 90° = → est)."""
+    return _ARROWS[round(bearing_deg / 45.0) % 8]
+
+
+@dataclass(frozen=True, slots=True)
+class Diversion:
+    """Terrain de déroutement le plus proche, avec de quoi décider vite : où
+    (cap + flèche + distance), et est-ce que ça pose (QFU le plus long + marge)."""
+
+    icao: str
+    distance_nm: int
+    bearing_deg: int
+    arrow: str
+    runway: str | None  # QFU le plus long + longueur, ex. « 11/29 · 1090 m »
+    landing_required_m: int | None
+    margin_pct: float | None
+    ok: bool | None
+
+
 @dataclass(frozen=True, slots=True)
 class LegAnnotation:
     """Ce que le navlog affiche EN PLUS du calcul pur, pour le point d'ARRIVÉE de
@@ -42,7 +65,7 @@ class LegAnnotation:
 
     vor: str | None
     radios: str | None
-    diversion: str | None
+    diversion: Diversion | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,20 +112,35 @@ def _vor_for(point: Position, magnetic_variation_deg: float) -> str | None:
 
 
 def _diversion_for(
-    point: Position, exclude: str | None, magnetic_variation_deg: float
-) -> str | None:
+    point: Position, exclude: str | None, aircraft: Aircraft, magnetic_variation_deg: float
+) -> Diversion | None:
+    """Déroutement le plus proche + de quoi décider : cap/flèche/distance, et sa
+    piste la plus longue avec la marge d'atterrissage (DR400 à masse maxi)."""
     for aerodrome, distance in airports.nearest(point, within_nm=45.0, limit=3):
         if exclude and aerodrome.icao == exclude:
             continue
         bearing = _magnetic(
             math.degrees(point.bearing_to(aerodrome.position)) % 360.0, magnetic_variation_deg
         )
-        return f"{aerodrome.icao} {distance:.0f} NM / {bearing:03.0f}°"
+        _, runway = _longest_runway(aerodrome.icao)
+        landing = _assess(
+            aerodrome.icao, aircraft, operation="landing", mass_kg=aircraft.max_landing_mass_kg
+        )
+        return Diversion(
+            icao=aerodrome.icao,
+            distance_nm=round(distance),
+            bearing_deg=round(bearing),
+            arrow=_bearing_arrow(bearing),
+            runway=f"{runway.ident} · {runway.length_m} m" if runway is not None else None,
+            landing_required_m=landing.required_m if landing is not None else None,
+            margin_pct=landing.margin_pct if landing is not None else None,
+            ok=landing.ok if landing is not None else None,
+        )
     return None
 
 
 def annotate_navlog(
-    navlog: NavLog, *, magnetic_variation_deg: float = 0.0
+    navlog: NavLog, aircraft: Aircraft, *, magnetic_variation_deg: float = 0.0
 ) -> tuple[list[LegAnnotation], list[VacLink]]:
     """Enrichit chaque branche (VOR/radios/déroutement du point d'arrivée) et
     collecte les liens VAC de tous les terrains de la route."""
@@ -126,7 +164,7 @@ def annotate_navlog(
             LegAnnotation(
                 vor=_vor_for(end.position, magnetic_variation_deg),
                 radios=_radios_for(icao) if icao else None,
-                diversion=_diversion_for(end.position, icao, magnetic_variation_deg),
+                diversion=_diversion_for(end.position, icao, aircraft, magnetic_variation_deg),
             )
         )
         note_field(end.name)

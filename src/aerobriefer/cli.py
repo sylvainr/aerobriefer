@@ -446,7 +446,9 @@ def _render_navlog(
         departure_time=context.window.start,
         magnetic_variation_deg=magnetic_variation_deg,
     )
-    annotations, vac_links = annotate_navlog(navlog, magnetic_variation_deg=magnetic_variation_deg)
+    annotations, vac_links = annotate_navlog(
+        navlog, aircraft, magnetic_variation_deg=magnetic_variation_deg
+    )
     try:
         safety_ft = safety_altitudes(navlog)
     except Exception:  # noqa: BLE001 - élévation indisponible : Zmin à la main, pas fatal

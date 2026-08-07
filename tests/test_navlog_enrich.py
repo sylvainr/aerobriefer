@@ -6,6 +6,7 @@ fixture, puis on l'annote depuis la donnée de référence (navaids/fréquences)
 
 from __future__ import annotations
 
+from aerobriefer.aircraft.examples.dr400 import DR400_160
 from aerobriefer.data import airports
 from aerobriefer.domain.navlog import Wind, compute_navlog
 from aerobriefer.domain.route import Route, Waypoint
@@ -33,17 +34,22 @@ def _navlog():
 
 
 def test_annotations_remplissent_vor_radios_deroutement():
-    annotations, vac = annotate_navlog(_navlog(), magnetic_variation_deg=1.0)
+    annotations, vac = annotate_navlog(_navlog(), DR400_160(), magnetic_variation_deg=1.0)
     assert len(annotations) == 1
     note = annotations[0]
     # LFBD est une grande plateforme : VOR proche + radios + un déroutement.
     assert note.vor and "R" in note.vor and "NM" in note.vor
     assert note.radios  # LFBD a des fréquences dans la fixture
-    assert note.diversion and "NM" in note.diversion
+    # Déroutement enrichi : terrain, cap+flèche, et marge d'atterrissage.
+    div = note.diversion
+    assert div is not None
+    assert div.icao and div.distance_nm >= 0
+    assert div.arrow in {"↑", "↗", "→", "↘", "↓", "↙", "←", "↖"}
+    assert 0 <= div.bearing_deg <= 360
 
 
 def test_liste_vac_contient_depart_et_arrivee():
-    _, vac = annotate_navlog(_navlog())
+    _, vac = annotate_navlog(_navlog(), DR400_160())
     icaos = {v.icao for v in vac}
     assert {"LFCY", "LFBD"} <= icaos
     for link in vac:

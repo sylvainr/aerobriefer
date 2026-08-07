@@ -90,6 +90,21 @@ def _minutes(hours: float) -> str:
     return f"{round(hours * 60)}"
 
 
+def _diversion_view(div: Any | None) -> dict[str, Any] | None:
+    if div is None:
+        return None
+    return {
+        "icao": div.icao,
+        "distance": div.distance_nm,
+        "bearing": f"{div.bearing_deg:03d}",
+        "arrow": div.arrow,
+        "runway": div.runway,
+        "required": div.landing_required_m,
+        "margin_pct": f"{div.margin_pct:+.0f}" if div.margin_pct is not None else None,
+        "ok": div.ok,
+    }
+
+
 def _row(
     leg: LegComputation,
     tz: ZoneInfo,
@@ -100,7 +115,6 @@ def _row(
     note: Any | None,
     zmin_ft: float | None,
 ) -> dict[str, Any]:
-    local = leg.eta.astimezone(tz)
     tsv_h = leg.distance_nm / leg.tas_kt if leg.tas_kt else 0.0
     return {
         "branch": f"{leg.leg.start.name} → {leg.leg.end.name}",
@@ -117,14 +131,12 @@ def _row(
         "ground_speed": f"{leg.ground_speed_kt:.0f}",
         "tsv": _minutes(tsv_h),  # temps sans vent
         "tav": _minutes(leg.time.total_seconds() / 3600.0),  # temps avec vent
-        "eto_local": local.strftime("%H:%M"),
-        "eto_zulu": f"{leg.eta:%H:%M}Z",
         "fuel": f"{leg.fuel_l:.1f}" if leg.fuel_l is not None else "—",
         "fuel_cumulative": f"{cumulative_fuel:.1f}" if leg.fuel_l is not None else "—",
         # Auto-remplis depuis la donnée de référence.
         "vor": getattr(note, "vor", None),
         "radios": getattr(note, "radios", None),
-        "diversion": getattr(note, "diversion", None),
+        "diversion": _diversion_view(getattr(note, "diversion", None)),
     }
 
 

@@ -1,32 +1,34 @@
 <meta charset="utf-8">
 <title>Navlog {{ origin }} → {{ destination }}</title>
 <style>
-  @page { size: A4 portrait; margin: 8mm 7mm 11mm 7mm;
+  @page { size: A4 portrait; margin: 8mm 6mm 11mm 6mm;
     @bottom-left  { content: "{{ page_footer }}"; font: 6pt Arial, sans-serif; color: #555; }
     @bottom-right { content: "page " counter(page) " / " counter(pages); font: 6pt Arial, sans-serif; color: #555; }
   }
   html { font-size: 9pt; }
-  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #000; background: #fff; margin: 0; line-height: 1.2; }
-  @media screen { html { background: #ececec; } body { max-width: 900px; margin: 18px auto; padding: 16px 18px; box-shadow: 0 1px 6px rgba(0,0,0,.15); } }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #000; background: #fff; margin: 0; line-height: 1.15; }
+  @media screen { html { background: #ececec; } body { max-width: 940px; margin: 18px auto; padding: 16px 18px; box-shadow: 0 1px 6px rgba(0,0,0,.15); } }
 
   h1 { font-size: 11.5pt; margin: 0 0 1.5mm; color: #12232e; letter-spacing: .3px; }
   .facts { display: flex; flex-wrap: wrap; gap: .8mm 4mm; margin: 0 0 2mm; font-size: 7pt; }
   .fact b { display: block; font-size: 5.5pt; text-transform: uppercase; letter-spacing: .3px; color: #555; font-weight: 600; }
   .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 6.8pt; table-layout: fixed; }
-  th, td { border: .5pt solid #888; padding: 1mm 1mm; vertical-align: top; }
-  th { background: #12232e; color: #fff; font-size: 5.8pt; text-transform: uppercase; letter-spacing: .2px; text-align: center; padding: 1mm 0.5mm; }
-  td { height: 13mm; }
+  table { width: 100%; border-collapse: collapse; font-size: 6.6pt; table-layout: fixed; }
+  th, td { border: .5pt solid #888; padding: 1mm 0.8mm; vertical-align: top; }
+  th { background: #12232e; color: #fff; font-size: 5.6pt; text-transform: uppercase; letter-spacing: .2px; text-align: center; padding: 1mm 0.4mm; }
+  td { height: 14mm; }
   .c { text-align: center; }
-  .big { font-size: 10pt; font-weight: 700; }
-  .sub { font-size: 6pt; color: #444; }
-  .auto { font-size: 6.3pt; color: #12232e; }
+  .big { font-size: 9.5pt; font-weight: 700; }
+  .sub { font-size: 5.8pt; color: #444; }
+  .auto { font-size: 6.2pt; color: #12232e; }
   .auto b { color: #2b6cb0; }
-  .lbl { font-size: 5.5pt; color: #888; text-transform: uppercase; letter-spacing: .3px; }
+  .arrow { font-size: 9pt; font-weight: 700; }
+  .lbl { font-size: 5.3pt; color: #888; text-transform: uppercase; letter-spacing: .3px; }
   .blank { display: block; border-bottom: .5pt solid #bbb; height: 3mm; }
   th.fill { background: #35618e; }
-  .eto b { font-size: 8.5pt; }
+  .go { color: #1f6b3a; font-weight: 700; }
+  .nogo { color: #b3261e; font-weight: 700; }
   tbody tr:nth-child(even) td { background: #fbfbfb; }
   .totals td { height: auto; font-weight: 700; background: #f0f0f0; border-top: 1.4pt solid #000; }
 
@@ -41,7 +43,6 @@
 <div class="facts">
   <div class="fact"><b>Aéronef</b><span class="mono">{{ aircraft_name }}</span></div>
   <div class="fact"><b>Départ prévu</b><span class="mono">{{ departure_dual }}</span></div>
-  <div class="fact"><b>Arrivée est.</b><span class="mono">{{ arrival_dual }}</span></div>
   <div class="fact"><b>TAS</b><span class="mono">{{ tas_kt }} kt</span></div>
   <div class="fact"><b>Conso</b><span class="mono">{{ fuel_flow_lph }} L/h</span></div>
   <div class="fact"><b>Décl.</b><span class="mono">{{ mag_var_label }}</span></div>
@@ -50,17 +51,21 @@
 
 <table>
   <colgroup>
-    <col style="width:14%"><col style="width:10%"><col style="width:12%"><col style="width:16%">
-    <col style="width:11%"><col style="width:25%"><col style="width:12%">
+    <col style="width:12%"><col style="width:9%"><col style="width:10%"><col style="width:7%">
+    <col style="width:7%"><col style="width:7%"><col style="width:5%"><col style="width:5%">
+    <col style="width:16%"><col style="width:22%">
   </colgroup>
   <thead>
     <tr>
       <th class="left">Branche</th>
       <th>Alt / Zmin</th>
       <th>RM <span style="font-weight:400">(Rv·Dv)</span></th>
-      <th>Dist / Temps / Conso</th>
-      <th class="fill">Heures</th>
-      <th>Observations <span style="font-weight:400">(VOR · radios)</span></th>
+      <th>Dist</th>
+      <th>Temps</th>
+      <th>Conso</th>
+      <th class="fill">HE</th>
+      <th class="fill">HR</th>
+      <th>Observations <span style="font-weight:400">(VOR·radios)</span></th>
       <th>Déroutement</th>
     </tr>
   </thead>
@@ -70,36 +75,42 @@
       <td class="mono">{{ r.branch }}</td>
       <td class="c">
         <span class="big">{{ r.altitude }}</span><span class="sub"> ft</span>
-        {% if r.zmin %}<div class="auto"><span class="lbl">Zmin</span> <b>{{ r.zmin }} ft</b></div>{% else %}<span class="lbl">Zmin</span><span class="blank"></span>{% endif %}
+        {% if r.zmin %}<div class="auto"><span class="lbl">Zmin</span> <b>{{ r.zmin }}</b></div>{% else %}<span class="lbl">Zmin</span><span class="blank"></span>{% endif %}
       </td>
       <td class="c">
         <span class="big">{{ r.magnetic_heading }}°</span>
         <div class="sub">Rv {{ r.true_track }} · Dv {{ r.drift }}</div>
         <div class="sub">{{ r.wind }} · Vs {{ r.ground_speed }}</div>
       </td>
-      <td class="c">
-        <div><b>DI</b> {{ r.distance }} <span class="sub">NM</span> · DTG {{ r.dtg }}</div>
-        <div class="sub">cumul {{ r.cumulative }} NM · Tsv {{ r.tsv }}′ · Tav {{ r.tav }}′</div>
-        <div class="sub">Conso {{ r.fuel }} L · cum {{ r.fuel_cumulative }} L</div>
-      </td>
-      <td>
-        <div class="eto"><span class="lbl">Est.</span> <b>{{ r.eto_local }}</b> <span class="sub">{{ r.eto_zulu }}</span></div>
-        <span class="lbl">Réel</span><span class="blank"></span>
-      </td>
+      <td class="c"><span class="big">{{ r.distance }}</span><div class="sub">cum {{ r.cumulative }}<br>DTG {{ r.dtg }}</div></td>
+      <td class="c"><span class="big">{{ r.tav }}′</span><div class="sub">svt {{ r.tsv }}′</div></td>
+      <td class="c"><span class="big">{{ r.fuel }}</span><div class="sub">cum {{ r.fuel_cumulative }}</div></td>
+      <td class="fill"></td>
+      <td class="fill"></td>
       <td class="auto">
         {% if r.vor %}<div>VOR <b>{{ r.vor }}</b></div>{% endif %}
         {% if r.radios %}<div>{{ r.radios }}</div>{% endif %}
         {% if not r.vor and not r.radios %}<span class="sub">—</span>{% endif %}
       </td>
-      <td class="auto">{% if r.diversion %}{{ r.diversion }}{% else %}<span class="sub">—</span>{% endif %}</td>
+      <td class="auto">
+        {% if r.diversion %}
+        <div><b>{{ r.diversion.icao }}</b> <span class="arrow">{{ r.diversion.arrow }}</span> {{ r.diversion.distance }} NM / {{ r.diversion.bearing }}°</div>
+        {% if r.diversion.runway %}<div class="sub">piste {{ r.diversion.runway }}</div>{% endif %}
+        {% if r.diversion.required %}<div class="sub">atterro {{ r.diversion.required }} m ·
+          {% if r.diversion.ok %}<span class="go">marge {{ r.diversion.margin_pct }} %</span>{% else %}<span class="nogo">{{ r.diversion.margin_pct }} %</span>{% endif %}</div>{% endif %}
+        {% else %}<span class="sub">—</span>{% endif %}
+      </td>
     </tr>
     {% endfor %}
     <tr class="totals">
       <td>TOTAL</td>
       <td class="c">—</td>
       <td class="c">—</td>
-      <td class="c">{{ total_distance }} NM · {{ total_time }} · {{ total_fuel }}</td>
-      <td><span class="lbl">Arrivée</span> <b>{{ arrival_local }}</b></td>
+      <td class="c">{{ total_distance }}</td>
+      <td class="c">{{ total_time }}</td>
+      <td class="c">{{ total_fuel }}</td>
+      <td class="fill"></td>
+      <td class="fill"></td>
       <td class="c" colspan="2">—</td>
     </tr>
   </tbody>
@@ -108,7 +119,7 @@
 {% if perfs %}
 <p class="vac"><b>Perfs piste</b> <span class="sub">(conditions conservatrices : masse maxi, ISA+15, sans vent)</span> —
   {% for p in perfs %}{{ p.label }} {{ p.runway }} : requis {{ p.required }} m / dispo {{ p.available }} m
-  ({% if p.ok %}<b style="color:#1f6b3a">GO {{ p.margin_pct }} %</b>{% else %}<b style="color:#b3261e">NO-GO {{ p.margin_pct }} %</b>{% endif %}){% if not loop.last %} · {% endif %}{% endfor %}.
+  ({% if p.ok %}<span class="go">GO {{ p.margin_pct }} %</span>{% else %}<span class="nogo">NO-GO {{ p.margin_pct }} %</span>{% endif %}){% if not loop.last %} · {% endif %}{% endfor %}.
 </p>
 {% endif %}
 
@@ -116,9 +127,8 @@
 <p class="vac"><b>Bilan carburant</b> —
   roulage {{ fuel_plan.taxi }} L · trajet {{ fuel_plan.trip }} L{% if fuel_plan.alternate != '0.0' %} · dégagement {{ fuel_plan.alternate }} L{% endif %} · réserve 30 min {{ fuel_plan.reserve }} L
   = <b>minimum {{ fuel_plan.total }} L</b> · capacité {{ fuel_plan.capacity }} L ·
-  {% if fuel_plan.sufficient %}marge {{ fuel_plan.margin }} L{% else %}<b style="color:#b3261e">INSUFFISANT ({{ fuel_plan.margin }} L)</b>{% endif %}
-  · endurance {{ fuel_plan.endurance }}.
-  <span style="color:#b3261e">Conso provisoire (avion fictif).</span>
+  {% if fuel_plan.sufficient %}marge {{ fuel_plan.margin }} L{% else %}<span class="nogo">INSUFFISANT ({{ fuel_plan.margin }} L)</span>{% endif %}
+  · endurance {{ fuel_plan.endurance }}. <span class="nogo">Conso provisoire (avion fictif).</span>
 </p>
 {% endif %}
 
@@ -131,10 +141,10 @@
 
 <p class="disclaimer">
   <b>AIDE À LA PRÉPARATION — ne remplace pas le calcul officiel ni le jugement du commandant de bord.</b>
-  <b>RM = Rv − déclinaison</b> ({{ mag_var_label }}, à confirmer sur la carte). DI = distance de branche, DTG = distance restante,
-  Tsv/Tav = temps sans / avec vent. VOR = radiale magnétique depuis le VOR le plus proche vers le point ; déroutement = terrain le plus proche.
-  Vent en altitude interpolé — source <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ.
-  <b>TAS et conso PROVISOIRES</b> (valeurs typiques DR400/160, avion d'exemple F-ZZZZ fictif).
-  Zmin = relief max du couloir + 1000 ft (Open-Meteo/SRTM, <b>terrain seul</b> — obstacles ponctuels à vérifier NOTAM/VAC).
-  Heures locales = {{ display_timezone }}, Z indiqué. Généré le {{ generated_dual }}.
+  HE/HR = heure estimée / réelle, à remplir. <b>RM = Rv − déclinaison</b> ({{ mag_var_label }}, à confirmer sur la carte).
+  Dist : DI branche, cumul, DTG restante. Temps : avec vent (svt = sans vent). VOR = radiale magnétique du VOR le plus proche.
+  Déroutement = terrain le plus proche (flèche = cap), avec sa piste et la marge d'atterrissage DR400.
+  Vent : <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ. <b>TAS/conso PROVISOIRES</b> (avion fictif F-ZZZZ).
+  Zmin = relief max du couloir + 1000 ft (Open-Meteo/SRTM, <b>terrain seul</b>).
+  Généré le {{ generated_dual }}.
 </p>
