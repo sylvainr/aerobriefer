@@ -94,6 +94,18 @@
   #groundOpacityVal { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 34px; text-align: right; }
   #groundMsg { margin-top: 6px; font-size: 10.5px; color: #b1451f; display: none; line-height: 1.35; }
   #groundMsg.show { display: block; }
+  #patternBlock { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--panel-border); }
+  .pat-head { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; font-weight: 600; }
+  .pat-head input { margin: 0; accent-color: #d6219a; }
+  #patCtls { display: none; margin-top: 8px; }
+  #patCtls.show { display: block; }
+  #patCtls .ctl { margin-top: 6px; }
+  #patCtls label { min-width: 78px; }
+  #patCtls select { flex: 1; font-size: 12px; padding: 2px 4px; }
+  #patCtls input[type=number] { width: 62px; font-size: 12px; padding: 2px 4px; }
+  #patCtls .unit { color: var(--ink-soft); font-size: 11px; }
+  #patMsg { margin-top: 6px; font-size: 10.5px; color: #b1451f; display: none; }
+  #patMsg.show { display: block; }
 
   /* Filtre d'altitude (dans l'en-tête de la légende) */
   #altFilter { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--panel-border); }
@@ -204,6 +216,20 @@
       <span id="groundOpacityVal">100%</span>
     </div>
     <div id="groundMsg"></div>
+  </div>
+  <div id="patternBlock">
+    <label class="pat-head"><input type="checkbox" id="patOn"> Tour de piste</label>
+    <div id="patCtls">
+      <div class="ctl"><label for="patAero">Aérodrome</label><select id="patAero"></select></div>
+      <div class="ctl"><label for="patRwy">Piste (QFU)</label><select id="patRwy"></select></div>
+      <div class="ctl"><label for="patHand">Sens</label>
+        <select id="patHand"><option value="L">Main gauche</option><option value="R">Main droite</option></select></div>
+      <div class="ctl"><label for="patAlt">Hauteur</label>
+        <input id="patAlt" type="number" min="500" max="3000" step="100" value="1000"><span class="unit">ft AAL</span></div>
+      <div class="ctl"><label for="patWidth">Vent&nbsp;arrière</label>
+        <input id="patWidth" type="number" min="0.3" max="2" step="0.1" value="0.8"><span class="unit">NM</span></div>
+      <div id="patMsg"></div>
+    </div>
   </div>
   <div class="hint">
     Glisser&nbsp;: pivoter · molette&nbsp;: zoom · clic droit&nbsp;: déplacer.<br>
@@ -347,7 +373,6 @@ function updateClipPlane() {
 let groundGrid = null;      // grille neutre
 let groundDisk = null;      // disque neutre
 let groundTiles = null;     // groupe des tuiles satellite (grille grid×grid), sous les volumes
-const tileMeshes = [];      // sous-plans de tuiles de la couche courante
 function buildGround() {
   const extent = Math.max(radiusM * 2.4, 4000);
   const div = 24;
@@ -379,12 +404,11 @@ function buildGround() {
   // Chaque tuile (gridX vers l'est, gridY vers le nord) est un PlaneGeometry.
   // PlaneGeometry (plan XY, normale +Z) + TextureLoader (flipY par défaut)
   // donnent le bon calage par tuile : +y (nord) → haut de l'image, +x → est.
-  if (ground && Number(ground.half_extent_m) > 0) {
-    groundTiles = new THREE.Group();
-    groundTiles.position.z = -1.5;   // sous les volumes, au-dessus du disque neutre
-    groundTiles.visible = false;      // activé par le sélecteur de couche
-    worldGroup.add(groundTiles);
-  }
+  // Groupe des tuiles satellite XYZ (rempli dynamiquement selon la vue).
+  groundTiles = new THREE.Group();
+  groundTiles.position.z = -1.5;   // sous les volumes, au-dessus du disque neutre
+  groundTiles.visible = false;      // active par le selecteur de couche
+  worldGroup.add(groundTiles);
 
   // Cercle du vol
   const segs = 128;
@@ -718,26 +742,57 @@ function applyExag(v) {
 exagSlider.addEventListener('input', () => applyExag(parseFloat(exagSlider.value)));
 applyExag(parseFloat(exagSlider.value));
 
-// ---- Fond de carte (satellite) ---------------------------------------------
+// ---- Fond de carte satellite : tuiles XYZ pyramidales (LOD) ----------------
+// Vraie carte web : on charge des tuiles Web-Mercator {z}/{x}/{y} au niveau de
+// zoom adapte a la distance camera (net quand on s'approche), pour la zone
+// visible seulement. Charge/decharge dynamiquement. Sources sans cle.
 const groundBlock = document.getElementById('groundBlock');
 const groundMsg = document.getElementById('groundMsg');
-const texCache = {};              // url de tuile -> THREE.Texture
+const R_MAJOR = 6378137;          // rayon equatorial WGS84 (Web Mercator)
+const XYZ_LAYERS = {
+  'ign-ortho': {
+    label: 'Satellite IGN (France, HD)', maxZoom: 19,
+    url: (z, x, y) => 'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
+      + '&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&TILEMATRIXSET=PM&TILEMATRIX=' + z
+      + '&TILEROW=' + y + '&TILECOL=' + x + '&STYLE=normal&FORMAT=image/jpeg',
+  },
+  'esri': {
+    label: 'Satellite Esri (monde)', maxZoom: 19,
+    url: (z, x, y) => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/'
+      + z + '/' + y + '/' + x,
+  },
+};
+
+const activeTiles = new Map();    // 'layer/z/x/y' -> { mesh }
+const texCache = new Map();       // url -> THREE.Texture
 let currentLayer = 'none';
-let currentGroundOpacity = 1;     // opacité appliquée à toutes les tuiles
-let loadToken = 0;                // invalide les chargements d'une couche abandonnée
+let currentGroundOpacity = 1;
+let tileToken = 0;                // invalide les chargements d'une couche abandonnee
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+// Web Mercator <-> tuiles
+function lon2tileX(lon, z) { return (lon + 180) / 360 * Math.pow(2, z); }
+function lat2tileY(lat, z) {
+  const r = lat * DEG;
+  return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * Math.pow(2, z);
+}
+function tileX2lon(x, z) { return x / Math.pow(2, z) * 360 - 180; }
+function tileY2lat(y, z) {
+  const n = Math.PI * (1 - 2 * y / Math.pow(2, z));
+  return Math.atan(Math.sinh(n)) / DEG;
+}
+function localToLonLat(x, y) {
+  return [center.lon + x / (cosLat0 * 111320), center.lat + y / 111320];
+}
 
 function showNeutralGround() {
   if (groundDisk) groundDisk.visible = true;
   if (groundGrid) groundGrid.visible = true;
   if (groundTiles) groundTiles.visible = false;
 }
-function clearTiles() {
-  tileMeshes.forEach((m) => {
-    if (groundTiles) groundTiles.remove(m);
-    m.geometry.dispose();
-    m.material.dispose();   // textures gardées en cache, pas disposées
-  });
-  tileMeshes.length = 0;
+function setGroundMsg(text) {
+  if (!text) { groundMsg.classList.remove('show'); groundMsg.textContent = ''; }
+  else { groundMsg.textContent = text; groundMsg.classList.add('show'); }
 }
 function applyTexture(mesh, tex) {
   if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
@@ -748,130 +803,190 @@ function applyTexture(mesh, tex) {
   mesh.material.needsUpdate = true;
   mesh.visible = true;
 }
-function setGroundMsg(text) {
-  if (!text) { groundMsg.classList.remove('show'); groundMsg.textContent = ''; }
-  else { groundMsg.textContent = text; groundMsg.classList.add('show'); }
+function disposeTile(rec) {
+  if (groundTiles) groundTiles.remove(rec.mesh);
+  rec.mesh.geometry.dispose();
+  rec.mesh.material.dispose();   // textures gardees en cache
+}
+function clearAllTiles() {
+  for (const rec of activeTiles.values()) disposeTile(rec);
+  activeTiles.clear();
 }
 
-function buildTilesForLayer(layer, token) {
-  clearTiles();
-  const half = Number(ground.half_extent_m);
-  const grid = Number(layer.grid) || Number(ground.grid) || 1;
-  const cell = (2 * half) / grid;         // cote d'une case (metres)
-  const tiles = Array.isArray(layer.tiles) ? layer.tiles : [];
-  let done = 0, failed = 0;
-  const finalize = () => {
-    if (token !== loadToken) return;
-    if (done + failed < tiles.length) return;
-    if (failed === 0) setGroundMsg('');
-    else if (failed >= tiles.length) setGroundMsg('Imagerie satellite indisponible (hors ligne ?). Sol neutre affiche.');
-    else setGroundMsg(failed + ' tuile(s) non chargee(s).');
-  };
+// Niveau de zoom : la resolution d'une tuile doit ~= la resolution ecran a la cible.
+function chooseZoom(maxZoom) {
+  const d = camera.position.distanceTo(controls.target);
+  const vFov = camera.fov * DEG;
+  const H = renderer.domElement.clientHeight || window.innerHeight;
+  const screenMpp = (2 * d * Math.tan(vFov / 2)) / H;      // metres / pixel
+  const worldMppZ0 = (2 * Math.PI * R_MAJOR * Math.cos(center.lat * DEG)) / 256;
+  const z = Math.round(Math.log2(worldMppZ0 / screenMpp));
+  return clamp(z, 3, maxZoom);
+}
 
+// Emprise sol visible (intersection du frustum avec z=0), bornee autour de la cible.
+function visibleBounds() {
+  const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const rc = new THREE.Raycaster();
+  const hit = new THREE.Vector3();
+  const d = camera.position.distanceTo(controls.target);
+  const cap = Math.max(d * 1.3, 3000);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [nx, ny] of [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]]) {
+    rc.setFromCamera(new THREE.Vector2(nx, ny), camera);
+    let px, py;
+    if (rc.ray.intersectPlane(plane, hit)) { px = hit.x; py = hit.y; }
+    else { const p = rc.ray.origin.clone().add(rc.ray.direction.clone().multiplyScalar(d * 2)); px = p.x; py = p.y; }
+    minX = Math.min(minX, px); maxX = Math.max(maxX, px);
+    minY = Math.min(minY, py); maxY = Math.max(maxY, py);
+  }
+  const cx = controls.target.x, cy = controls.target.y;
+  return {
+    minX: Math.max(minX, cx - cap), maxX: Math.min(maxX, cx + cap),
+    minY: Math.max(minY, cy - cap), maxY: Math.min(maxY, cy + cap),
+  };
+}
+
+function createTile(layerKey, z, x, y, key, token) {
+  const lonW = tileX2lon(x, z), lonE = tileX2lon(x + 1, z);
+  const latN = tileY2lat(y, z), latS = tileY2lat(y + 1, z);
+  const [xW, yN] = project(lonW, latN);
+  const [xE, yS] = project(lonE, latS);
+  const w = xE - xW, h = yN - yS;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: currentGroundOpacity,
+      side: THREE.DoubleSide, depthWrite: false,
+    })
+  );
+  mesh.position.set((xW + xE) / 2, (yN + yS) / 2, 0);
+  mesh.renderOrder = -2;   // entre disque neutre (-3) et grille (-1)
+  mesh.visible = false;
+  groundTiles.add(mesh);
+  activeTiles.set(key, { mesh });
+
+  const url = XYZ_LAYERS[layerKey].url(z, x, y);
+  if (texCache.has(url)) { applyTexture(mesh, texCache.get(url)); return; }
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin('anonymous');
-
-  tiles.forEach((t) => {
-    const gx = Number(t.gridX), gy = Number(t.gridY);
-    const cx = -half + (gx + 0.5) * cell;   // gridX vers l'est (+x)
-    const cy = -half + (gy + 0.5) * cell;   // gridY vers le nord (+y)
-    const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(cell, cell),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff, transparent: true, opacity: currentGroundOpacity,
-        side: THREE.DoubleSide, depthWrite: false,
-      })
-    );
-    mesh.position.set(cx, cy, 0);
-    mesh.renderOrder = -2;  // entre le disque neutre (-3) et la grille (-1)
-    mesh.visible = false;   // apparait quand sa texture est prete
-    groundTiles.add(mesh);
-    tileMeshes.push(mesh);
-
-    if (texCache[t.url]) {                  // deja en cache
-      applyTexture(mesh, texCache[t.url]);
-      done++; finalize();
-      return;
+  loader.load(
+    url,
+    (tex) => {
+      texCache.set(url, tex);
+      if (token !== tileToken) return;
+      const rec = activeTiles.get(key);
+      if (rec && rec.mesh === mesh) applyTexture(mesh, tex);
+    },
+    undefined,
+    () => {   // tuile en echec : on la retire (sol neutre dessous), pas de plantage
+      const rec = activeTiles.get(key);
+      if (rec && rec.mesh === mesh) { disposeTile(rec); activeTiles.delete(key); }
     }
-    loader.load(
-      t.url,
-      (tex) => {
-        texCache[t.url] = tex;
-        if (token !== loadToken) return;    // couche changee entre-temps
-        applyTexture(mesh, tex);
-        done++; finalize();
-      },
-      undefined,
-      () => { failed++; finalize(); }       // tuile en echec : reste invisible (neutre dessous)
-    );
-  });
-  if (tiles.length === 0) setGroundMsg('Aucune tuile fournie pour cette couche.');
+  );
 }
+
+function updateTiles() {
+  if (currentLayer === 'none' || !groundTiles) return;
+  const layer = XYZ_LAYERS[currentLayer];
+  if (!layer) return;
+  const z = chooseZoom(layer.maxZoom);
+  const n = Math.pow(2, z);
+  const b = visibleBounds();
+  const [lonMin, latMax] = localToLonLat(b.minX, b.maxY);   // coin NO
+  const [lonMax, latMin] = localToLonLat(b.maxX, b.minY);   // coin SE
+  let tx0 = Math.floor(lon2tileX(lonMin, z)), tx1 = Math.floor(lon2tileX(lonMax, z));
+  let ty0 = Math.floor(lat2tileY(latMax, z)), ty1 = Math.floor(lat2tileY(latMin, z)); // y croit vers le sud
+  tx0 = clamp(tx0, 0, n - 1); tx1 = clamp(tx1, 0, n - 1);
+  ty0 = clamp(ty0, 0, n - 1); ty1 = clamp(ty1, 0, n - 1);
+
+  const MAXT = 120;
+  if ((tx1 - tx0 + 1) * (ty1 - ty0 + 1) > MAXT) {   // recentre sur la cible si trop de tuiles
+    const [clon, clat] = localToLonLat(controls.target.x, controls.target.y);
+    const ctx = Math.floor(lon2tileX(clon, z)), cty = Math.floor(lat2tileY(clat, z));
+    const half = Math.floor(Math.sqrt(MAXT) / 2);
+    tx0 = clamp(ctx - half, 0, n - 1); tx1 = clamp(ctx + half, 0, n - 1);
+    ty0 = clamp(cty - half, 0, n - 1); ty1 = clamp(cty + half, 0, n - 1);
+  }
+
+  const needed = new Set();
+  for (let x = tx0; x <= tx1; x++) {
+    for (let y = ty0; y <= ty1; y++) {
+      const key = currentLayer + '/' + z + '/' + x + '/' + y;
+      needed.add(key);
+      if (!activeTiles.has(key)) createTile(currentLayer, z, x, y, key, tileToken);
+    }
+  }
+  for (const [key, rec] of activeTiles) {
+    if (!needed.has(key)) { disposeTile(rec); activeTiles.delete(key); }
+  }
+}
+
+let tileUpdateTimer = null;
+function scheduleTileUpdate() {
+  if (currentLayer === 'none') return;
+  if (tileUpdateTimer) return;
+  tileUpdateTimer = setTimeout(() => { tileUpdateTimer = null; updateTiles(); }, 180);
+}
+controls.addEventListener('change', scheduleTileUpdate);
 
 function selectLayer(key) {
   currentLayer = key;
-  loadToken++;                       // annule les chargements de la couche precedente
-  if (key === 'none' || !groundTiles) {
+  tileToken++;
+  clearAllTiles();
+  if (key === 'none' || !groundTiles || !XYZ_LAYERS[key]) {
     showNeutralGround();
     setGroundMsg('');
     return;
   }
-  const layer = groundLayers[key];
-  if (!layer || !(Array.isArray(layer.tiles) && layer.tiles.length)) {
-    showNeutralGround();
-    setGroundMsg('');
-    return;
-  }
-  // Sol neutre conserve en fond pendant l'arrivee des tuiles ; grille masquee.
-  if (groundDisk) groundDisk.visible = true;
+  if (groundDisk) groundDisk.visible = true;   // fond neutre pendant le chargement
   if (groundGrid) groundGrid.visible = false;
   groundTiles.visible = true;
-  setGroundMsg('Chargement de l’imagerie (' + layer.tiles.length + ' tuiles)...');
-  buildTilesForLayer(layer, loadToken);
+  setGroundMsg('Chargement de l\'imagerie satellite...');
+  updateTiles();
+  const k = key;
+  setTimeout(() => { if (currentLayer === k) setGroundMsg(''); }, 2000);
 }
+
 function setupGroundLayers() {
-  const keys = Object.keys(groundLayers);
-  if (!ground || keys.length === 0 || !groundTiles) {
-    groundBlock.style.display = 'none';   // anciennes données : pas de fond
+  if (!groundTiles) {                 // pas de sol (donnees anciennes / sans center)
+    groundBlock.style.display = 'none';
     showNeutralGround();
     return;
   }
   const container = document.getElementById('groundLayers');
-  const defaultKey = groundLayers['ign-ortho'] ? 'ign-ortho' : keys[0];
-
-  const opts = [['none', 'Aucun (sol neutre)']].concat(
-    keys.map(k => [k, (groundLayers[k].label || k)]));
+  const keys = Object.keys(XYZ_LAYERS);
+  const defaultKey = XYZ_LAYERS['ign-ortho'] ? 'ign-ortho' : keys[0];
+  const opts = [['none', 'Aucun (sol neutre)']].concat(keys.map(k => [k, XYZ_LAYERS[k].label]));
 
   opts.forEach(([key, label]) => {
     const row = document.createElement('label');
     row.className = 'groundopt';
     const checked = key === defaultKey ? 'checked' : '';
-    row.innerHTML = `<input type="radio" name="groundlayer" value="${key}" ${checked}><span>${escapeHtmlSafe(label)}</span>`;
+    row.innerHTML = '<input type="radio" name="groundlayer" value="' + key + '" ' + checked + '>'
+      + '<span>' + escapeHtmlSafe(label) + '</span>';
     row.querySelector('input').addEventListener('change', () => selectLayer(key));
     container.appendChild(row);
   });
 
-  // Opacité du sol satellite (appliquée à toutes les tuiles)
   const opSlider = document.getElementById('groundOpacity');
   const opVal = document.getElementById('groundOpacityVal');
   opSlider.addEventListener('input', () => {
     currentGroundOpacity = parseFloat(opSlider.value);
-    tileMeshes.forEach((m) => {
-      m.material.opacity = currentGroundOpacity;
-      m.material.transparent = currentGroundOpacity < 1;
-    });
+    for (const rec of activeTiles.values()) {
+      rec.mesh.material.opacity = currentGroundOpacity;
+      rec.mesh.material.transparent = currentGroundOpacity < 1;
+    }
     opVal.textContent = Math.round(currentGroundOpacity * 100) + '%';
   });
 
   selectLayer(defaultKey);
 }
 
-// escapeHtml est défini plus bas ; version locale sûre pour l'init du sol.
 function escapeHtmlSafe(s) {
   return String(s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-
 setupGroundLayers();
 
 // ---- Légende (HTML) --------------------------------------------------------
@@ -1126,6 +1241,7 @@ window.addEventListener('resize', () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (routeLineMat) routeLineMat.resolution.set(window.innerWidth, window.innerHeight);
+  if (patLineMat) patLineMat.resolution.set(window.innerWidth, window.innerHeight);
 });
 
 function animate() {
@@ -1134,6 +1250,124 @@ function animate() {
   renderer.render(scene, camera);
 }
 animate();
+
+// ---- Tour de piste (circuit) ----------------------------------------------
+const PAT_COLOR = 0xd6219a;         // magenta, distinct de la route (orange)
+let patLineMat = null;              // garde pour maj resolution au resize
+let patObjs = [];                   // objets three du circuit courant
+const patState = { on: false, aero: 0, rwy: 0, hand: 'L', altFt: 1000, widthNm: 0.8, _ends: [] };
+const patAeroSel = document.getElementById('patAero');
+const patRwySel = document.getElementById('patRwy');
+const patHandSel = document.getElementById('patHand');
+const patAltInp = document.getElementById('patAlt');
+const patWidthInp = document.getElementById('patWidth');
+const patCtls = document.getElementById('patCtls');
+const patMsgEl = document.getElementById('patMsg');
+const curExag = () => vertGroup.scale.z || 1;
+function setPatMsg(t) {
+  if (!t) { patMsgEl.classList.remove('show'); patMsgEl.textContent = ''; }
+  else { patMsgEl.textContent = t; patMsgEl.classList.add('show'); }
+}
+
+// Deux QFU par piste (ex. "10/28" -> extremite 10 au cap bearing, 28 a +180).
+function runwayEnds(ad) {
+  const out = [];
+  (ad.runways || []).forEach((rw, ri) => {
+    const idents = String(rw.ident || '').split('/');
+    const b = Number(rw.bearing) || 0;
+    const len = Number(rw.length_m) || 800;
+    out.push({ label: (idents[0] || '').trim() || '?', bearing: b, length_m: len, ri });
+    out.push({ label: (idents[1] || '').trim() || '?', bearing: (b + 180) % 360, length_m: len, ri });
+  });
+  return out;
+}
+function fillAeroSelect() {
+  patAeroSel.innerHTML = aerodromes.map((ad, i) =>
+    '<option value="' + i + '">' + escapeHtml(ad.icao || ('AD' + i)) + '</option>').join('');
+}
+function fillRwySelect() {
+  const ad = aerodromes[patState.aero];
+  const ends = ad ? runwayEnds(ad) : [];
+  patState._ends = ends;
+  patRwySel.innerHTML = ends.map((e, i) =>
+    '<option value="' + i + '">QFU ' + escapeHtml(e.label)
+    + ' (' + String(Math.round(e.bearing)).padStart(3, '0') + '°)</option>').join('');
+  if (patState.rwy >= ends.length) patState.rwy = 0;
+  patRwySel.value = String(patState.rwy);
+}
+function clearPattern() {
+  patObjs.forEach((o) => {
+    vertGroup.remove(o);
+    const mi = routeMarkers.indexOf(o); if (mi >= 0) routeMarkers.splice(mi, 1);
+    if (o.geometry) o.geometry.dispose();
+    if (o.material && o.material.dispose) o.material.dispose();
+  });
+  patObjs = [];
+}
+function rebuildPattern() {
+  clearPattern();
+  if (!patState.on) { setPatMsg(''); return; }
+  const ad = aerodromes[patState.aero];
+  if (!ad) { setPatMsg('Aerodrome indisponible.'); return; }
+  const ends = patState._ends && patState._ends.length ? patState._ends : runwayEnds(ad);
+  const end = ends[patState.rwy];
+  if (!end) { setPatMsg('Pas de piste renseignee pour cet aerodrome.'); return; }
+  setPatMsg('');
+
+  const [x0, y0] = project(ad.lon, ad.lat);
+  const th = end.bearing * DEG;
+  const u = [Math.sin(th), Math.cos(th)];   // sens d'atterrissage (est, nord)
+  const side = patState.hand === 'L'
+    ? [-Math.cos(th), Math.sin(th)]         // main gauche : vent arriere a gauche
+    : [Math.cos(th), -Math.sin(th)];        // main droite
+  const half = end.length_m / 2;
+  const W = patState.widthNm * NM_TO_M;
+  const climb = 0.5 * NM_TO_M, finalExt = 0.7 * NM_TO_M;
+  const z = ((Number(ad.elevation_ft) || 0) + patState.altFt) * FT_TO_M;
+  const P = (a, b) => [x0 + u[0] * a + side[0] * b, y0 + u[1] * a + side[1] * b];
+
+  const TH = P(-half, 0);                    // seuil / point d'atterrissage
+  const U = P(half + climb, 0);              // fin de montee initiale (dans l'axe)
+  const X = P(half + climb, W);              // fin vent traversier / debut vent arriere
+  const DW = P(-half - finalExt, W);         // fin vent arriere / debut base
+  const BS = P(-half - finalExt, 0);         // fin base / debut finale (dans l'axe)
+  const pts = [TH, U, X, DW, BS, TH];
+
+  const flat = [];
+  pts.forEach((p) => flat.push(p[0], p[1], z));
+  const geo = new LineGeometry(); geo.setPositions(flat);
+  patLineMat = new LineMaterial({
+    color: PAT_COLOR, linewidth: 3, transparent: true, opacity: 0.95, depthTest: false, dashed: false,
+  });
+  patLineMat.resolution.set(window.innerWidth, window.innerHeight);
+  const line = new Line2(geo, patLineMat); line.computeLineDistances(); line.renderOrder = 23;
+  vertGroup.add(line); patObjs.push(line);
+
+  const mid = P(-finalExt / 2, W);           // etiquette au milieu du vent arriere
+  const lbl = makeLabel('TdP ' + end.label + ' · ' + patState.altFt + ' ft · '
+    + (patState.hand === 'L' ? 'G' : 'D'),
+    { fontSize: 30, worldHeight: radiusM * 0.035, color: '#8a1466', bg: 'rgba(255,240,250,0.94)' });
+  lbl.position.set(mid[0], mid[1], z); lbl.renderOrder = 24; vertGroup.add(lbl); patObjs.push(lbl);
+
+  const thm = new THREE.Mesh(                 // marqueur au seuil
+    new THREE.SphereGeometry(radiusM * 0.006, 16, 12),
+    new THREE.MeshBasicMaterial({ color: PAT_COLOR, depthTest: false }));
+  thm.position.set(TH[0], TH[1], z); thm.renderOrder = 24;
+  thm.scale.set(1, 1, 1 / curExag());        // reste ronde sous l'exageration
+  vertGroup.add(thm); patObjs.push(thm); routeMarkers.push(thm);
+}
+
+document.getElementById('patOn').addEventListener('change', (e) => {
+  patState.on = e.target.checked; patCtls.classList.toggle('show', patState.on); rebuildPattern();
+});
+patAeroSel.addEventListener('change', () => { patState.aero = parseInt(patAeroSel.value, 10) || 0; fillRwySelect(); rebuildPattern(); });
+patRwySel.addEventListener('change', () => { patState.rwy = parseInt(patRwySel.value, 10) || 0; rebuildPattern(); });
+patHandSel.addEventListener('change', () => { patState.hand = patHandSel.value; rebuildPattern(); });
+patAltInp.addEventListener('input', () => { patState.altFt = Math.max(0, parseFloat(patAltInp.value) || 1000); rebuildPattern(); });
+patWidthInp.addEventListener('input', () => { patState.widthNm = Math.max(0.1, parseFloat(patWidthInp.value) || 0.8); rebuildPattern(); });
+
+if (aerodromes.length) { fillAeroSelect(); fillRwySelect(); }
+else { document.getElementById('patternBlock').style.display = 'none'; }
 
 // Diagnostic pour tests headless
 window.__aerobriefer = {
@@ -1144,8 +1378,12 @@ window.__aerobriefer = {
   cameraFar: camera.far,
   maxDistance: controls.maxDistance,
   halfExtent: halfExtent,
-  get groundTiles() { return tileMeshes.length; },
-  get tilesVisible() { return tileMeshes.filter(m => m.visible).length; },
+  get groundTiles() { return activeTiles.size; },
+  get tilesVisible() { let n = 0; for (const r of activeTiles.values()) if (r.mesh.visible) n++; return n; },
+  get tileLayer() { return currentLayer; },
+  get patternOn() { return patState.on; },
+  get patternObjs() { return patObjs.length; },
+  get tileZooms() { const z=new Set(); for (const k of activeTiles.keys()) z.add(k.split('/')[1]); return [...z].sort(); },
   ready: true,
 };
 </script>
