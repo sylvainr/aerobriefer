@@ -19,7 +19,7 @@ from .aircraft.model import Aircraft, Conditions, isa_temperature_c
 from .aircraft.runway import assess_runway
 from .data import airports, airspace, frequencies, navaids
 from .data.elevation import DEFAULT_MARGIN_FT, Elevation, sample_positions, zmin_ft
-from .data.winds import WindsAloft
+from .data.winds import SurfaceWinds, WindsAloft
 from .domain.geo import Corridor, Position
 from .domain.models import Aerodrome, Runway
 from .domain.navlog import LegComputation, NavLog, Wind, compute_navlog
@@ -33,8 +33,6 @@ SIA_VAC_SEARCH = "https://www.sia.aviation-civile.gouv.fr/catalogsearch/result/?
 #: Visualisateur eAIP/VAC officiel (outil général).
 SIA_VAIP = "https://www.sia.aviation-civile.gouv.fr/vaip"
 
-
-_ARROWS = ("↑", "↗", "→", "↘", "↓", "↙", "←", "↖")
 
 #: Code Morse international (lettres + chiffres) — pour vérifier l'ident d'un VOR.
 _MORSE = {
@@ -104,20 +102,38 @@ class Vor:
 
 
 @dataclass(frozen=True, slots=True)
+class RunwayInfo:
+    """Une piste du terrain de déroutement : ident + taille, et si c'est CELLE à
+    utiliser (favorable au vent) avec sa distance d'atterrissage DR400."""
+
+    ident: str
+    length_m: int
+    surface: str | None
+    favoured: bool
+    landing_required_m: int | None
+    landing_ok: bool | None
+
+
+@dataclass(frozen=True, slots=True)
 class Diversion:
-    """Terrain de déroutement le plus proche. La direction est RELATIVE à la route
-    suivie (tourne à gauche/droite de X°, flèche où ↑ = droit devant), pas un cap
-    absolu — c'est ce qu'on manœuvre. Plus la piste et la marge d'atterrissage."""
+    """Terrain de déroutement le plus proche : où aller (cap RELATIF à la route,
+    signé pour orienter la flèche exactement), en combien de temps, sur quelle
+    piste (toutes listées, la favorable surlignée), avec le vent de surface et le
+    traversier/face — de quoi décider vite en cas d'urgence."""
 
     icao: str
+    name: str
     distance_nm: int
+    time_min: int
     relative_deg: int
     side: str  # "G" (gauche) | "D" (droite)
-    arrow: str
-    runway: str | None  # QFU le plus long + longueur, ex. « 11/29 · 1090 m »
-    landing_required_m: int | None
-    margin_pct: float | None
-    ok: bool | None
+    relative_signed_deg: int  # < 0 = gauche, > 0 = droite (rotation de la flèche)
+    runways: tuple[RunwayInfo, ...]
+    wind: str | None  # vent de surface, ex. « 270°/12 kt »
+    headwind_kt: int | None  # + face, − arrière, sur la piste favorable
+    crosswind_kt: int | None
+    xwind_arrow: str | None  # ← / → / · (sens du traversier)
+    xwind_from_right: bool | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,15 +168,15 @@ def _is_vhf_comm(freq_mhz: str) -> bool:
         return False
 
 
-def _relative(bearing_true_deg: float, track_true_deg: float) -> tuple[int, str, str]:
+def _relative(bearing_true_deg: float, track_true_deg: float) -> tuple[int, str, int]:
     """Position d'un cap PAR RAPPORT à la route suivie.
 
-    Renvoie (écart |°| arrondi, côté 'G'/'D', flèche relative où ↑ = droit devant).
-    L'écart est indépendant de la déclinaison (différence de deux caps vrais)."""
+    Renvoie (écart |°| arrondi, côté 'G'/'D', écart SIGNÉ arrondi — négatif à
+    gauche, positif à droite ; sert à faire pivoter la flèche exactement de cet
+    angle). Indépendant de la déclinaison (différence de deux caps vrais)."""
     rel = (bearing_true_deg - track_true_deg + 180.0) % 360.0 - 180.0  # (-180, 180]
     side = "G" if rel < 0 else "D"
-    arrow = _ARROWS[round((rel % 360.0) / 45.0) % 8]  # 0 = ↑ devant, +90 = → droite
-    return round(abs(rel)), side, arrow
+    return round(abs(rel)), side, round(rel)
 
 
 def _airport_radios(icao: str) -> list[Radio]:
@@ -228,39 +244,122 @@ def _vor_for(point: Position, magnetic_variation_deg: float) -> Vor | None:
     )
 
 
+def _landing_on(
+    aerodrome: Aerodrome, runway: Runway, aircraft: Aircraft, headwind_kt: float
+) -> tuple[int, bool] | None:
+    """Distance d'atterrissage DR400 requise sur CETTE piste (surface prise en
+    compte), conditions conservatrices + vent de face favorable s'il y en a."""
+    conditions = Conditions(
+        pressure_altitude_ft=float(aerodrome.elevation_ft),
+        temperature_c=isa_temperature_c(float(aerodrome.elevation_ft)) + 15.0,
+        mass_kg=aircraft.max_landing_mass_kg,
+        headwind_kt=max(0.0, headwind_kt),
+    )
+    verdict = assess_runway(aircraft, runway, conditions, operation="landing")
+    return verdict.required_m, verdict.ok
+
+
+def _safe_surface_wind(
+    provider: SurfaceWinds | None, position: Position, when: UtcDateTime
+) -> Wind | None:
+    """Vent de surface au terrain, ou None si indisponible (hors ligne, etc.) —
+    jamais fatal : sans vent, on liste juste les pistes sans favorable."""
+    if provider is None:
+        return None
+    try:
+        return provider.wind_at(position, when)
+    except Exception:  # noqa: BLE001 - vent indisponible : dégradation propre
+        return None
+
+
 def _diversion_for(
-    point: Position, exclude: str | None, aircraft: Aircraft, track_true_deg: float
+    point: Position,
+    exclude: str | None,
+    aircraft: Aircraft,
+    track_true_deg: float,
+    surface_winds: SurfaceWinds | None,
+    when: UtcDateTime,
 ) -> Diversion | None:
-    """Déroutement le plus proche, exprimé RELATIVEMENT à la route suivie (tourner
-    à G/D de X°), avec sa piste la plus longue et la marge d'atterrissage DR400."""
+    """Déroutement le plus proche, prêt pour l'urgence : cap RELATIF (signé), temps
+    à la TAS, toutes les pistes (la favorable au vent surlignée) et le vent de
+    surface décomposé (face/traversier)."""
     for aerodrome, distance in airports.nearest(point, within_nm=45.0, limit=3):
         if exclude and aerodrome.icao == exclude:
             continue
+        surface_wind = _safe_surface_wind(surface_winds, aerodrome.position, when)
         bearing_true = math.degrees(point.bearing_to(aerodrome.position)) % 360.0
-        angle, side, arrow = _relative(bearing_true, track_true_deg)
-        _, runway = _longest_runway(aerodrome.icao)
-        landing = _assess(
-            aerodrome.icao, aircraft, operation="landing", mass_kg=aircraft.max_landing_mass_kg
-        )
+        angle, side, signed = _relative(bearing_true, track_true_deg)
+        time_min = round(distance / aircraft.cruise_tas_kt * 60.0) if aircraft.cruise_tas_kt else 0
+
+        # Piste favorable + composantes, si on a le vent de surface.
+        favoured_qfu: str | None = None
+        headwind = crosswind = None
+        xwind_arrow = xwind_from_right = None
+        wind_label: str | None = None
+        favoured_headwind = 0.0
+        if surface_wind is not None:
+            wind_label = (
+                f"{surface_wind.from_deg:03.0f}°/{surface_wind.speed_kt:.0f} kt"
+                if surface_wind.speed_kt >= 1.0
+                else "calme"
+            )
+            comps = aerodrome.favoured_wind_components(surface_wind.from_deg, surface_wind.speed_kt)
+            if comps is not None:
+                favoured_qfu = comps.runway_ident
+                favoured_headwind = comps.headwind_kt
+                headwind = round(comps.headwind_kt)
+                crosswind = round(comps.crosswind_kt)
+                xwind_arrow = comps.arrow
+                xwind_from_right = comps.from_right
+
+        runways = sorted((r for r in aerodrome.runways if r.length_m), key=lambda r: -r.length_m)
+        if favoured_qfu is None and runways:  # sans vent : la plus longue par défaut
+            favoured_qfu = runways[0].ident.split("/")[0]
+
+        infos: list[RunwayInfo] = []
+        for runway in runways:
+            is_fav = favoured_qfu is not None and favoured_qfu in [
+                end.strip() for end in runway.ident.split("/")
+            ]
+            required = ok = None
+            if is_fav:
+                landing = _landing_on(aerodrome, runway, aircraft, favoured_headwind)
+                if landing is not None:
+                    required, ok = landing
+            infos.append(
+                RunwayInfo(runway.ident, runway.length_m, runway.surface, is_fav, required, ok)
+            )
+
         return Diversion(
             icao=aerodrome.icao,
+            name=aerodrome.name,
             distance_nm=round(distance),
+            time_min=time_min,
             relative_deg=angle,
             side=side,
-            arrow=arrow,
-            runway=f"{runway.ident} · {runway.length_m} m" if runway is not None else None,
-            landing_required_m=landing.required_m if landing is not None else None,
-            margin_pct=landing.margin_pct if landing is not None else None,
-            ok=landing.ok if landing is not None else None,
+            relative_signed_deg=signed,
+            runways=tuple(infos),
+            wind=wind_label,
+            headwind_kt=headwind,
+            crosswind_kt=crosswind,
+            xwind_arrow=xwind_arrow,
+            xwind_from_right=xwind_from_right,
         )
     return None
 
 
 def annotate_navlog(
-    navlog: NavLog, aircraft: Aircraft, *, magnetic_variation_deg: float = 0.0
+    navlog: NavLog,
+    aircraft: Aircraft,
+    *,
+    magnetic_variation_deg: float = 0.0,
+    surface_winds: SurfaceWinds | None = None,
 ) -> tuple[list[LegAnnotation], list[VacLink]]:
     """Enrichit chaque branche (radios, VOR, déroutement) et collecte les liens
-    VAC de tous les terrains de la route."""
+    VAC de tous les terrains de la route.
+
+    `surface_winds` (Open-Meteo) sert au vent au terrain de déroutement (piste
+    favorable + traversier) ; absent ou en échec → déroutement sans vent."""
     annotations: list[LegAnnotation] = []
     vac: dict[str, VacLink] = {}
 
@@ -282,6 +381,8 @@ def annotate_navlog(
             end_ad.icao if end_ad else None,
             aircraft,
             leg.true_track_deg,
+            surface_winds,
+            navlog.departure_time,
         )
         annotations.append(
             LegAnnotation(

@@ -110,13 +110,27 @@ def _diversion_view(div: Any | None) -> dict[str, Any] | None:
     return {
         "icao": div.icao,
         "url": vac_url(div.icao),
+        "name": div.name,
         "distance": div.distance_nm,
+        "time_min": div.time_min,
         "relative": f"{div.side}{div.relative_deg}°",  # ex. « G16° »
-        "arrow": div.arrow,
-        "runway": div.runway,
-        "required": div.landing_required_m,
-        "margin_pct": f"{div.margin_pct:+.0f}" if div.margin_pct is not None else None,
-        "ok": div.ok,
+        "rotate": div.relative_signed_deg,  # rotation exacte de la flèche (° signé)
+        "runways": [
+            {
+                "ident": rw.ident,
+                "length_m": rw.length_m,
+                "surface": rw.surface,
+                "favoured": rw.favoured,
+                "required": rw.landing_required_m,
+                "ok": rw.landing_ok,
+            }
+            for rw in div.runways
+        ],
+        "wind": div.wind,
+        "headwind": div.headwind_kt,
+        "crosswind": div.crosswind_kt,
+        "xwind_arrow": div.xwind_arrow,
+        "xwind_from_right": div.xwind_from_right,
     }
 
 

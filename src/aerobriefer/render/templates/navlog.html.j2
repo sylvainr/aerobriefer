@@ -24,7 +24,10 @@
   .auto { font-size: 6.2pt; color: #12232e; }
   .auto b { color: #2b6cb0; }
   .arrow { font-size: 9pt; font-weight: 700; }
-  .morse { font-family: "SF Mono", Menlo, Consolas, monospace; letter-spacing: 1px; color: #2b6cb0; }
+  .nw { white-space: nowrap; }               /* groupes valeur+unité insécables */
+  .dirarrow { display: inline-block; font-size: 10pt; font-weight: 700; color: #12232e; }
+  .rwyfav { background: #d6ecd9; font-weight: 700; padding: 0 0.5mm; border-radius: 0.5mm; }
+  .morse { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 5pt; letter-spacing: -0.3px; color: #2b6cb0; }
   th.big-h { font-size: 8pt; background: #35618e; }
   .lbl { font-size: 5.3pt; color: #888; text-transform: uppercase; letter-spacing: .3px; }
   .blank { display: block; border-bottom: .5pt solid #bbb; height: 3mm; }
@@ -66,9 +69,9 @@
       <th class="left">Branche</th>
       <th>Alt / Zmin</th>
       <th>RM <span style="font-weight:400">(Rv·Dv)</span></th>
-      <th>Dist<br>(NM)</th>
-      <th>Temps<br>(min)</th>
-      <th>Conso<br>(L)</th>
+      <th>Dist</th>
+      <th>Temps</th>
+      <th>Conso</th>
       <th class="fill big-h">HE</th>
       <th class="fill big-h">HR</th>
       <th>Radios <span style="font-weight:400">· VOR · notes</span></th>
@@ -85,29 +88,30 @@
       </td>
       <td class="c">
         <span class="big">{{ r.altitude }}</span><span class="sub"> ft</span>
-        {% if r.zmin %}<div class="auto"><span class="lbl">Zmin</span> <b>{{ r.zmin }}</b></div>{% else %}<span class="lbl">Zmin</span><span class="blank"></span>{% endif %}
+        {% if r.zmin %}<div class="auto"><span class="lbl">Zmin</span> <b>{{ r.zmin }} ft</b></div>{% else %}<span class="lbl">Zmin</span><span class="blank"></span>{% endif %}
       </td>
       <td class="c">
         <span class="big">{{ r.magnetic_heading }}°</span>
-        <div class="sub">Rv {{ r.true_track }} · Dv {{ r.drift }}</div>
-        <div class="sub">{{ r.wind }} · Vs {{ r.ground_speed }}</div>
+        <div class="sub"><span class="nw">Rv {{ r.true_track }}°</span> · <span class="nw">Dv {{ r.drift }}</span></div>
+        <div class="sub"><span class="nw">{{ r.wind }}</span> · <span class="nw">Vs {{ r.ground_speed }}</span></div>
       </td>
-      <td class="c"><span class="big">{{ r.distance }}</span> <span class="sub">NM</span><div class="sub">cum {{ r.cumulative }}<br>DTG {{ r.dtg }}</div></td>
-      <td class="c"><span class="big">{{ r.tav }}′</span><div class="sub">svt {{ r.tsv }}′</div></td>
-      <td class="c"><span class="big">{{ r.fuel }}</span> <span class="sub">L</span><div class="sub">cum {{ r.fuel_cumulative }}</div></td>
+      <td class="c"><span class="big">{{ r.distance }}</span> <span class="sub">NM</span><div class="sub"><span class="nw">cum {{ r.cumulative }} NM</span><br><span class="nw">DTG {{ r.dtg }} NM</span></div></td>
+      <td class="c"><span class="big">{{ r.tav }}</span> <span class="sub">min</span><div class="sub"><span class="nw">svt {{ r.tsv }} min</span></div></td>
+      <td class="c"><span class="big">{{ r.fuel }}</span> <span class="sub">L</span><div class="sub"><span class="nw">cum {{ r.fuel_cumulative }} L</span></div></td>
       <td class="fill"></td>
       <td class="fill"></td>
       <td class="auto">
-        {% for radio in r.radios %}<div><b>{{ radio.label }}</b> {{ radio.freq }}</div>{% endfor %}
-        {% if r.vor %}<div class="sub">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span> {{ r.vor.freq }} · R{{ r.vor.radial }}/{{ r.vor.distance }}</div>{% endif %}
+        {% for radio in r.radios %}<div class="nw"><b>{{ radio.label }}</b> {{ radio.freq }} MHz</div>{% endfor %}
+        {% if r.vor %}<div class="sub"><span class="nw">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span></span> <span class="nw">{{ r.vor.freq }} MHz</span> <span class="nw">R{{ r.vor.radial }}° · {{ r.vor.distance }} NM</span> <span class="lbl">(→ pt)</span></div>{% endif %}
         <span class="blank"></span><span class="blank"></span><span class="blank"></span>
       </td>
       <td class="auto">
         {% if r.diversion %}
-        <div><a href="{{ r.diversion.url }}"><b>{{ r.diversion.icao }}</b></a> <span class="arrow">{{ r.diversion.arrow }}</span> {{ r.diversion.relative }} · {{ r.diversion.distance }} NM</div>
-        {% if r.diversion.runway %}<div class="sub">piste {{ r.diversion.runway }}</div>{% endif %}
-        {% if r.diversion.required %}<div class="sub">atterro {{ r.diversion.required }} m ·
-          {% if r.diversion.ok %}<span class="go">marge {{ r.diversion.margin_pct }} %</span>{% else %}<span class="nogo">{{ r.diversion.margin_pct }} %</span>{% endif %}</div>{% endif %}
+        <div><a href="{{ r.diversion.url }}"><b>{{ r.diversion.icao }}</b></a> <span class="sub">{{ r.diversion.name }}</span></div>
+        <div><span class="dirarrow" style="transform:rotate({{ r.diversion.rotate }}deg)">↑</span> <span class="nw"><b>{{ r.diversion.relative }}</b></span> · <span class="nw">{{ r.diversion.distance }} NM</span> · <span class="nw">{{ r.diversion.time_min }} min</span></div>
+        {% if r.diversion.wind %}<div class="sub"><span class="nw">Vent {{ r.diversion.wind }}</span>{% if r.diversion.headwind is not none %} · <span class="nw">{% if r.diversion.headwind >= 0 %}face {{ r.diversion.headwind }}{% else %}arr. {{ -r.diversion.headwind }}{% endif %} kt</span> · <span class="nw">trav {{ r.diversion.crosswind }} kt {{ r.diversion.xwind_arrow }}</span>{% endif %}</div>{% endif %}
+        {% if r.diversion.runways %}<div class="sub">Pistes : {% for rw in r.diversion.runways %}<span class="nw{% if rw.favoured %} rwyfav{% endif %}">{{ rw.ident }} {{ rw.length_m }} m</span>{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
+        {% for rw in r.diversion.runways %}{% if rw.favoured and rw.required %}<div class="sub"><span class="nw">Dist. atterrissage {{ rw.ident }} : {{ rw.required }} m {% if rw.ok %}<span class="go">✓</span>{% else %}<span class="nogo">✗</span>{% endif %}</span></div>{% endif %}{% endfor %}
         {% else %}<span class="sub">—</span>{% endif %}
       </td>
     </tr>
@@ -116,7 +120,7 @@
       <td>TOTAL</td>
       <td class="c">—</td>
       <td class="c">—</td>
-      <td class="c">{{ total_distance }}</td>
+      <td class="c">{{ total_distance }} NM</td>
       <td class="c">{{ total_time }}</td>
       <td class="c">{{ total_fuel }}</td>
       <td class="fill"></td>

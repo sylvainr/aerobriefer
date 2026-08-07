@@ -44,12 +44,15 @@ def test_annotations_remplissent_vor_radios_deroutement():
     assert note.radios
     assert any("LFBD" in r.label for r in note.radios)
     assert all(r.freq for r in note.radios)
-    # Déroutement RELATIF à la route + marge d'atterrissage.
+    # Déroutement RELATIF à la route : cap signé pour la flèche + terrain nommé + pistes.
     div = note.diversion
     assert div is not None
+    assert div.name  # nom du terrain (pas juste le code)
     assert div.side in {"G", "D"}
     assert 0 <= div.relative_deg <= 180
-    assert div.arrow in {"↑", "↗", "→", "↘", "↓", "↙", "←", "↖"}
+    assert -180 <= div.relative_signed_deg <= 180
+    assert div.runways  # au moins une piste listée
+    assert any(rw.favoured for rw in div.runways)  # une piste favorable désignée
 
 
 def test_deroutement_relatif_a_la_route():

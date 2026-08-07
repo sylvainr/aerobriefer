@@ -182,3 +182,70 @@ class WindsAloft:
         response.raise_for_status()
         payload: dict[str, Any] = response.json()
         return payload
+
+
+class SurfaceWinds:
+    """Vent de SURFACE (10 m) prévu à un point, via Open-Meteo — pour la piste
+    favorable et le vent traversier/face au terrain de déroutement.
+
+    Même mécanique de cache que `WindsAloft`, requête distincte (champs 10 m)."""
+
+    def __init__(
+        self, *, cache_dir: Path | None = None, client: httpx.Client | None = None
+    ) -> None:
+        self._dir = cache_dir or Path(os.environ.get(ENV_DIR, _DEFAULT_DIR))
+        self._client = client
+        self._memory: dict[str, dict[str, Any]] = {}
+
+    def wind_at(self, position: Position, when: UtcDateTime) -> Wind | None:
+        """Vent de surface à l'heure pleine la plus proche, ou None si indisponible."""
+        hourly = self._hourly(position, when)
+        times = hourly.get("time") or []
+        if not times:
+            return None
+        index = _nearest_hour_index(times, when)
+        speeds = hourly.get("wind_speed_10m") or []
+        directions = hourly.get("wind_direction_10m") or []
+        if index >= len(speeds) or speeds[index] is None or directions[index] is None:
+            return None
+        return Wind(
+            from_deg=round(float(directions[index]) % 360.0, 1),
+            speed_kt=round(float(speeds[index]), 1),
+        )
+
+    def _hourly(self, position: Position, when: UtcDateTime) -> dict[str, Any]:
+        key = f"sfc_{position.lat:.2f}_{position.lon:.2f}_{when:%Y-%m-%d}"
+        if key in self._memory:
+            return self._memory[key]
+        path = self._dir / f"{key}.json"
+        if path.exists():
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        else:
+            payload = self._fetch(position, when)
+            self._dir.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(payload), encoding="utf-8")
+        hourly = payload.get("hourly")
+        if not isinstance(hourly, dict):
+            raise ValueError("réponse Open-Meteo sans bloc 'hourly'")
+        self._memory[key] = hourly
+        return hourly
+
+    def _fetch(self, position: Position, when: UtcDateTime) -> dict[str, Any]:
+        params = {
+            "latitude": f"{position.lat:.4f}",
+            "longitude": f"{position.lon:.4f}",
+            "hourly": "wind_speed_10m,wind_direction_10m",
+            "wind_speed_unit": "kn",
+            "start_date": f"{when:%Y-%m-%d}",
+            "end_date": f"{when:%Y-%m-%d}",
+            "timezone": "UTC",
+        }
+        client = self._client
+        if client is not None:
+            response = client.get(ENDPOINT, params=params, timeout=15.0)
+        else:
+            with httpx.Client(timeout=15.0) as owned:
+                response = owned.get(ENDPOINT, params=params)
+        response.raise_for_status()
+        payload: dict[str, Any] = response.json()
+        return payload

@@ -446,8 +446,13 @@ def _render_navlog(
         departure_time=context.window.start,
         magnetic_variation_deg=magnetic_variation_deg,
     )
+    from .data.winds import SurfaceWinds
+
     annotations, vac_links = annotate_navlog(
-        navlog, aircraft, magnetic_variation_deg=magnetic_variation_deg
+        navlog,
+        aircraft,
+        magnetic_variation_deg=magnetic_variation_deg,
+        surface_winds=SurfaceWinds(),
     )
     try:
         safety_ft = safety_altitudes(navlog)
