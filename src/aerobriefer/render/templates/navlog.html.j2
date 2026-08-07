@@ -19,7 +19,7 @@
   table { width: 100%; border-collapse: collapse; font-size: 6.6pt; table-layout: fixed; }
   th, td { border: .5pt solid #888; padding: 1mm 0.8mm; vertical-align: top; overflow-wrap: break-word; word-break: break-word; }
   th { background: #12232e; color: #fff; font-size: 5.6pt; text-transform: uppercase; letter-spacing: .2px; text-align: center; padding: 1mm 0.4mm; }
-  td { height: 14mm; }
+  td { height: 12mm; }
   .c { text-align: center; }
   .big { font-size: 9.5pt; font-weight: 700; }
   .sub { font-size: 5.8pt; color: #444; }
@@ -57,10 +57,6 @@
   .nogo { color: #b3261e; font-weight: 700; }
   tbody tr:nth-child(even) td { background: #fbfbfb; }
   .totals td { height: auto; font-weight: 700; background: #f0f0f0; border-top: 1.4pt solid #000; }
-  /* Ligne pleine largeur : rappel « briefing d'arrivée » (≥ 15 min avant l'atterrissage). */
-  .brief-row td { height: auto; background: #fff3cd; border: 1pt solid #e0c94a;
-    font-size: 7pt; color: #12232e; padding: 1.4mm 2mm; text-align: center; letter-spacing: .2px; }
-  .brief-row b { color: #8a6d00; }
   td a { color: #2b6cb0; text-decoration: none; }
   /* Mini-table (vents) : lignes compactes, pas la hauteur d'écriture du navlog. */
   table.mini { font-size: 7pt; margin-bottom: 1mm; }
@@ -78,12 +74,15 @@
   .page2 { break-before: page; }
   @media screen { .page2 { margin-top: 6mm; border-top: 2pt dashed #bbb; padding-top: 4mm; } }
   /* Aide-mémoire en vol (page 1) : 3 checklists rapides côte à côte. */
-  .aidemem { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.8mm; margin: 0 0 1.6mm; }
+  .aidemem { display: grid; grid-template-columns: 1fr 1fr 1fr 1.15fr; gap: 1.8mm; margin: 0 0 1.6mm; }
   .am { border: .5pt solid #888; border-radius: 1mm; padding: 0.7mm 1.4mm; font-size: 5.6pt; }
   .am > b { display: block; font-size: 5.3pt; text-transform: uppercase; letter-spacing: .3px;
     color: #35618e; margin-bottom: 0.4mm; border-bottom: .5pt solid #ccc; padding-bottom: 0.3mm; }
   /* Vraies checklists VERTICALES : un item par ligne, à cocher de haut en bas. */
   .am .ticks span { display: block; white-space: nowrap; line-height: 1.45; }
+  /* Radios du vol, une seule fois, triées alpha : libellé à gauche, fréq à droite. */
+  .am .radios .rline { display: flex; justify-content: space-between; gap: 2mm; line-height: 1.45; white-space: nowrap; }
+  .am .radios .rf { font-family: "SF Mono", Menlo, Consolas, monospace; }
 </style>
 
 <h1>LOG DE NAVIGATION — {{ origin }} → {{ destination }}</h1>
@@ -115,6 +114,12 @@
       <span>☐ Décision</span><span>☐ Cap</span><span>☐ TOP (estimée)</span><span>☐ Carburant + réserve</span><span>☐ VAC (QFU / alt / fréq)</span><span>☐ Radio (annonce)</span><span>☐ Espaces + Zmin</span><span>☐ Météo</span>
     </div>
   </div>
+  <div class="am">
+    <b>Radios (MHz)</b>
+    <div class="radios">
+      {% for radio in all_radios %}<div class="rline"><span class="rl">{{ radio.label }}</span><span class="rf">{{ radio.freq }}</span></div>{% endfor %}
+    </div>
+  </div>
 </div>
 
 <table>
@@ -125,7 +130,7 @@
   </colgroup>
   <thead>
     <tr>
-      <th class="left">Branche <span style="font-weight:400">· radios (MHz)</span></th>
+      <th class="left">Branche</th>
       <th>Alt / Zmin</th>
       <th>RM <span style="font-weight:400">(Rv·Dv)</span></th>
       <th>Dist</th>
@@ -133,17 +138,11 @@
       <th>Conso</th>
       <th class="fill big-h">HE</th>
       <th class="fill big-h">HR</th>
-      <th>Déroutements / Observations</th>
+      <th>{% if show_diversions %}Déroutements / {% endif %}Observations</th>
     </tr>
   </thead>
   <tbody>
     {% for r in rows %}
-    {% if r.get('brief_before') %}
-    <tr class="brief-row"><td colspan="9">
-      ☐ <b>BRIEFING D'ARRIVÉE</b> — à commencer ICI (~{{ r.brief_remaining_min }} min avant l'atterrissage) :
-      carte VAC · début descente · altitude visée · intégration · config · approche · particularités · RMG
-    </td></tr>
-    {% endif %}
     <tr>
       <td class="branche">
         <div class="mono b">{% if r.from.url %}<a href="{{ r.from.url }}">{{ r.from.code }}</a>{% else %}{{ r.from.code }}{% endif %}</div>
@@ -151,12 +150,6 @@
         <div class="down">↓</div>
         <div class="mono b">{% if r.to.url %}<a href="{{ r.to.url }}">{{ r.to.code }}</a>{% else %}{{ r.to.code }}{% endif %}</div>
         {% if r.to.name %}<div class="sub">{{ r.to.name }}</div>{% endif %}
-        {% if r.radios %}<div class="subblock">
-          <div class="subhead">Radios</div>
-          <table class="radiotbl">
-            {% for radio in r.radios %}<tr><td class="rlabel">{{ radio.label }}</td><td class="rfreq">{{ radio.freq }}</td></tr>{% endfor %}
-          </table>
-        </div>{% endif %}
       </td>
       <td class="c">
         <span class="big">{{ r.altitude }}</span><span class="sub"> ft</span>
@@ -173,6 +166,7 @@
       <td class="fill"></td>
       <td class="fill"></td>
       <td class="auto">
+        {% if show_diversions %}
         <div class="subhead">Déroutement</div>
         {% if r.diversion %}
         <div><a href="{{ r.diversion.url }}"><b>{{ r.diversion.icao }}</b></a> <span class="sub">{{ r.diversion.name }}</span></div>
@@ -181,6 +175,7 @@
         {% if r.diversion.favoured_qfu %}<div class="qfu"><span class="nw">QFU <b>{{ r.diversion.favoured_qfu }}</b></span> · <span class="nw">{{ r.diversion.favoured_length_m }} m</span>{% if r.diversion.favoured_required_m %} · <span class="nw">atterro {{ r.diversion.favoured_required_m }} m {% if r.diversion.favoured_ok %}<span class="go">✓</span>{% else %}<span class="nogo">✗</span>{% endif %}</span>{% endif %}</div>{% endif %}
         {% if r.diversion.runways|length > 1 %}<div class="sub">autres pistes : {% for rw in r.diversion.runways %}{% if not rw.favoured %}<span class="nw">{{ rw.ident }} {{ rw.length_m }} m</span>{% if not loop.last %} · {% endif %}{% endif %}{% endfor %}</div>{% endif %}
         {% else %}<span class="sub">—</span>{% endif %}
+        {% endif %}
         <div class="subblock">
           <div class="subhead">Observations</div>
           {% if r.vor %}<div class="obs-vor"><span class="nw"><b>{{ r.vor.ident }}</b> <span class="morse">{{ r.vor.morse }}</span></span> · <span class="nw">QDR <b>{{ r.vor.radial }}°</b></span> · <span class="nw">DME {{ r.vor.distance }} NM</span></div>{% endif %}
@@ -244,7 +239,7 @@
   <b>AIDE À LA PRÉPARATION — ne remplace pas le calcul officiel ni le jugement du commandant de bord.</b>
   HE/HR = heure estimée / réelle, à remplir. <b>RM = Rv − déclinaison</b> ({{ mag_var_label }}, à confirmer sur la carte).
   Dist : DI branche, cumul, DTG restante. Temps : avec vent (svt = sans vent).
-  Branche : départ ↓ arrivée + radios (terrains et espaces traversés, étiquetés, en MHz).
+  Branche : départ ↓ arrivée. Radios (terrains + espaces traversés) regroupées UNE fois en tête, triées A→Z.
   Déroutement = terrain le plus proche, direction RELATIVE à la route (flèche + G/D de X°),
   avec sa piste et la marge d'atterrissage DR400.
   Observations : radiale VOR en <b>QDR</b> (relèvement magnétique DEPUIS la station) — ident + Morse · QDR · DME ;

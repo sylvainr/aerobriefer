@@ -510,7 +510,11 @@ def _declination(override: float | None, center: Position, date_iso: str) -> flo
 
 
 def _render_navlog(
-    context: BriefingContext, output: Path, *, magnetic_variation_deg: float
+    context: BriefingContext,
+    output: Path,
+    *,
+    magnetic_variation_deg: float,
+    show_diversions: bool = True,
 ) -> None:
     """Produit le log de navigation PDF pour la route du contexte.
 
@@ -577,6 +581,7 @@ def _render_navlog(
         safety_ft=safety_ft,
         fuel_plan=fuel_plan,
         perfs=perfs,
+        show_diversions=show_diversions,
     )
     # Extension .html → page HTML (confort écran) ; sinon PDF imprimable.
     if output.suffix.lower() == ".html":
@@ -674,7 +679,12 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         variation = _declination(
             plan.declinaison_deg, context.geometry.bounding_circle().center, plan.date
         )
-        _render_navlog(context, out_dir / f"navlog_{label}.html", magnetic_variation_deg=variation)
+        _render_navlog(
+            context,
+            out_dir / f"navlog_{label}.html",
+            magnetic_variation_deg=variation,
+            show_diversions=False,  # masqué pour l'instant (place) — code conservé
+        )
         _render_fuelbalance(
             context, out_dir / f"bilan_carburant_{label}.html", magnetic_variation_deg=variation
         )

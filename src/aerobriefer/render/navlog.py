@@ -68,6 +68,23 @@ def _drift_label(wind_correction_deg: float) -> str:
     return f"{value:+d}° {'▶' if value > 0 else '◀'}"
 
 
+def _all_radios(annotations: list[Any] | None) -> list[dict[str, str]]:
+    """Toutes les radios du vol, dédoublonnées et triées par ordre alphabétique.
+
+    Les mêmes fréquences reviennent branche après branche ; on ne les liste qu'UNE
+    fois, dans un bloc unique en tête (au lieu de les répéter dans chaque case)."""
+    seen: set[tuple[str, str]] = set()
+    out: list[dict[str, str]] = []
+    for note in annotations or []:
+        for radio in note.radios if note else []:
+            key = (radio.label, radio.freq)
+            if key not in seen:
+                seen.add(key)
+                out.append({"label": radio.label, "freq": radio.freq})
+    out.sort(key=lambda item: item["label"])
+    return out
+
+
 def _rows(
     navlog: NavLog,
     tz: ZoneInfo,
@@ -97,21 +114,6 @@ def _rows(
                 speed_unit=speed_unit,
             )
         )
-
-    # Marqueur « briefing d'arrivée » : il DOIT rester ≥ 15 min de navigation entre
-    # le briefing et l'atterrissage. On remonte depuis l'arrivée en cumulant les
-    # temps ; la ligne se pose au début de la 1re branche (en partant de la fin)
-    # qui laisse ≥ 15 min de vol restant (sinon reportée à la branche d'avant).
-    if rows:
-        remaining_min = 0.0
-        brief_idx = 0
-        for i in range(len(navlog.legs) - 1, -1, -1):
-            remaining_min += navlog.legs[i].time.total_seconds() / 60.0
-            brief_idx = i
-            if remaining_min >= 15.0:
-                break
-        rows[brief_idx]["brief_before"] = True
-        rows[brief_idx]["brief_remaining_min"] = round(remaining_min)
     return rows
 
 
@@ -208,7 +210,6 @@ def _row(
         "fuel": f"{leg.fuel_l:.1f}" if leg.fuel_l is not None else "—",
         "fuel_cumulative": f"{cumulative_fuel:.1f}" if leg.fuel_l is not None else "—",
         # Auto-remplis depuis la donnée de référence.
-        "radios": [{"label": r.label, "freq": r.freq} for r in (note.radios if note else [])],
         "vor": _vor_view(note.vor if note else None),
         "diversion": _diversion_view(note.diversion if note else None),
     }
@@ -250,6 +251,7 @@ def render_navlog_html(
     safety_ft: list[float] | None = None,
     fuel_plan: Any | None = None,
     perfs: list[Any] | None = None,
+    show_diversions: bool = True,
     display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
     now: UtcDateTime | None = None,
 ) -> str:
@@ -274,6 +276,8 @@ def render_navlog_html(
         "arrival_dual": _dual(navlog.eta_arrival, tz, with_date=True),
         "arrival_local": _dual(navlog.eta_arrival, tz),
         "rows": _rows(navlog, tz, annotations, safety_ft, speed_unit),
+        "all_radios": _all_radios(annotations),
+        "show_diversions": show_diversions,
         "vac_links": [{"icao": v.icao, "name": v.name, "url": v.url} for v in (vac_links or [])],
         "fuel_plan": _fuel_view(fuel_plan),
         "perfs": [
