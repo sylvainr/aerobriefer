@@ -76,8 +76,8 @@
   .am { border: .5pt solid #888; border-radius: 1mm; padding: 1mm 1.5mm; font-size: 6pt; }
   .am > b { display: block; font-size: 5.6pt; text-transform: uppercase; letter-spacing: .3px;
     color: #35618e; margin-bottom: 0.7mm; border-bottom: .5pt solid #ccc; padding-bottom: 0.4mm; }
-  .am .seq { font-weight: 700; color: #12232e; letter-spacing: .2px; line-height: 1.5; }
-  .am .ticks span { white-space: nowrap; margin-right: 1.6mm; line-height: 1.7; }
+  /* Vraies checklists VERTICALES : un item par ligne, à cocher de haut en bas. */
+  .am .ticks span { display: block; white-space: nowrap; line-height: 1.85; }
 </style>
 
 <h1>LOG DE NAVIGATION — {{ origin }} → {{ destination }}</h1>
@@ -93,7 +93,9 @@
 <div class="aidemem">
   <div class="am">
     <b>Au point tournant</b>
-    <div class="seq">TOP · CAP · ALT · ESTIM · RADIO · NAV · GIRO · ESSENCE · MOTEUR · MÉTÉO</div>
+    <div class="ticks">
+      <span>☐ TOP</span><span>☐ CAP</span><span>☐ ALT</span><span>☐ ESTIM</span><span>☐ RADIO</span><span>☐ NAV</span><span>☐ GIRO</span><span>☐ ESSENCE</span><span>☐ MOTEUR</span><span>☐ MÉTÉO</span>
+    </div>
   </div>
   <div class="am">
     <b>Briefing arrivée</b>
@@ -104,7 +106,7 @@
   <div class="am">
     <b>Déroutement</b>
     <div class="ticks">
-      <span>☐ Décision</span><span>☐ Cap</span><span>☐ TOP (estimée)</span><span>☐ Carburant + réserve</span><span>☐ VAC (QFU/alt/fréq)</span><span>☐ Radio (annonce)</span><span>☐ Espaces + Zmin</span><span>☐ Météo</span>
+      <span>☐ Décision</span><span>☐ Cap</span><span>☐ TOP (estimée)</span><span>☐ Carburant + réserve</span><span>☐ VAC (QFU / alt / fréq)</span><span>☐ Radio (annonce)</span><span>☐ Espaces + Zmin</span><span>☐ Météo</span>
     </div>
   </div>
 </div>
