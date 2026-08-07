@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bilan carburant</title>
+<style>
+  :root { --ink:#12232e; --soft:#5a6b76; --line:#d6dde2; --accent:#2b6cb0; --ok:#1f6b3a; --bad:#b3261e; --bg:#eef1f4; --edit:#fff6c9; --editline:#e0c94a; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; color:var(--ink); background:var(--bg); }
+  header { padding:14px 20px; background:#fff; border-bottom:1px solid var(--line); }
+  h1 { margin:0; font-size:18px; letter-spacing:.3px; }
+  h1 small { color:var(--soft); font-weight:400; font-size:13px; }
+  main { display:flex; flex-wrap:wrap; gap:20px; padding:20px; align-items:flex-start; }
+  .panel { background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px; }
+  .sheet-panel { flex:1 1 460px; min-width:360px; }
+  .side { flex:1 1 260px; min-width:240px; }
+  h2 { font-size:15px; margin:0 0 10px; }
+  table.sheet { width:100%; border-collapse:collapse; font-size:13px; }
+  table.sheet th, table.sheet td { border:1px solid var(--line); padding:5px 8px; }
+  table.sheet thead th { background:#eef3f7; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--soft); text-align:right; }
+  table.sheet thead th:first-child { text-align:left; }
+  table.sheet tbody th { text-align:left; font-weight:600; }
+  table.sheet td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  table.sheet tr.tot th, table.sheet tr.tot td { font-weight:700; border-top:2px solid var(--ink); background:#eaf0f4; }
+  input.edit { width:74px; text-align:right; font-variant-numeric:tabular-nums; background:var(--edit); border:1px solid var(--editline); border-radius:4px; padding:3px 5px; font:inherit; }
+  input.edit:focus { outline:2px solid var(--accent); }
+  .fixed { color:var(--soft); }
+  .legende { font-size:12px; color:var(--soft); margin-top:8px; }
+  .legende .swatch { display:inline-block; width:12px; height:12px; background:var(--edit); border:1px solid var(--editline); border-radius:3px; vertical-align:-2px; margin-right:4px; }
+  .result { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+  .box { border:1px solid var(--line); border-radius:6px; padding:10px 12px; }
+  .box b { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--soft); margin-bottom:2px; }
+  .box .big { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .param { display:flex; justify-content:space-between; align-items:center; margin:8px 0; font-size:13px; }
+  .param label { font-weight:600; }
+  .status { text-align:center; font-weight:700; font-size:15px; padding:10px; border-radius:6px; margin-top:12px; }
+  .status.ok { background:#e3f2e8; color:var(--ok); }
+  .status.bad { background:#fdecea; color:var(--bad); }
+  footer { padding:12px 20px; color:var(--soft); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bilan carburant — <span id="acName"></span></h1>
+</header>
+
+<main>
+  <section class="panel sheet-panel">
+    <h2>Feuille de bilan (en minutes)</h2>
+    <table class="sheet">
+      <thead>
+        <tr><th>Poste</th><th>Unité</th><th>Temps unitaire (min)</th><th>Temps (min)</th></tr>
+      </thead>
+      <tbody id="body"></tbody>
+    </table>
+    <p class="legende"><span class="swatch"></span> cellules jaunes = à modifier.
+      Le temps de vol est pré-rempli depuis le log de navigation.</p>
+  </section>
+
+  <section class="panel side">
+    <h2>Résultat</h2>
+    <div class="param"><label>Conso horaire</label>
+      <span><input class="edit" id="p_conso" type="number" min="0" step="0.5"> L/h</span></div>
+    <div class="param"><label>Densité</label>
+      <span><input class="edit" id="p_dens" type="number" min="0" step="0.01"> kg/L</span></div>
+    <div class="result">
+      <div class="box"><b>Total</b><span class="big"><span id="r_min">—</span></span> <span id="r_hm" class="fixed"></span></div>
+      <div class="box"><b>Carburant requis</b><span class="big"><span id="r_l">—</span> L</span> <span class="fixed"><span id="r_kg">—</span> kg</span></div>
+    </div>
+    <div class="param" style="margin-top:14px"><label>Emport à bord</label>
+      <span><input class="edit" id="p_emport" type="number" min="0" step="1" value="0"> L
+        <span class="fixed">/ <span id="cap">—</span></span></span></div>
+    <div class="result">
+      <div class="box"><b>Marge</b><span class="big"><span id="r_marge">—</span> L</span></div>
+      <div class="box"><b>Autonomie</b><span class="big"><span id="r_auto">—</span></span></div>
+    </div>
+    <div id="status" class="status">—</div>
+  </section>
+</main>
+
+<footer>
+  Reproduction de votre bilan carburant : total en minutes → litres (÷ 60 × conso horaire) → kg
+  (× densité). Roulage 5 min/unité, intégration 10 min/unité, marge de sécurité 15 min, réserve
+  finale réglementaire 30 min. Calcul local, aucune donnée n'est envoyée.
+</footer>
+
+<script>
+const DATA = /*__AEROBRIEFER_FUEL__*/null;
+document.getElementById('acName').textContent = DATA.aircraft;
+document.getElementById('cap').textContent = DATA.capacity_l.toFixed(0) + ' L';
+
+// Postes du bilan. per = temps unitaire (min) ; unitEdit/perEdit = cellule jaune.
+const POSTES = [
+  { key:'vol',     label:'Temps de vol',                        unit:1, per:DATA.flight_min, perEdit:true },
+  { key:'roul',    label:'Roulages',                            unit:2, per:5,  unitEdit:true },
+  { key:'integ',   label:'Intégrations',                        unit:0, per:10, unitEdit:true },
+  { key:'derout',  label:'Déroutement (vol + inté + roulage)',  unit:1, per:0,  perEdit:true },
+  { key:'vent',    label:'Impact vent',                         unit:1, per:0,  perEdit:true },
+  { key:'marge',   label:'Marge de sécurité',                   unit:1, per:15 },
+  { key:'reserve', label:'Réserve finale réglementaire',        unit:1, per:30 },
+];
+
+function cell(kind, key, value) {
+  return '<input class="edit" id="' + kind + '_' + key + '" type="number" min="0" step="1" value="' + value + '">';
+}
+function fixed(v) { return '<span class="fixed">' + v + '</span>'; }
+
+let html = '';
+POSTES.forEach(p => {
+  const u = p.unitEdit ? cell('u', p.key, p.unit) : fixed(p.unit);
+  const per = p.perEdit ? cell('p', p.key, p.per) : fixed(p.per);
+  html += '<tr><th>' + p.label + '</th>' +
+    '<td class="num">' + u + '</td>' +
+    '<td class="num">' + per + '</td>' +
+    '<td class="num" id="t_' + p.key + '">—</td></tr>';
+});
+html += '<tr class="tot"><th>TOTAL</th><td></td><td></td><td class="num" id="t_total">—</td></tr>';
+document.getElementById('body').innerHTML = html;
+
+document.getElementById('p_conso').value = DATA.fuel_flow_lph;
+document.getElementById('p_dens').value = DATA.density_kg_per_l;
+
+function val(id, fallback) { const e = document.getElementById(id); return e ? (parseFloat(e.value) || 0) : fallback; }
+function hm(min) { const h = Math.floor(min / 60), m = Math.round(min % 60); return h + ' h ' + String(m).padStart(2, '0'); }
+
+function render() {
+  let total = 0;
+  POSTES.forEach(p => {
+    const u = p.unitEdit ? val('u_' + p.key, p.unit) : p.unit;
+    const per = p.perEdit ? val('p_' + p.key, p.per) : p.per;
+    const t = u * per;
+    total += t;
+    document.getElementById('t_' + p.key).textContent = t.toFixed(0);
+  });
+  document.getElementById('t_total').textContent = total.toFixed(0);
+
+  const conso = val('p_conso', DATA.fuel_flow_lph);
+  const dens = val('p_dens', DATA.density_kg_per_l);
+  const litres = total / 60 * conso;
+  const kg = litres * dens;
+  document.getElementById('r_min').textContent = total.toFixed(0) + ' min';
+  document.getElementById('r_hm').textContent = hm(total);
+  document.getElementById('r_l').textContent = litres.toFixed(1);
+  document.getElementById('r_kg').textContent = kg.toFixed(1);
+
+  const emport = val('p_emport', 0);
+  const marge = emport - litres;
+  document.getElementById('r_marge').textContent = marge.toFixed(1);
+  document.getElementById('r_auto').textContent = conso > 0 ? hm(emport / conso * 60) : '—';
+  const st = document.getElementById('status');
+  const ok = emport >= litres && emport > 0;
+  st.className = 'status ' + (ok ? 'ok' : 'bad');
+  st.textContent = emport <= 0 ? 'Saisir l\'emport à bord'
+    : (ok ? '✓ Emport suffisant (marge ' + marge.toFixed(0) + ' L)' : '⚠ Emport INSUFFISANT (' + marge.toFixed(0) + ' L)');
+  document.getElementById('cap').style.color = emport > DATA.capacity_l ? 'var(--bad)' : '';
+}
+
+document.querySelectorAll('input.edit').forEach(el => el.addEventListener('input', render));
+render();
+</script>
+</body>
+</html>

@@ -585,6 +585,28 @@ def _render_navlog(
         render_navlog_pdf(navlog, output, **meta)
 
 
+def _render_fuelbalance(
+    context: BriefingContext, output: Path, *, magnetic_variation_deg: float
+) -> None:
+    """Produit le bilan carburant par branche (HTML+JS autonome) pour la route.
+
+    Réutilise le MÊME `build_navlog` que le navlog (temps de branche identiques) ;
+    l'avion est résolu par immatriculation (--aeronef, défaut F-ZZZZ)."""
+    from .aircraft.registry import resolve as resolve_aircraft
+    from .navlog_build import build_navlog
+    from .render.fuelbalance import render_fuelbalance
+
+    assert context.route is not None
+    aircraft = resolve_aircraft(context.aircraft_id)
+    navlog = build_navlog(
+        context.route,
+        aircraft,
+        departure_time=context.window.start,
+        magnetic_variation_deg=magnetic_variation_deg,
+    )
+    output.write_text(render_fuelbalance(navlog, aircraft), encoding="utf-8")
+
+
 def _run_navplan(nav_path: Path, out_dir: Path) -> int:
     """Lit un fichier de navigation JSON et génère TOUT le dossier dans `out_dir`
     (briefing HTML+PDF, navlog HTML+PDF, viewer 3D, masse & centrage, checklist)."""
@@ -653,6 +675,9 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         )
         _render_navlog(context, out_dir / f"navlog_{label}.html", magnetic_variation_deg=variation)
         _render_navlog(context, out_dir / f"navlog_{label}.pdf", magnetic_variation_deg=variation)
+        _render_fuelbalance(
+            context, out_dir / f"bilan_carburant_{label}.html", magnetic_variation_deg=variation
+        )
         _render_checklist(context, out_dir / f"checklist_{label}.pdf", zone=plan.zone)
 
     print(f"  → dossier complet écrit dans {out_dir}")
