@@ -44,7 +44,12 @@ _HHMM = re.compile(r"\d{2}:\d{2}")
 
 class Waypoint(BaseModel):
     """Un point : soit un code OACI (`nom` seul), soit un point nommé par
-    coordonnées (`nom` + `lat` + `lon`). `altitude_ft` en pieds AMSL."""
+    coordonnées (`nom` + `lat` + `lon`). `altitude_ft` en pieds AMSL.
+
+    `travers: true` → le point n'est PAS la référence `nom` elle-même, mais le
+    « travers » de cette référence : le pied de sa perpendiculaire sur la droite
+    des DEUX points précédents (projection orthogonale). Exige deux points avant
+    lui et que la projection tombe DANS le segment (sinon : erreur au parsing)."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -52,6 +57,7 @@ class Waypoint(BaseModel):
     lat: float | None = Field(default=None, ge=-90.0, le=90.0)
     lon: float | None = Field(default=None, ge=-180.0, le=180.0)
     altitude_ft: float | None = Field(default=None, ge=0.0, le=60000.0)
+    travers: bool = False
 
     @model_validator(mode="after")
     def _coords_paired(self) -> Waypoint:
@@ -71,10 +77,21 @@ class NavPlan(BaseModel):
     duree_h: float = Field(gt=0.0, le=24.0)
     fuseau: str = "Europe/Paris"
     aeronef: str | None = None
-    declinaison_deg: float = Field(default=0.0, ge=-30.0, le=30.0)
+    declinaison_deg: float | None = Field(default=None, ge=-30.0, le=30.0)
+    """Déclinaison magnétique (° Est positif). `null`/absent → calculée
+    automatiquement (WMM, offline) d'après la position et la date."""
     demi_couloir_nm: float = Field(default=10.0, gt=0.0, le=100.0)
     depart: str
     points: list[Waypoint] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _travers_needs_two_preceding(self) -> NavPlan:
+        if self.points and self.points[0].travers:
+            raise ValueError(
+                "le premier point ne peut pas être un « travers » : il faut deux points "
+                "avant lui, or le départ n'en fournit qu'un"
+            )
+        return self
 
     @field_validator("date")
     @classmethod
@@ -111,14 +128,18 @@ class NavPlan(BaseModel):
 
     @property
     def route_spec(self) -> str:
-        """Chaîne de route pour `cli.parse_route` (« NOM:lat/lon@alt,… »)."""
+        """Chaîne de route pour `cli.parse_route` (« NOM:lat/lon@alt,… »).
+
+        Un « travers » est préfixé par « ~ » (ex. « ~LFBD@2500 ») : `parse_route`
+        le reconnaît et projette la référence sur la branche précédente."""
         parts: list[str] = []
         for point in self.points:
             altitude = f"@{point.altitude_ft:g}" if point.altitude_ft is not None else ""
+            prefix = "~" if point.travers else ""
             if point.lat is not None and point.lon is not None:
-                parts.append(f"{point.nom}:{point.lat:g}/{point.lon:g}{altitude}")
+                parts.append(f"{prefix}{point.nom}:{point.lat:g}/{point.lon:g}{altitude}")
             else:
-                parts.append(f"{point.nom}{altitude}")
+                parts.append(f"{prefix}{point.nom}{altitude}")
         return ",".join(parts)
 
 

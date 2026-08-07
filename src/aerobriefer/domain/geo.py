@@ -15,6 +15,29 @@ from typing import Protocol
 EARTH_RADIUS_NM = 3440.065
 
 
+def project_onto_segment(point: Position, start: Position, end: Position) -> tuple[Position, float]:
+    """Pied de la perpendiculaire de `point` sur la droite (start, end).
+
+    Renvoie (projection, t) où t est l'abscisse relative le long de start→end :
+    t=0 au start, t=1 au end. La projection tombe SUR le segment ssi 0 ≤ t ≤ 1.
+    Sert au « travers » : le point au travers d'une référence est le pied de sa
+    perpendiculaire sur la branche courante.
+
+    Projection équirectangulaire locale (autour de `start`) : sur les dizaines de
+    NM d'une branche VFR, l'écart à la sphère est négligeable.
+    """
+    k = math.cos(math.radians(start.lat))
+    bx, by = (end.lon - start.lon) * k, (end.lat - start.lat)
+    px, py = (point.lon - start.lon) * k, (point.lat - start.lat)
+    denom = bx * bx + by * by
+    if denom == 0.0:
+        raise ValueError("segment dégénéré : les deux points précédents sont confondus")
+    t = (px * bx + py * by) / denom
+    foot_lon = start.lon + (t * bx / k if k != 0.0 else 0.0)
+    foot_lat = start.lat + t * by
+    return Position(foot_lat, foot_lon), t
+
+
 @dataclass(frozen=True, slots=True)
 class Position:
     lat: float

@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 from .assemble import assemble_briefing
 from .data import airports
 from .domain.context import BriefingContext
-from .domain.geo import Position
+from .domain.geo import Position, project_onto_segment
 from .domain.models import Aerodrome
 from .domain.route import Route, Waypoint
 from .domain.window import TimeWindow, UtcDateTime
@@ -99,6 +99,12 @@ def parse_route(spec: str, *, default_first: str | None = None) -> Route:
     premier point de `spec` n'est pas le terrain de départ, on l'ajoute en tête.
     """
     waypoints: list[Waypoint] = []
+    # On amorce par le départ pour que les points suivants (notamment un « travers »)
+    # disposent des points PRÉCÉDENTS pendant le parsing.
+    if default_first:
+        head = airports.require(default_first)
+        waypoints.append(Waypoint(name=head.icao, position=head.position))
+    seeded = len(waypoints)
     for token in spec.split(","):
         token = token.strip()
         if not token:
@@ -106,14 +112,40 @@ def parse_route(spec: str, *, default_first: str | None = None) -> Route:
         # Un « lat,lon » a été coupé par la virgule : on rattache au précédent.
         waypoints.append(_parse_waypoint(token, waypoints))
 
-    points = _regroup_coord_pairs(waypoints)
-    if default_first and (not points or points[0].name.upper() != default_first.upper()):
-        head = airports.require(default_first)
-        points.insert(0, Waypoint(name=head.icao, position=head.position))
-    return Route(points)
+    # Si le premier point du spec EST déjà le départ, il double le point de tête.
+    if (
+        default_first
+        and len(waypoints) > seeded
+        and waypoints[seeded].name.upper() == default_first.upper()
+    ):
+        del waypoints[seeded]
+    return Route(_regroup_coord_pairs(waypoints))
 
 
-def _parse_waypoint(token: str, _prev: list[Waypoint]) -> Waypoint:
+def _parse_waypoint(token: str, prev: list[Waypoint]) -> Waypoint:
+    """Un jeton de route → point. Préfixe « ~ » = travers (projeté sur la branche
+    des deux points précédents)."""
+    if token.startswith("~"):
+        return _travers_waypoint(token[1:], prev)
+    return _resolve_point(token)
+
+
+def _travers_waypoint(core: str, prev: list[Waypoint]) -> Waypoint:
+    """Travers d'une référence : pied de sa perpendiculaire sur le segment des deux
+    derniers points. Rejeté si la projection tombe hors du segment."""
+    ref = _resolve_point(core)
+    if len(prev) < 2:
+        raise ValueError(f"travers « {ref.name} » : deux points précédents requis")
+    foot, t = project_onto_segment(ref.position, prev[-2].position, prev[-1].position)
+    if not (-1e-9 <= t <= 1.0 + 1e-9):
+        raise ValueError(
+            f"travers « {ref.name} » hors du segment précédent : la perpendiculaire "
+            f"tombe en dehors (position relative {t:.2f} ∉ [0, 1])"
+        )
+    return Waypoint(name=f"T/{ref.name}", position=foot, altitude_ft=ref.altitude_ft)
+
+
+def _resolve_point(token: str) -> Waypoint:
     name_part, _, alt_part = token.partition("@")
     altitude = float(alt_part) if alt_part else None
     name_part = name_part.strip()
@@ -302,8 +334,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--declinaison",
         type=float,
-        default=0.0,
-        help="déclinaison magnétique (° Est positif), à lire sur la carte (défaut 0)",
+        default=None,
+        help="déclinaison magnétique (° Est positif) ; défaut : calculée (WMM, offline)",
     )
     parser.add_argument(
         "--masse-centrage",
@@ -382,7 +414,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.navlog:
         if context.route is None:
             parser.error("--navlog exige une route : ajouter --route")
-        _render_navlog(context, args.navlog, magnetic_variation_deg=args.declinaison)
+        variation = _declination(
+            args.declinaison,
+            context.geometry.bounding_circle().center,
+            context.window.start.strftime("%Y-%m-%d"),
+        )
+        _render_navlog(context, args.navlog, magnetic_variation_deg=variation)
         print(f"  Navlog : {args.navlog}")
 
     if args.masse_centrage:
@@ -448,6 +485,24 @@ def _render_checklist(context: BriefingContext, output: Path, *, zone: str) -> N
         vac_icaos=vac_icaos,
         display_timezone=zone,
     )
+
+
+def _declination(override: float | None, center: Position, date_iso: str) -> float:
+    """Déclinaison magnétique : l'override s'il est donné, sinon le calcul WMM offline.
+
+    Si le modèle est indisponible, on retombe sur 0° en le SIGNALANT (plutôt que de
+    faire échouer tout le dossier) — mais pygeomag est offline/déterministe."""
+    if override is not None:
+        return override
+    try:
+        from .data import magnetic
+
+        value = magnetic.declination_deg(center, year=magnetic.decimal_year(date_iso))
+        print(f"  Déclinaison magnétique {value:+.1f}° (WMM_2025, automatique)")
+        return value
+    except Exception as exc:  # noqa: BLE001 - WMM indispo : 0° signalé, pas fatal
+        print(f"  ATTENTION : déclinaison auto indisponible ({exc}) → 0°")
+        return 0.0
 
 
 def _render_navlog(
@@ -581,12 +636,11 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         render_massbalance(resolve_aircraft(plan.aeronef)), encoding="utf-8"
     )
     if context.route is not None:
-        _render_navlog(
-            context, out_dir / f"navlog_{slug}.html", magnetic_variation_deg=plan.declinaison_deg
+        variation = _declination(
+            plan.declinaison_deg, context.geometry.bounding_circle().center, plan.date
         )
-        _render_navlog(
-            context, out_dir / f"navlog_{slug}.pdf", magnetic_variation_deg=plan.declinaison_deg
-        )
+        _render_navlog(context, out_dir / f"navlog_{slug}.html", magnetic_variation_deg=variation)
+        _render_navlog(context, out_dir / f"navlog_{slug}.pdf", magnetic_variation_deg=variation)
         _render_checklist(context, out_dir / f"checklist_{slug}.pdf", zone=plan.zone)
 
     print(f"  → dossier complet écrit dans {out_dir}")
