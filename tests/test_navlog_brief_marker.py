@@ -52,3 +52,18 @@ def test_vol_court_marqueur_au_debut():
     # Vol total < 15 min : briefing dès le départ.
     rows = _rows(_navlog([6.0, 5.0]), _TZ, None, None, "kt")
     assert _brief_index(rows) == 0
+
+
+def test_rendu_html_contient_le_marqueur():
+    """Rendu complet du gabarit (attrape les régressions StrictUndefined)."""
+    from aerobriefer.render.navlog import render_navlog_html
+
+    html = render_navlog_html(
+        _navlog([20.0, 20.0]),
+        origin="P0",
+        destination="P2",
+        aircraft_name="Test",
+        tas_kt=60.0,
+        fuel_flow_lph=30.0,
+    )
+    assert "BRIEFING D'ARRIVÉE" in html

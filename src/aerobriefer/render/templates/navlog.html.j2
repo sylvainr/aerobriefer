@@ -130,7 +130,7 @@
   </thead>
   <tbody>
     {% for r in rows %}
-    {% if r.brief_before %}
+    {% if r.get('brief_before') %}
     <tr class="brief-row"><td colspan="9">
       ☐ <b>BRIEFING D'ARRIVÉE</b> — à commencer ICI (~{{ r.brief_remaining_min }} min avant l'atterrissage) :
       carte VAC · début descente · altitude visée · intégration · config · approche · particularités · RMG
