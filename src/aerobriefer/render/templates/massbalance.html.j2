@@ -34,6 +34,12 @@
   .legend span { display:inline-flex; align-items:center; gap:5px; }
   .dot { width:11px; height:11px; border-radius:50%; display:inline-block; }
   footer { padding:12px 20px; color:var(--soft); font-size:12px; }
+  .data { margin:0 20px 20px; }
+  .data h2 { font-size:15px; margin:0 0 4px; }
+  .data .src { color:var(--soft); font-size:12px; margin:0 0 10px; }
+  .data table { width:100%; border-collapse:collapse; font-size:12px; }
+  .data th, .data td { border:1px solid var(--line); padding:5px 9px; text-align:left; vertical-align:top; }
+  .data th { background:#f4f7f9; font-weight:600; white-space:nowrap; width:1%; }
 </style>
 </head>
 <body>
@@ -62,6 +68,8 @@
     </div>
   </section>
 </main>
+
+<section id="wbdata" class="panel data"></section>
 
 <footer>
   Enveloppe de centrage : bras (m) en abscisse, masse (kg) en ordonnée. La ligne relie le point AVEC
@@ -105,7 +113,7 @@ DATA.stations.forEach((s, i) => {
   const wrap = document.createElement('div');
   wrap.className = 'st';
   wrap.innerHTML =
-    '<div class="row"><label>' + s.name + ' <span class="arm">bras ' + s.arm_m.toFixed(2) + ' m</span></label>' +
+    '<div class="row"><label>' + s.name + ' <span class="arm">bras ' + s.arm_m.toFixed(2) + ' m · max ' + s.max_kg.toFixed(0) + ' kg</span></label>' +
     '<span class="val"><span id="v' + i + '">' + s.default_kg.toFixed(0) + '</span> kg</span></div>' +
     '<input type="range" min="0" max="' + s.max_kg + '" step="1" value="' + s.default_kg + '" id="r' + i + '">';
   host.appendChild(wrap);
@@ -128,6 +136,29 @@ fw.querySelector('#rf').addEventListener('input', e => {
   document.getElementById('vf').textContent = fuelL.toFixed(0);
   render();
 });
+
+// ---- Données utilisées (transparence : d'où vient chaque chiffre) -----------
+(function () {
+  const rows = [];
+  rows.push(['Masse à vide', DATA.empty.mass_kg.toFixed(0) + ' kg', 'bras ' + DATA.empty.arm_m.toFixed(3) + ' m']);
+  DATA.stations.forEach(s => rows.push([
+    s.name, 'max ' + s.max_kg.toFixed(0) + ' kg', 'bras ' + s.arm_m.toFixed(3) + ' m',
+  ]));
+  rows.push([
+    DATA.fuel.name,
+    'capacité ' + DATA.fuel.capacity_l.toFixed(0) + ' L · densité ' + DATA.fuel.density_kg_per_l.toFixed(2) + ' kg/L',
+    'bras ' + DATA.fuel.arm_m.toFixed(3) + ' m',
+  ]);
+  rows.push(['MTOW', DATA.max_mass_kg.toFixed(0) + ' kg', '']);
+  const env = DATA.envelope.map(p => '(' + p[0].toFixed(3) + ' m, ' + p[1].toFixed(0) + ' kg)').join(' · ');
+  rows.push(['Enveloppe (bras, masse)', env, '']);
+  const body = rows.map(r =>
+    '<tr><th>' + r[0] + '</th><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>').join('');
+  document.getElementById('wbdata').innerHTML =
+    '<h2>Données utilisées</h2><p class="src">Toutes issues du modèle de l\'avion (code) — ' +
+    'aucune valeur inventée au rendu. À remplacer par les données de VOTRE appareil.</p>' +
+    '<table>' + body + '</table>';
+})();
 
 // ---- tracé -----------------------------------------------------------------
 const svg = document.getElementById('chart');

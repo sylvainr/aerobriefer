@@ -169,10 +169,12 @@ class DR400_160(Aircraft):
     weight_balance = WeightBalance(
         empty_mass_kg=620.0,
         empty_arm_m=0.32,
+        # max_kg = borne du curseur (limite de poste). Valeurs FICTIVES, larges :
+        # c'est surtout l'enveloppe de centrage + la MTOW qui bornent réellement.
         stations=(
-            Station(name="Sièges avant", arm_m=0.41, max_kg=180.0, default_kg=150.0),
-            Station(name="Sièges arrière", arm_m=1.19, max_kg=160.0),
-            Station(name="Bagages", arm_m=1.90, max_kg=40.0),
+            Station(name="Sièges avant", arm_m=0.41, max_kg=220.0, default_kg=150.0),
+            Station(name="Sièges arrière", arm_m=1.19, max_kg=200.0),
+            Station(name="Bagages", arm_m=1.90, max_kg=60.0),
         ),
         fuel=FuelTank(arm_m=1.12, capacity_l=110.0, density_kg_per_l=0.72, default_l=80.0),
         # Enveloppe FICTIVE (bras_m, masse_kg), polygone fermé.
