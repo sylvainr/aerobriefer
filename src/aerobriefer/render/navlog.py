@@ -23,6 +23,15 @@ from ..navlog_build import vac_url
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 TEMPLATE_NAME = "navlog.html.j2"
 DEFAULT_DISPLAY_TIMEZONE = "Europe/Paris"
+_KMH_PER_KT = 1.852
+
+
+def _speed(kt: float | None, unit: str) -> str:
+    """Vitesse propre à l'avion (TAS/sol) dans l'unité du badin, UNITÉ EXPLICITE.
+    Le calcul reste en nœuds ; on ne convertit qu'à l'affichage."""
+    if kt is None:
+        return "—"
+    return f"{kt * _KMH_PER_KT:.0f} km/h" if unit == "km/h" else f"{kt:.0f} kt"
 
 
 def _dual(instant: UtcDateTime, tz: ZoneInfo, *, with_date: bool = False) -> str:
@@ -46,9 +55,10 @@ def _mag_var_label(magnetic_variation_deg: float) -> str:
 
 
 def _wind_label(leg: LegComputation) -> str:
+    # Le vent est TOUJOURS en nœuds (standard aéro), unité explicite.
     if leg.wind.speed_kt < 1.0:
         return "calme"
-    return f"{leg.wind.from_deg:03.0f}°/{leg.wind.speed_kt:.0f}"
+    return f"{leg.wind.from_deg:03.0f}°/{leg.wind.speed_kt:.0f} kt"
 
 
 def _drift_label(wind_correction_deg: float) -> str:
@@ -63,6 +73,7 @@ def _rows(
     tz: ZoneInfo,
     annotations: list[Any] | None,
     safety_ft: list[float] | None,
+    speed_unit: str,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     total = navlog.total_distance_nm
@@ -83,6 +94,7 @@ def _rows(
                 cumulative_fuel=cumulative_fuel,
                 note=note,
                 zmin_ft=zmin,
+                speed_unit=speed_unit,
             )
         )
     return rows
@@ -137,6 +149,7 @@ def _row(
     cumulative_fuel: float,
     note: Any | None,
     zmin_ft: float | None,
+    speed_unit: str,
 ) -> dict[str, Any]:
     tsv_h = leg.distance_nm / leg.tas_kt if leg.tas_kt else 0.0
     return {
@@ -152,7 +165,7 @@ def _row(
         "distance": f"{leg.distance_nm:.1f}",
         "cumulative": f"{cumulative_nm:.1f}",
         "dtg": f"{max(0.0, remaining_nm):.1f}",
-        "ground_speed": f"{leg.ground_speed_kt:.0f}",
+        "ground_speed": _speed(leg.ground_speed_kt, speed_unit),
         "tsv": _minutes(tsv_h),  # temps sans vent
         "tav": _minutes(leg.time.total_seconds() / 3600.0),  # temps avec vent
         "fuel": f"{leg.fuel_l:.1f}" if leg.fuel_l is not None else "—",
@@ -193,6 +206,7 @@ def render_navlog_html(
     aircraft_name: str,
     tas_kt: float,
     fuel_flow_lph: float | None,
+    speed_unit: str = "kt",
     magnetic_variation_deg: float = 0.0,
     annotations: list[Any] | None = None,
     vac_links: list[Any] | None = None,
@@ -216,13 +230,13 @@ def render_navlog_html(
         "origin": origin,
         "destination": destination,
         "aircraft_name": aircraft_name,
-        "tas_kt": f"{tas_kt:.0f}",
+        "tas": _speed(tas_kt, speed_unit),
         "fuel_flow_lph": f"{fuel_flow_lph:.0f}" if fuel_flow_lph is not None else "—",
         "mag_var_label": _mag_var_label(magnetic_variation_deg),
         "departure_dual": _dual(navlog.departure_time, tz, with_date=True),
         "arrival_dual": _dual(navlog.eta_arrival, tz, with_date=True),
         "arrival_local": _dual(navlog.eta_arrival, tz),
-        "rows": _rows(navlog, tz, annotations, safety_ft),
+        "rows": _rows(navlog, tz, annotations, safety_ft, speed_unit),
         "vac_links": [{"icao": v.icao, "name": v.name, "url": v.url} for v in (vac_links or [])],
         "fuel_plan": _fuel_view(fuel_plan),
         "perfs": [

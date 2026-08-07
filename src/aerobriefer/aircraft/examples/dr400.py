@@ -161,6 +161,8 @@ class DR400_160(Aircraft):
     #: et régime). Utilisées telles quelles par le log de navigation.
     cruise_tas_kt = 130.0
     cruise_fuel_lph = 32.0
+    #: Badin du DR400 en km/h (vitesses affichées en km/h ; vent toujours en kt).
+    speed_unit = "km/h"
     #: Masse & centrage — valeurs typiques, PAS celles d'un appareil réel (F-ZZZZ
     #: est fictif). Le cadre est bon, les nombres sont à remplacer par la fiche de
     #: pesée et les bras du manuel de VOTRE avion.

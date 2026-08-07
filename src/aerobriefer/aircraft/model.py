@@ -260,6 +260,11 @@ class Aircraft(ABC):
     cruise_tas_kt: float = 0.0
     cruise_fuel_lph: float = 0.0
 
+    # Unité d'AFFICHAGE des vitesses propres à l'avion (TAS, vitesse-sol) : "kt"
+    # ou "km/h", selon le badin. Le calcul reste en nœuds ; le VENT est TOUJOURS
+    # affiché en nœuds (standard aéro), quelle que soit cette unité.
+    speed_unit: str = "kt"
+
     # Masse & centrage (postes de pesage + enveloppe). None = non renseigné.
     weight_balance: WeightBalance | None = None
 

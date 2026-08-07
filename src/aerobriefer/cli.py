@@ -476,6 +476,7 @@ def _render_navlog(
         aircraft_name=aircraft.name,
         tas_kt=aircraft.cruise_tas_kt,
         fuel_flow_lph=aircraft.cruise_fuel_lph or None,
+        speed_unit=aircraft.speed_unit,
         magnetic_variation_deg=magnetic_variation_deg,
         annotations=annotations,
         vac_links=vac_links,
