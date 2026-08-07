@@ -255,22 +255,26 @@ class WeightBalance(BaseModel):
     empty_mass_kg: float = Field(alias="masse_vide_kg")
     empty_arm_m: float = Field(alias="bras_vide_m")
     stations: tuple[Station, ...] = Field(alias="postes")
-    fuel: FuelTank = Field(alias="reservoir")
+    # Un ou PLUSIEURS réservoirs : leurs bras diffèrent (ex. DR400 : nourrice
+    # arrière vs réservoirs avant), donc le carburant est saisi par réservoir.
+    fuels: tuple[FuelTank, ...] = Field(alias="reservoirs")
     # sommets (bras_m, masse_kg) du polygone d'enveloppe
     envelope: tuple[tuple[float, float], ...] = Field(alias="enveloppe")
     max_mass_kg: float = Field(alias="max_masse_kg")
 
-    def state(self, loads_kg: Mapping[str, float], fuel_l: float) -> WBState:
-        """Masse, bras et respect d'enveloppe pour un chargement donné."""
+    def state(self, loads_kg: Mapping[str, float], fuels_l: Mapping[str, float]) -> WBState:
+        """Masse, bras et respect d'enveloppe. `fuels_l` = litres PAR réservoir (clé
+        = nom du réservoir) — les bras diffèrent, on ne peut pas agréger."""
         mass = self.empty_mass_kg
         moment = self.empty_mass_kg * self.empty_arm_m
         for station in self.stations:
             weight = loads_kg.get(station.name, 0.0)
             mass += weight
             moment += weight * station.arm_m
-        fuel_kg = fuel_l * self.fuel.density_kg_per_l
-        mass += fuel_kg
-        moment += fuel_kg * self.fuel.arm_m
+        for tank in self.fuels:
+            fuel_kg = fuels_l.get(tank.name, 0.0) * tank.density_kg_per_l
+            mass += fuel_kg
+            moment += fuel_kg * tank.arm_m
         arm = moment / mass if mass > 0 else 0.0
         return WBState(
             mass_kg=mass, arm_m=arm, within_envelope=_in_polygon(arm, mass, self.envelope)

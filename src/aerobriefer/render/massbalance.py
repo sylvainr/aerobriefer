@@ -35,13 +35,16 @@ def massbalance_data(aircraft: AircraftSpec) -> dict[str, Any]:
             {"name": s.name, "arm_m": s.arm_m, "max_kg": s.max_kg, "default_kg": s.default_kg}
             for s in wb.stations
         ],
-        "fuel": {
-            "name": wb.fuel.name,
-            "arm_m": wb.fuel.arm_m,
-            "capacity_l": wb.fuel.capacity_l,
-            "density_kg_per_l": wb.fuel.density_kg_per_l,
-            "default_l": wb.fuel.default_l,
-        },
+        "fuels": [
+            {
+                "name": t.name,
+                "arm_m": t.arm_m,
+                "capacity_l": t.capacity_l,
+                "density_kg_per_l": t.density_kg_per_l,
+                "default_l": t.default_l,
+            }
+            for t in wb.fuels
+        ],
         "envelope": [[arm, mass] for arm, mass in wb.envelope],
     }
 

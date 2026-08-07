@@ -459,7 +459,9 @@ def _render_checklist(context: BriefingContext, output: Path, *, zone: str) -> N
     sun = sun_times(local_start.date(), center.lat, center.lon)
 
     fuel_min = None
-    capacity = aircraft.weight_balance.fuel.capacity_l if aircraft.weight_balance else 0.0
+    capacity = (
+        sum(t.capacity_l for t in aircraft.weight_balance.fuels) if aircraft.weight_balance else 0.0
+    )
     if aircraft.cruise_tas_kt and aircraft.cruise_fuel_lph and capacity:
         trip_l = route.total_distance_nm() / aircraft.cruise_tas_kt * aircraft.cruise_fuel_lph
         plan = fuel_plan(trip_l=trip_l, fuel_flow_lph=aircraft.cruise_fuel_lph, capacity_l=capacity)
@@ -545,7 +547,9 @@ def _render_navlog(
         safety_ft = None
 
     fuel_plan = None
-    capacity_l = aircraft.weight_balance.fuel.capacity_l if aircraft.weight_balance else 0.0
+    capacity_l = (
+        sum(t.capacity_l for t in aircraft.weight_balance.fuels) if aircraft.weight_balance else 0.0
+    )
     if navlog.total_fuel_l is not None and aircraft.cruise_fuel_lph and capacity_l:
         from .domain.fuel import fuel_plan as compute_fuel_plan
 

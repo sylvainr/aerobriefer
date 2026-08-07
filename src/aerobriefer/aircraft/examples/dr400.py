@@ -157,7 +157,7 @@ def DR400_160() -> AircraftSpec:
                 Station(name="Sièges arrière", arm_m=1.19, max_kg=200.0),
                 Station(name="Bagages", arm_m=1.90, max_kg=60.0),
             ),
-            fuel=FuelTank(arm_m=1.12, capacity_l=110.0, density_kg_per_l=0.72, default_l=80.0),
+            fuels=(FuelTank(arm_m=1.12, capacity_l=110.0, density_kg_per_l=0.72, default_l=80.0),),
             envelope=(
                 (0.205, 500.0),
                 (0.205, 1050.0),

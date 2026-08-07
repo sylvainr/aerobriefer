@@ -92,11 +92,12 @@ function inPolygon(x, y, poly) {
   }
   return inside;
 }
-function state(loads, fuelL) {
+function state(loads, fuelsL) {
   let mass = DATA.empty.mass_kg, moment = DATA.empty.mass_kg * DATA.empty.arm_m;
   DATA.stations.forEach((s, i) => { mass += loads[i]; moment += loads[i] * s.arm_m; });
-  const fuelKg = fuelL * DATA.fuel.density_kg_per_l;
-  mass += fuelKg; moment += fuelKg * DATA.fuel.arm_m;
+  let fuelKg = 0;
+  DATA.fuels.forEach((t, i) => { const kg = fuelsL[i] * t.density_kg_per_l; fuelKg += kg; moment += kg * t.arm_m; });
+  mass += fuelKg;
   const arm = mass > 0 ? moment / mass : 0;
   return { mass, arm, fuelKg, within: inPolygon(arm, mass, DATA.envelope) };
 }
@@ -106,7 +107,7 @@ document.getElementById('acName').textContent = DATA.aircraft;
 document.getElementById('mtow').textContent = '· MTOW ' + DATA.max_mass_kg + ' kg';
 
 const loads = DATA.stations.map(s => s.default_kg);
-let fuelL = DATA.fuel.default_l;
+const fuelsL = DATA.fuels.map(t => t.default_l);
 
 const host = document.getElementById('stations');
 DATA.stations.forEach((s, i) => {
@@ -123,18 +124,20 @@ DATA.stations.forEach((s, i) => {
     render();
   });
 });
-// carburant
-const fw = document.createElement('div');
-fw.className = 'st fuel';
-fw.innerHTML =
-  '<div class="row"><label>' + DATA.fuel.name + ' <span class="arm">bras ' + DATA.fuel.arm_m.toFixed(2) + ' m</span></label>' +
-  '<span class="val"><span id="vf">' + fuelL.toFixed(0) + '</span> L</span></div>' +
-  '<input type="range" min="0" max="' + DATA.fuel.capacity_l + '" step="1" value="' + fuelL + '" id="rf">';
-host.appendChild(fw);
-fw.querySelector('#rf').addEventListener('input', e => {
-  fuelL = parseFloat(e.target.value);
-  document.getElementById('vf').textContent = fuelL.toFixed(0);
-  render();
+// carburant : un curseur par réservoir (les bras diffèrent)
+DATA.fuels.forEach((t, i) => {
+  const fw = document.createElement('div');
+  fw.className = 'st fuel';
+  fw.innerHTML =
+    '<div class="row"><label>' + t.name + ' <span class="arm">bras ' + t.arm_m.toFixed(2) + ' m · max ' + t.capacity_l.toFixed(0) + ' L</span></label>' +
+    '<span class="val"><span id="vf' + i + '">' + fuelsL[i].toFixed(0) + '</span> L</span></div>' +
+    '<input type="range" min="0" max="' + t.capacity_l + '" step="1" value="' + fuelsL[i] + '" id="rf' + i + '">';
+  host.appendChild(fw);
+  fw.querySelector('#rf' + i).addEventListener('input', e => {
+    fuelsL[i] = parseFloat(e.target.value);
+    document.getElementById('vf' + i).textContent = fuelsL[i].toFixed(0);
+    render();
+  });
 });
 
 // ---- Données utilisées (transparence : d'où vient chaque chiffre) -----------
@@ -144,11 +147,11 @@ fw.querySelector('#rf').addEventListener('input', e => {
   DATA.stations.forEach(s => rows.push([
     s.name, 'max ' + s.max_kg.toFixed(0) + ' kg', 'bras ' + s.arm_m.toFixed(3) + ' m',
   ]));
-  rows.push([
-    DATA.fuel.name,
-    'capacité ' + DATA.fuel.capacity_l.toFixed(0) + ' L · densité ' + DATA.fuel.density_kg_per_l.toFixed(2) + ' kg/L',
-    'bras ' + DATA.fuel.arm_m.toFixed(3) + ' m',
-  ]);
+  DATA.fuels.forEach(t => rows.push([
+    t.name,
+    'capacité ' + t.capacity_l.toFixed(0) + ' L · densité ' + t.density_kg_per_l.toFixed(2) + ' kg/L',
+    'bras ' + t.arm_m.toFixed(3) + ' m',
+  ]));
   rows.push(['MTOW', DATA.max_mass_kg.toFixed(0) + ' kg', '']);
   const env = DATA.envelope.map(p => '(' + p[0].toFixed(3) + ' m, ' + p[1].toFixed(0) + ' kg)').join(' · ');
   rows.push(['Enveloppe (bras, masse)', env, '']);
@@ -202,8 +205,8 @@ drawStatic(); svg.appendChild(dyn);
 
 function render() {
   while (dyn.firstChild) dyn.removeChild(dyn.firstChild);
-  const full = state(loads, fuelL);
-  const zero = state(loads, 0);
+  const full = state(loads, fuelsL);
+  const zero = state(loads, fuelsL.map(() => 0));
   // ligne consommation
   dyn.appendChild(el('line', { x1: X(full.arm), y1: Y(full.mass), x2: X(zero.arm), y2: Y(zero.mass), stroke: '#2b6cb0', 'stroke-width': 1.4 }));
   // point sans carburant (creux)
