@@ -16,13 +16,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from ..aircraft.model import Aircraft
+from ..aircraft.model import AircraftSpec
 
 _TEMPLATE = Path(__file__).parent / "templates" / "massbalance.html.j2"
 _MARKER = "/*__AEROBRIEFER_WB__*/null"
 
 
-def massbalance_data(aircraft: Aircraft) -> dict[str, Any]:
+def massbalance_data(aircraft: AircraftSpec) -> dict[str, Any]:
     """Contrat de données de la page, dérivé du masse & centrage de l'avion."""
     wb = aircraft.weight_balance
     if wb is None:
@@ -46,7 +46,7 @@ def massbalance_data(aircraft: Aircraft) -> dict[str, Any]:
     }
 
 
-def render_massbalance(aircraft: Aircraft) -> str:
+def render_massbalance(aircraft: AircraftSpec) -> str:
     """Page masse & centrage autonome : gabarit + données JSON injectées."""
     template = _TEMPLATE.read_text(encoding="utf-8")
     payload = json.dumps(massbalance_data(aircraft), ensure_ascii=False).replace("</", "<\\/")

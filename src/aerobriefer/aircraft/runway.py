@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..domain.models import Runway
-from .model import Aircraft, Conditions, DistanceResult, Surface
+from .model import AircraftSpec, Conditions, DistanceResult, Surface
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +34,7 @@ def surface_of(runway: Runway) -> Surface:
 
 
 def assess_runway(
-    aircraft: Aircraft,
+    aircraft: AircraftSpec,
     runway: Runway,
     conditions: Conditions,
     *,

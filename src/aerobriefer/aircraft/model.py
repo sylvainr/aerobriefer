@@ -13,9 +13,10 @@ pieds vers le reste du domaine. La frontière de conversion est explicite ici.
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 # --- unités ----------------------------------------------------------------
 
@@ -152,39 +153,88 @@ class PerfTable:
         return self._cells[(alt, offset, mass)]
 
 
-# --- avion ------------------------------------------------------------------
+# --- avion (spec validée : données + comportement) --------------------------
+#
+# Un avion se décrit en DONNÉE (JSON strict, clés françaises) et se construit
+# aussi en Python (noms de champs anglais, grâce à populate_by_name). Le modèle
+# porte AUSSI son comportement (interpolation des tables, corrections, centrage) :
+# c'est le contrat UNIQUE consommé en aval, il n'y a pas de seconde structure.
 
 
-@dataclass(frozen=True, slots=True)
-class SpeedCard:
-    """Vitesses de référence, en nœuds (converties depuis le manuel si besoin)."""
+class Speeds(BaseModel):
+    """Vitesses de référence dans l'unité du manuel (`unite`), exposées aussi en
+    nœuds. Le calcul reste en nœuds ; l'affichage suit `AircraftSpec.speed_unit`."""
 
-    vne_kt: float
-    vno_kt: float
-    va_kt: float
-    vfe_kt: float
+    model_config = ConfigDict(extra="forbid")
+
+    vne: float
+    vno: float
+    va: float
+    vfe: float
+    vs0: float | None = None
+    vs1: float | None = None
+    vx: float | None = None
+    vy: float | None = None
+    finesse_max: float | None = None
+    approche: float | None = None
+    unite: str = "kt"
+
+    def _kt(self, value: float) -> float:
+        return kmh_to_kt(value) if self.unite == "km/h" else value
+
+    @property
+    def vne_kt(self) -> float:
+        return self._kt(self.vne)
+
+    @property
+    def vno_kt(self) -> float:
+        return self._kt(self.vno)
+
+    @property
+    def va_kt(self) -> float:
+        return self._kt(self.va)
+
+    @property
+    def vfe_kt(self) -> float:
+        return self._kt(self.vfe)
 
 
-@dataclass(frozen=True, slots=True)
-class Station:
-    """Poste de chargement fixe : nom, bras de levier au datum (m), charge max."""
+class Cruise(BaseModel):
+    """Croisière pour le log de nav : TAS + conso horaire. `unite` = unité de la TAS."""
 
-    name: str
-    arm_m: float
+    model_config = ConfigDict(extra="forbid")
+
+    tas: float
+    conso_horaire_l: float
+    unite: str = "kt"
+
+    @property
+    def tas_kt(self) -> float:
+        return kmh_to_kt(self.tas) if self.unite == "km/h" else self.tas
+
+
+class Station(BaseModel):
+    """Poste de chargement fixe : bras de levier au datum (m), charge max (kg)."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    name: str = Field(alias="nom")
+    arm_m: float = Field(alias="bras_m")
     max_kg: float
-    default_kg: float = 0.0
+    default_kg: float = Field(default=0.0, alias="defaut_kg")
 
 
-@dataclass(frozen=True, slots=True)
-class FuelTank:
-    """Réservoir : bras, capacité, densité. Le carburant a son propre poste car
-    on veut le centrage AVEC et SANS lui (consommation en vol)."""
+class FuelTank(BaseModel):
+    """Réservoir : bras, capacité, densité. Poste distinct pour centrer AVEC et
+    SANS carburant (consommation en vol)."""
 
-    arm_m: float
-    capacity_l: float
-    density_kg_per_l: float = 0.72
-    default_l: float = 0.0
-    name: str = "Carburant"
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    name: str = Field(default="Carburant", alias="nom")
+    arm_m: float = Field(alias="bras_m")
+    capacity_l: float = Field(alias="capacite_l")
+    density_kg_per_l: float = Field(default=0.72, alias="densite_kg_l")
+    default_l: float = Field(default=0.0, alias="defaut_l")
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,17 +246,19 @@ class WBState:
     within_envelope: bool
 
 
-@dataclass(frozen=True, slots=True)
-class WeightBalance:
-    """Données de masse & centrage d'un appareil : masse à vide, postes, réservoir
-    et enveloppe de centrage (polygone bras×masse)."""
+class WeightBalance(BaseModel):
+    """Masse & centrage : masse à vide, postes, réservoir et enveloppe de centrage
+    (polygone bras×masse)."""
 
-    empty_mass_kg: float
-    empty_arm_m: float
-    stations: tuple[Station, ...]
-    fuel: FuelTank
-    envelope: tuple[tuple[float, float], ...]  # sommets (bras_m, masse_kg), polygone fermé
-    max_mass_kg: float
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    empty_mass_kg: float = Field(alias="masse_vide_kg")
+    empty_arm_m: float = Field(alias="bras_vide_m")
+    stations: tuple[Station, ...] = Field(alias="postes")
+    fuel: FuelTank = Field(alias="reservoir")
+    # sommets (bras_m, masse_kg) du polygone d'enveloppe
+    envelope: tuple[tuple[float, float], ...] = Field(alias="enveloppe")
+    max_mass_kg: float = Field(alias="max_masse_kg")
 
     def state(self, loads_kg: Mapping[str, float], fuel_l: float) -> WBState:
         """Masse, bras et respect d'enveloppe pour un chargement donné."""
@@ -241,52 +293,120 @@ def _in_polygon(x: float, y: float, polygon: Sequence[tuple[float, float]]) -> b
     return inside
 
 
-class Aircraft(ABC):
-    """Base d'un modèle d'avion. Sous-classer pour coder un appareil réel.
+class PerfCell(BaseModel):
+    """Une case de table POH : conditions (alt/écart ISA/masse) → distances (m)."""
 
-    Un appareil fournit ses tables POH et ses limites ; le framework applique les
-    corrections communes (vent, pente) par-dessus le résultat de table.
-    """
+    model_config = ConfigDict(extra="forbid")
 
-    name: str
-    max_takeoff_mass_kg: float
-    max_landing_mass_kg: float
-    speeds: SpeedCard
-    demonstrated_crosswind_kt: float | None = None
+    alt_ft: float
+    isa_c: float
+    masse_kg: float
+    roulement_m: float
+    distance_15m_m: float
 
-    # Croisière, pour le log de navigation (triangle des vitesses + carburant).
-    # Valeur unique pour l'instant ; une table TAS/conso par altitude et régime
-    # viendra plus tard, comme les tables décollage/atterrissage.
-    cruise_tas_kt: float = 0.0
-    cruise_fuel_lph: float = 0.0
 
-    # Unité d'AFFICHAGE des vitesses propres à l'avion (TAS, vitesse-sol) : "kt"
-    # ou "km/h", selon le badin. Le calcul reste en nœuds ; le VENT est TOUJOURS
-    # affiché en nœuds (standard aéro), quelle que soit cette unité.
-    speed_unit: str = "kt"
+class PerfTableSpec(BaseModel):
+    """Table de performance (DONNÉE) : axes + cases. `build()` donne le moteur
+    d'interpolation (`PerfTable`)."""
 
-    # Masse & centrage (postes de pesage + enveloppe). None = non renseigné.
-    weight_balance: WeightBalance | None = None
+    model_config = ConfigDict(extra="forbid")
 
-    # Courbe de correction de vent de face : nœuds → facteur multiplicatif.
-    # Défaut neutre ; la plupart des appareils la surchargent (DR400 : 0.8 à 10 kt).
-    headwind_factors: Mapping[float, float] = {0.0: 1.0}
+    altitudes_ft: tuple[float, ...]
+    ecarts_isa_c: tuple[float, ...]
+    masses_kg: tuple[float, ...]
+    cases: tuple[PerfCell, ...]
 
-    # Effet de pente : +/- % de distance par % de pente (montante rallonge au
-    # décollage, raccourcit à l'atterrissage). 0 = non modélisé.
-    slope_pct_per_pct: float = 0.0
+    def build(self) -> PerfTable:
+        cells = {
+            (c.alt_ft, c.isa_c, c.masse_kg): (c.roulement_m, c.distance_15m_m) for c in self.cases
+        }
+        return PerfTable(self.altitudes_ft, self.ecarts_isa_c, self.masses_kg, cells)
 
-    @abstractmethod
-    def _takeoff_table(self, surface: Surface) -> PerfTable: ...
 
-    @abstractmethod
-    def _landing_table(self, surface: Surface) -> PerfTable: ...
+class PerfSurfaces(BaseModel):
+    """Table par revêtement : dur (béton) et herbe."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    dur: PerfTableSpec
+    herbe: PerfTableSpec
+
+    def for_surface(self, surface: Surface) -> PerfTableSpec:
+        return self.herbe if surface == "grass" else self.dur
+
+
+class Performances(BaseModel):
+    """Tables POH : décollage et atterrissage, chacune par revêtement."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    decollage: PerfSurfaces
+    atterrissage: PerfSurfaces
+
+
+class Corrections(BaseModel):
+    """Corrections communes appliquées par-dessus la table : vent de face (nœuds →
+    facteur multiplicatif) et pente (% de distance par % de pente)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    vent_face: dict[float, float] = Field(default_factory=lambda: {0.0: 1.0})
+    pente_pct_par_pct: float = 0.0
+
+
+class AircraftSpec(BaseModel):
+    """Un avion : DONNÉES validées (immat, masses, vitesses, centrage, perfs) ET
+    COMPORTEMENT (interpolation des tables POH, corrections vent/pente, centrage).
+
+    Contrat UNIQUE consommé en aval. Se construit depuis un JSON strict (clés
+    françaises) ou en Python (noms de champs anglais, via populate_by_name)."""
+
+    model_config = ConfigDict(populate_by_name=True, extra="forbid")
+
+    registration: str = Field(alias="immatriculation")
+    type_name: str = Field(alias="type")
+    max_takeoff_mass_kg: float = Field(alias="max_masse_decollage_kg")
+    max_landing_mass_kg: float = Field(alias="max_masse_atterrissage_kg")
+    # Unité d'AFFICHAGE des vitesses propres (TAS, sol) : "kt" ou "km/h" (badin).
+    # Le calcul reste en nœuds ; le VENT est TOUJOURS affiché en nœuds.
+    speed_unit: str = Field(default="kt", alias="unite_vitesse")
+    demonstrated_crosswind_kt: float | None = Field(
+        default=None, alias="vent_traversier_demontre_kt"
+    )
+    speeds: Speeds = Field(alias="vitesses")
+    cruise: Cruise = Field(alias="croisiere")
+    weight_balance: WeightBalance | None = Field(default=None, alias="masse_centrage")
+    performances: Performances = Field(alias="performances")
+    corrections: Corrections = Field(default_factory=Corrections, alias="corrections")
+
+    # Moteurs d'interpolation construits une fois (par revêtement), non sérialisés.
+    _takeoff_tables: dict[str, PerfTable] = PrivateAttr(default_factory=dict)
+    _landing_tables: dict[str, PerfTable] = PrivateAttr(default_factory=dict)
+
+    def model_post_init(self, __context: object) -> None:
+        for surface in ("paved", "grass"):
+            self._takeoff_tables[surface] = self.performances.decollage.for_surface(surface).build()
+            self._landing_tables[surface] = self.performances.atterrissage.for_surface(
+                surface
+            ).build()
+
+    @property
+    def name(self) -> str:
+        return f"{self.type_name} ({self.registration})"
+
+    @property
+    def cruise_tas_kt(self) -> float:
+        return self.cruise.tas_kt
+
+    @property
+    def cruise_fuel_lph(self) -> float:
+        return self.cruise.conso_horaire_l
 
     def takeoff(self, c: Conditions) -> DistanceResult:
-        return self._compute(self._takeoff_table(c.surface), c, is_takeoff=True)
+        return self._compute(self._takeoff_tables[c.surface], c, is_takeoff=True)
 
     def landing(self, c: Conditions) -> DistanceResult:
-        return self._compute(self._landing_table(c.surface), c, is_takeoff=False)
+        return self._compute(self._landing_tables[c.surface], c, is_takeoff=False)
 
     def _compute(self, table: PerfTable, c: Conditions, *, is_takeoff: bool) -> DistanceResult:
         offset = isa_offset_c(c.pressure_altitude_ft, c.temperature_c)
@@ -300,9 +420,10 @@ class Aircraft(ABC):
             over15 *= wind_factor
             notes.append(f"vent {c.headwind_kt:+.0f} kt → ×{wind_factor:.2f}")
 
-        if self.slope_pct_per_pct and c.slope_pct:
+        slope_per_pct = self.corrections.pente_pct_par_pct
+        if slope_per_pct and c.slope_pct:
             sign = 1.0 if is_takeoff else -1.0
-            slope_factor = 1.0 + sign * self.slope_pct_per_pct * c.slope_pct
+            slope_factor = 1.0 + sign * slope_per_pct * c.slope_pct
             slope_factor = max(0.5, slope_factor)
             roll *= slope_factor
             over15 *= slope_factor
@@ -321,9 +442,10 @@ class Aircraft(ABC):
     def _headwind_factor(self, headwind_kt: float) -> float:
         if headwind_kt <= 0:
             return 1.0  # on ne bonifie pas un vent arrière : marge de sécurité
-        knots = sorted(self.headwind_factors)
+        factors = self.corrections.vent_face
+        knots = sorted(factors)
         lo, hi = _bracket(headwind_kt, knots)
-        return _interp1(headwind_kt, lo, hi, self.headwind_factors[lo], self.headwind_factors[hi])
+        return _interp1(headwind_kt, lo, hi, factors[lo], factors[hi])
 
 
 def _is_clamped(table: PerfTable, alt: float, offset: float, mass: float) -> bool:

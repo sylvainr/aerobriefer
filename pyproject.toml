@@ -51,6 +51,8 @@ quote-style = "double"
 [tool.mypy]
 python_version = "3.11"
 files = ["src/aerobriefer"]
+# Plugin Pydantic : __init__ typé qui accepte nom de champ ET alias (populate_by_name).
+plugins = ["pydantic.mypy"]
 # Rigueur : toute fonction doit être typée et vérifiée.
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

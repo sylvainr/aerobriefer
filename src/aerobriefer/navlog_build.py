@@ -15,7 +15,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from .aircraft.model import Aircraft, Conditions, isa_temperature_c
+from .aircraft.model import AircraftSpec, Conditions, isa_temperature_c
 from .aircraft.runway import assess_runway
 from .data import airports, airspace, frequencies, navaids
 from .data.elevation import DEFAULT_MARGIN_FT, Elevation, sample_positions, zmin_ft
@@ -246,7 +246,7 @@ def _vor_for(point: Position, magnetic_variation_deg: float) -> Vor | None:
 
 
 def _landing_on(
-    aerodrome: Aerodrome, runway: Runway, aircraft: Aircraft, headwind_kt: float
+    aerodrome: Aerodrome, runway: Runway, aircraft: AircraftSpec, headwind_kt: float
 ) -> tuple[int, bool] | None:
     """Distance d'atterrissage DR400 requise sur CETTE piste (surface prise en
     compte), conditions conservatrices + vent de face favorable s'il y en a."""
@@ -276,7 +276,7 @@ def _safe_surface_wind(
 def _diversion_for(
     point: Position,
     exclude: str | None,
-    aircraft: Aircraft,
+    aircraft: AircraftSpec,
     track_true_deg: float,
     surface_winds: SurfaceWinds | None,
     when: UtcDateTime,
@@ -352,7 +352,7 @@ def _diversion_for(
 
 def annotate_navlog(
     navlog: NavLog,
-    aircraft: Aircraft,
+    aircraft: AircraftSpec,
     *,
     magnetic_variation_deg: float = 0.0,
     surface_winds: SurfaceWinds | None = None,
@@ -431,7 +431,7 @@ def _longest_runway(icao: str) -> tuple[Aerodrome | None, Runway | None]:
 
 
 def _assess(
-    icao: str, aircraft: Aircraft, *, operation: str, mass_kg: float
+    icao: str, aircraft: AircraftSpec, *, operation: str, mass_kg: float
 ) -> PerfAssessment | None:
     aerodrome, runway = _longest_runway(icao)
     if aerodrome is None or runway is None:
@@ -458,7 +458,7 @@ def _assess(
 
 
 def runway_performance(
-    aircraft: Aircraft, origin_icao: str, dest_icao: str
+    aircraft: AircraftSpec, origin_icao: str, dest_icao: str
 ) -> list[PerfAssessment]:
     """Perfs décollage (départ) et atterrissage (arrivée), aux conditions
     conservatrices. Terrains sans piste connue : ignorés."""
@@ -505,7 +505,7 @@ def _leg_altitude_ft(leg: Leg, default_ft: float) -> float:
 
 def build_navlog(
     route: Route,
-    aircraft: Aircraft,
+    aircraft: AircraftSpec,
     *,
     departure_time: UtcDateTime,
     winds: WindsAloft | None = None,
