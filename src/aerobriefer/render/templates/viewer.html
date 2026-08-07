@@ -87,6 +87,11 @@
   #controls .hint b { color: var(--ink); font-weight: 600; }
   #groundBlock { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--panel-border); }
   #controls .ctl.ctl-col { align-items: flex-start; flex-direction: column; gap: 5px; }
+  #controls .slider-row { display: flex; align-items: center; gap: 10px; width: 100%; }
+  #controls .slider-row input[type=range] { flex: 1; min-width: 0; }
+  .chk-row { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none;
+             margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--panel-border); }
+  .chk-row input { margin: 0; accent-color: var(--accent); }
   #groundLayers { display: flex; flex-direction: column; gap: 3px; width: 100%; }
   .groundopt { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; padding: 1px 0; }
   .groundopt input { margin: 0; accent-color: var(--accent); }
@@ -200,11 +205,14 @@
 </aside>
 
 <div id="controls">
-  <div class="ctl">
+  <div class="ctl ctl-col">
     <label for="exag">Exagération&nbsp;verticale</label>
-    <input id="exag" type="range" min="1" max="10" step="0.5" value="4">
-    <span id="exagVal">×4</span>
+    <div class="slider-row">
+      <input id="exag" type="range" min="1" max="20" step="0.5" value="4">
+      <span id="exagVal">×4</span>
+    </div>
   </div>
+  <label class="chk-row"><input type="checkbox" id="aeroLabelsOn" checked> Étiquettes aérodromes</label>
   <div id="groundBlock">
     <div class="ctl ctl-col">
       <label>Fond de carte</label>
@@ -337,6 +345,17 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.target.set(0, 0, radiusM * 0.18);
 controls.maxPolarAngle = Math.PI * 0.495; // ne pas passer sous l'horizon
+// Navigation fluide à toutes les échelles (scène ~300 km, mais on descend à
+// quelques centaines de m). OrbitControls fait un dolly RELATIF (proportionnel
+// à la distance) : de près un cran de molette rapproche peu → zoom doux.
+controls.zoomToCursor = true;               // zoome vers le curseur, comme une carte
+controls.zoomSpeed = 0.9;
+controls.panSpeed = 0.8;
+controls.rotateSpeed = 0.8;
+// Pan proportionnel à la distance (comportement par défaut quand
+// screenSpacePanning = false) : de près, un petit geste = petit déplacement.
+controls.screenSpacePanning = false;
+controls.minDistance = 60;                  // descendre à ~60 m du sol sans à-coups
 controls.maxDistance = halfExtent * 6;      // dézoom large sans buter ni clipper
 controls.update();
 
@@ -429,7 +448,12 @@ function buildGround() {
   worldGroup.add(circle);
 }
 
-// ---- Étiquettes texte (sprites canvas) -------------------------------------
+// ---- Étiquettes texte (sprites canvas, TAILLE ÉCRAN FIXE) ------------------
+// Les labels sont des billboards à taille CONSTANTE en pixels (sizeAttenuation
+// false) : ils ne grossissent JAMAIS quand on zoome (sinon « LFCY » remplirait
+// l'écran de près). La taille voulue est en pixels (opts.screenPx) ; on convertit
+// en échelle NDC selon le viewport, recalculée au resize via updateLabelScales().
+const screenLabels = [];   // tous les labels à taille écran fixe
 function makeLabel(text, opts = {}) {
   const fs = opts.fontSize || 42;
   const pad = opts.pad ?? 14;
@@ -457,12 +481,25 @@ function makeLabel(text, opts = {}) {
   ctx.fillText(text, pad, h / 2);
   const tex = new THREE.CanvasTexture(cv);
   tex.minFilter = THREE.LinearFilter;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  const worldH = opts.worldHeight || radiusM * 0.05;
-  sprite.scale.set(worldH * (w / h), worldH, 1);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, depthTest: false, transparent: true, sizeAttenuation: false,
+  }));
+  sprite.userData.px = opts.screenPx || 16;   // hauteur voulue en pixels
+  sprite.userData.aspect = w / h;             // ratio largeur/hauteur du libellé
   sprite.renderOrder = 10;
+  applyLabelScale(sprite);
+  screenLabels.push(sprite);
   return sprite;
 }
+// Avec sizeAttenuation:false, l'échelle du sprite EST sa taille en NDC (hauteur
+// écran = 2). On mappe px -> NDC selon la taille actuelle du canvas.
+function applyLabelScale(sprite) {
+  const W = renderer.domElement.clientWidth || window.innerWidth;
+  const H = renderer.domElement.clientHeight || window.innerHeight;
+  const px = sprite.userData.px, asp = sprite.userData.aspect;
+  sprite.scale.set(2 * px * asp / W, 2 * px / H, 1);
+}
+function updateLabelScales() { screenLabels.forEach(applyLabelScale); }
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -475,6 +512,7 @@ function roundRect(ctx, x, y, w, h, r) {
 
 // ---- Aérodromes ------------------------------------------------------------
 const aeroMeshes = [];   // cônes cliquables (raycasting)
+const aeroLabels = [];   // étiquettes ICAO (masquées de près / par toggle)
 function buildAerodromes() {
   aerodromes.forEach((ad, idx) => {
     const [x, y] = project(ad.lon, ad.lat);
@@ -496,11 +534,12 @@ function buildAerodromes() {
     if (isMain || ad.runways?.length) {
       const label = makeLabel(ad.icao, {
         fontSize: isMain ? 46 : 38,
-        worldHeight: radiusM * (isMain ? 0.055 : 0.042),
+        screenPx: isMain ? 21 : 17,
         color: isMain ? '#8a1220' : '#1e2732',
       });
       label.position.set(x, y, h + radiusM * 0.05);
       worldGroup.add(label);
+      aeroLabels.push(label);
     }
 
     // Pistes (segments orientés selon bearing)
@@ -532,7 +571,7 @@ function buildCompass() {
     arrowLen, 0xd11a2a, arrowLen * 0.35, arrowLen * 0.22
   );
   worldGroup.add(arrow);
-  const n = makeLabel('N', { fontSize: 48, worldHeight: radiusM * 0.06, color: '#d11a2a', bg: null });
+  const n = makeLabel('N', { fontSize: 48, screenPx: 22, color: '#d11a2a', bg: null });
   n.position.set(0, base + arrowLen + radiusM * 0.04, 1);
   worldGroup.add(n);
 }
@@ -559,7 +598,7 @@ function buildVerticalRuler(maxFt) {
     );
     vertGroup.add(tick);
     const lbl = makeLabel(ft.toLocaleString('fr-FR') + ' ft', {
-      fontSize: 30, worldHeight: radiusM * 0.032, color: '#56617f',
+      fontSize: 30, screenPx: 13, color: '#56617f',
     });
     lbl.position.set(radiusM * 0.09, 0, z);
     lbl.userData.rulerLabel = true;
@@ -687,7 +726,7 @@ function buildRoute() {
       ? Math.round(wp.altitude_ft).toLocaleString('fr-FR') + ' ft'
       : 'sol';
     const label = makeLabel(`${wp.name || 'WP' + (i + 1)} · ${altTxt}`, {
-      fontSize: 34, worldHeight: radiusM * 0.04, color: '#8a2c0d',
+      fontSize: 34, screenPx: 16, color: '#8a2c0d',
       bg: 'rgba(255,246,240,0.94)',
     });
     label.position.set(x, y, z + radiusM * 0.045);
@@ -824,27 +863,30 @@ function chooseZoom(maxZoom) {
   return clamp(z, 3, maxZoom);
 }
 
-// Emprise sol visible (intersection du frustum avec z=0), bornee autour de la cible.
+// Emprise sol REELLEMENT visible (intersection du frustum avec z=0). Chaque coin
+// est borne a une portee proportionnelle a la distance camera : quand la vue est
+// inclinee vers l'horizon, le coin lointain n'explose pas l'emprise (sinon des
+// milliers de tuiles -> plafond -> trous). Pas de plancher fixe : de tres pres,
+// l'emprise reste petite et se couvre entierement au zoom fin.
 function visibleBounds() {
   const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
   const rc = new THREE.Raycaster();
   const hit = new THREE.Vector3();
+  const cx = controls.target.x, cy = controls.target.y;
   const d = camera.position.distanceTo(controls.target);
-  const cap = Math.max(d * 1.3, 3000);
+  const reach = d * 2.2;   // portee max d'un coin autour de la cible
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const [nx, ny] of [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]]) {
     rc.setFromCamera(new THREE.Vector2(nx, ny), camera);
     let px, py;
     if (rc.ray.intersectPlane(plane, hit)) { px = hit.x; py = hit.y; }
     else { const p = rc.ray.origin.clone().add(rc.ray.direction.clone().multiplyScalar(d * 2)); px = p.x; py = p.y; }
+    px = clamp(px, cx - reach, cx + reach);   // borne le coin (horizon) autour de la cible
+    py = clamp(py, cy - reach, cy + reach);
     minX = Math.min(minX, px); maxX = Math.max(maxX, px);
     minY = Math.min(minY, py); maxY = Math.max(maxY, py);
   }
-  const cx = controls.target.x, cy = controls.target.y;
-  return {
-    minX: Math.max(minX, cx - cap), maxX: Math.min(maxX, cx + cap),
-    minY: Math.max(minY, cy - cap), maxY: Math.min(maxY, cy + cap),
-  };
+  return { minX, maxX, minY, maxY };
 }
 
 function createTile(layerKey, z, x, y, key, token) {
@@ -886,32 +928,36 @@ function createTile(layerKey, z, x, y, key, token) {
   );
 }
 
+const MAXT = 220;   // plafond de tuiles chargees simultanement
+let lastRange = null;
 function updateTiles() {
   if (currentLayer === 'none' || !groundTiles) return;
   const layer = XYZ_LAYERS[currentLayer];
   if (!layer) return;
-  const z = chooseZoom(layer.maxZoom);
-  const n = Math.pow(2, z);
   const b = visibleBounds();
   const [lonMin, latMax] = localToLonLat(b.minX, b.maxY);   // coin NO
   const [lonMax, latMin] = localToLonLat(b.maxX, b.minY);   // coin SE
-  let tx0 = Math.floor(lon2tileX(lonMin, z)), tx1 = Math.floor(lon2tileX(lonMax, z));
-  let ty0 = Math.floor(lat2tileY(latMax, z)), ty1 = Math.floor(lat2tileY(latMin, z)); // y croit vers le sud
-  tx0 = clamp(tx0, 0, n - 1); tx1 = clamp(tx1, 0, n - 1);
-  ty0 = clamp(ty0, 0, n - 1); ty1 = clamp(ty1, 0, n - 1);
 
-  const MAXT = 120;
-  if ((tx1 - tx0 + 1) * (ty1 - ty0 + 1) > MAXT) {   // recentre sur la cible si trop de tuiles
-    const [clon, clat] = localToLonLat(controls.target.x, controls.target.y);
-    const ctx = Math.floor(lon2tileX(clon, z)), cty = Math.floor(lat2tileY(clat, z));
-    const half = Math.floor(Math.sqrt(MAXT) / 2);
-    tx0 = clamp(ctx - half, 0, n - 1); tx1 = clamp(ctx + half, 0, n - 1);
-    ty0 = clamp(cty - half, 0, n - 1); ty1 = clamp(cty + half, 0, n - 1);
+  // Plage de tuiles couvrant TOUTE l'emprise visible a un zoom donne.
+  function rangeAt(zz) {
+    const n = Math.pow(2, zz);
+    const tx0 = clamp(Math.floor(lon2tileX(lonMin, zz)), 0, n - 1);
+    const tx1 = clamp(Math.floor(lon2tileX(lonMax, zz)), 0, n - 1);
+    const ty0 = clamp(Math.floor(lat2tileY(latMax, zz)), 0, n - 1); // y croit vers le sud
+    const ty1 = clamp(Math.floor(lat2tileY(latMin, zz)), 0, n - 1);
+    return { tx0, tx1, ty0, ty1, count: (tx1 - tx0 + 1) * (ty1 - ty0 + 1) };
   }
 
+  // Si trop de tuiles pour le zoom ideal, on BAISSE le zoom (tuiles plus
+  // grossieres mais COUVRANTES) plutot que de laisser des trous dans le champ.
+  let z = chooseZoom(layer.maxZoom);
+  let r = rangeAt(z);
+  while (r.count > MAXT && z > 3) { z--; r = rangeAt(z); }
+
+  lastRange = { z, tx0: r.tx0, tx1: r.tx1, ty0: r.ty0, ty1: r.ty1, layer: currentLayer };
   const needed = new Set();
-  for (let x = tx0; x <= tx1; x++) {
-    for (let y = ty0; y <= ty1; y++) {
+  for (let x = r.tx0; x <= r.tx1; x++) {
+    for (let y = r.ty0; y <= r.ty1; y++) {
       const key = currentLayer + '/' + z + '/' + x + '/' + y;
       needed.add(key);
       if (!activeTiles.has(key)) createTile(currentLayer, z, x, y, key, tileToken);
@@ -929,6 +975,24 @@ function scheduleTileUpdate() {
   tileUpdateTimer = setTimeout(() => { tileUpdateTimer = null; updateTiles(); }, 180);
 }
 controls.addEventListener('change', scheduleTileUpdate);
+
+// ---- Étiquettes / marqueurs aérodromes : toggle + masquage automatique de près
+// De près (zoom sur un terrain), les cônes (objets monde, ~km de haut) et les
+// étiquettes encombrent la piste / le tour de piste : on les masque sous un seuil
+// de distance. Le toggle coupe les étiquettes en permanence.
+let aeroLabelsOn = true;
+const AERO_HIDE_DIST = Math.max(radiusM * 0.18, 5000);   // ~seuil "vue rapprochée"
+function updateAeroVisibility() {
+  const near = camera.position.distanceTo(controls.target) < AERO_HIDE_DIST;
+  aeroLabels.forEach((l) => { l.visible = aeroLabelsOn && !near; });
+  aeroMeshes.forEach((c) => { c.visible = !near; });   // cônes masqués de près
+}
+const aeroLabelsCb = document.getElementById('aeroLabelsOn');
+if (aeroLabelsCb) {
+  aeroLabelsCb.addEventListener('change', () => { aeroLabelsOn = aeroLabelsCb.checked; updateAeroVisibility(); });
+}
+controls.addEventListener('change', updateAeroVisibility);
+updateAeroVisibility();
 
 function selectLayer(key) {
   currentLayer = key;
@@ -1242,6 +1306,7 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (routeLineMat) routeLineMat.resolution.set(window.innerWidth, window.innerHeight);
   if (patLineMat) patLineMat.resolution.set(window.innerWidth, window.innerHeight);
+  updateLabelScales();   // labels à taille écran fixe : re-mapper px -> NDC
 });
 
 function animate() {
@@ -1346,7 +1411,7 @@ function rebuildPattern() {
   const mid = P(-finalExt / 2, W);           // etiquette au milieu du vent arriere
   const lbl = makeLabel('TdP ' + end.label + ' · ' + patState.altFt + ' ft · '
     + (patState.hand === 'L' ? 'G' : 'D'),
-    { fontSize: 30, worldHeight: radiusM * 0.035, color: '#8a1466', bg: 'rgba(255,240,250,0.94)' });
+    { fontSize: 30, screenPx: 15, color: '#8a1466', bg: 'rgba(255,240,250,0.94)' });
   lbl.position.set(mid[0], mid[1], z); lbl.renderOrder = 24; vertGroup.add(lbl); patObjs.push(lbl);
 
   const thm = new THREE.Mesh(                 // marqueur au seuil
@@ -1384,6 +1449,10 @@ window.__aerobriefer = {
   get patternOn() { return patState.on; },
   get patternObjs() { return patObjs.length; },
   get tileZooms() { const z=new Set(); for (const k of activeTiles.keys()) z.add(k.split('/')[1]); return [...z].sort(); },
+  get labelInfo() { const l = screenLabels[0]; return l ? { count: screenLabels.length, sizeAttenuation: l.material.sizeAttenuation, scaleY: +l.scale.y.toFixed(4) } : null; },
+  get aeroLabelsShown() { return aeroLabels.filter(l => l.visible).length; },
+  // Verifie que TOUTE la plage de tuiles demandee est presente (pas de trous).
+  get tileCoverageOk() { if (!lastRange) return null; let miss = 0, total = 0; for (let x = lastRange.tx0; x <= lastRange.tx1; x++) for (let y = lastRange.ty0; y <= lastRange.ty1; y++) { total++; if (!activeTiles.has(lastRange.layer + '/' + lastRange.z + '/' + x + '/' + y)) miss++; } return { z: lastRange.z, total, missing: miss }; },
   ready: true,
 };
 </script>
