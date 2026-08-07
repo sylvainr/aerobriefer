@@ -615,6 +615,10 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
     origin = context.origin_icao or plan.depart
     dest = context.destination_icao or "nav"
     slug = f"{origin}_{dest}"
+    # Nom court du dossier tiré du fichier de nav (« nav_aller.json » → « aller »),
+    # pour des sorties lisibles (navlog_aller, brief_aller…) ; repli sur le slug OACI.
+    stem = nav_path.stem
+    label = stem[4:] if stem.startswith("nav_") and len(stem) > 4 else slug
 
     print(f"Dossier « {plan.title} » — {context.window.start:%d/%m/%Y %H:%MZ} → {out_dir}")
     print(
@@ -628,9 +632,9 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         marker = "CRITIQUE" if failure.is_critical else "mineur"
         print(f"    [{marker}] {failure.source} : {failure.reason}")
 
-    (out_dir / f"brief_{slug}.html").write_text(render_html(package), encoding="utf-8")
-    render_pdf(package, out_dir / f"brief_{slug}.pdf")
-    (out_dir / f"viewer_{slug}.html").write_text(render_viewer(package), encoding="utf-8")
+    (out_dir / f"brief_{label}.html").write_text(render_html(package), encoding="utf-8")
+    render_pdf(package, out_dir / f"brief_{label}.pdf")
+    (out_dir / f"viewer_{label}.html").write_text(render_viewer(package), encoding="utf-8")
     registration = plan.aeronef or DEFAULT_REGISTRATION
     (out_dir / f"masse_centrage_{registration}.html").write_text(
         render_massbalance(resolve_aircraft(plan.aeronef)), encoding="utf-8"
@@ -639,9 +643,9 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         variation = _declination(
             plan.declinaison_deg, context.geometry.bounding_circle().center, plan.date
         )
-        _render_navlog(context, out_dir / f"navlog_{slug}.html", magnetic_variation_deg=variation)
-        _render_navlog(context, out_dir / f"navlog_{slug}.pdf", magnetic_variation_deg=variation)
-        _render_checklist(context, out_dir / f"checklist_{slug}.pdf", zone=plan.zone)
+        _render_navlog(context, out_dir / f"navlog_{label}.html", magnetic_variation_deg=variation)
+        _render_navlog(context, out_dir / f"navlog_{label}.pdf", magnetic_variation_deg=variation)
+        _render_checklist(context, out_dir / f"checklist_{label}.pdf", zone=plan.zone)
 
     print(f"  → dossier complet écrit dans {out_dir}")
     return 0 if package.is_complete else 1
