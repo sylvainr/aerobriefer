@@ -57,6 +57,10 @@
   .nogo { color: #b3261e; font-weight: 700; }
   tbody tr:nth-child(even) td { background: #fbfbfb; }
   .totals td { height: auto; font-weight: 700; background: #f0f0f0; border-top: 1.4pt solid #000; }
+  /* Ligne pleine largeur : rappel « briefing d'arrivée » (≥ 15 min avant l'atterrissage). */
+  .brief-row td { height: auto; background: #fff3cd; border: 1pt solid #e0c94a;
+    font-size: 7pt; color: #12232e; padding: 1.4mm 2mm; text-align: center; letter-spacing: .2px; }
+  .brief-row b { color: #8a6d00; }
   td a { color: #2b6cb0; text-decoration: none; }
   /* Mini-table (vents) : lignes compactes, pas la hauteur d'écriture du navlog. */
   table.mini { font-size: 7pt; margin-bottom: 1mm; }
@@ -126,6 +130,12 @@
   </thead>
   <tbody>
     {% for r in rows %}
+    {% if r.brief_before %}
+    <tr class="brief-row"><td colspan="9">
+      ☐ <b>BRIEFING D'ARRIVÉE</b> — à commencer ICI (~{{ r.brief_remaining_min }} min avant l'atterrissage) :
+      carte VAC · début descente · altitude visée · intégration · config · approche · particularités · RMG
+    </td></tr>
+    {% endif %}
     <tr>
       <td class="branche">
         <div class="mono b">{% if r.from.url %}<a href="{{ r.from.url }}">{{ r.from.code }}</a>{% else %}{{ r.from.code }}{% endif %}</div>

@@ -97,6 +97,21 @@ def _rows(
                 speed_unit=speed_unit,
             )
         )
+
+    # Marqueur « briefing d'arrivée » : il DOIT rester ≥ 15 min de navigation entre
+    # le briefing et l'atterrissage. On remonte depuis l'arrivée en cumulant les
+    # temps ; la ligne se pose au début de la 1re branche (en partant de la fin)
+    # qui laisse ≥ 15 min de vol restant (sinon reportée à la branche d'avant).
+    if rows:
+        remaining_min = 0.0
+        brief_idx = 0
+        for i in range(len(navlog.legs) - 1, -1, -1):
+            remaining_min += navlog.legs[i].time.total_seconds() / 60.0
+            brief_idx = i
+            if remaining_min >= 15.0:
+                break
+        rows[brief_idx]["brief_before"] = True
+        rows[brief_idx]["brief_remaining_min"] = round(remaining_min)
     return rows
 
 
