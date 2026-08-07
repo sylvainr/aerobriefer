@@ -447,7 +447,7 @@ def _render_checklist(context: BriefingContext, output: Path, *, zone: str) -> N
     from .data import airports
     from .domain.fuel import fuel_plan
     from .domain.sun import sun_times
-    from .render.checklist import render_checklist_pdf
+    from .render.checklist import render_checklist_html
 
     assert context.route is not None
     route = context.route
@@ -473,19 +473,21 @@ def _render_checklist(context: BriefingContext, output: Path, *, zone: str) -> N
         if aerodrome is not None and aerodrome.icao not in vac_icaos:
             vac_icaos.append(aerodrome.icao)
 
-    render_checklist_pdf(
-        output,
-        origin=context.origin_icao or route.waypoints[0].name,
-        destination=context.destination_icao or route.waypoints[-1].name,
-        date_label=f"{local_start:%d/%m/%Y}",
-        aircraft_name=aircraft.name,
-        sunset=f"{sun.sunset.astimezone(tz):%H:%M}" if sun.sunset else None,
-        night=f"{sun.aeronautical_night_start.astimezone(tz):%H:%M}"
-        if sun.aeronautical_night_start
-        else None,
-        fuel_min_l=fuel_min,
-        vac_icaos=vac_icaos,
-        display_timezone=zone,
+    output.write_text(
+        render_checklist_html(
+            origin=context.origin_icao or route.waypoints[0].name,
+            destination=context.destination_icao or route.waypoints[-1].name,
+            date_label=f"{local_start:%d/%m/%Y}",
+            aircraft_name=aircraft.name,
+            sunset=f"{sun.sunset.astimezone(tz):%H:%M}" if sun.sunset else None,
+            night=f"{sun.aeronautical_night_start.astimezone(tz):%H:%M}"
+            if sun.aeronautical_night_start
+            else None,
+            fuel_min_l=fuel_min,
+            vac_icaos=vac_icaos,
+            display_timezone=zone,
+        ),
+        encoding="utf-8",
     )
 
 
@@ -617,7 +619,6 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
     from .navplan import load_navplan
     from .render.html import render_html
     from .render.massbalance import render_massbalance
-    from .render.pdf import render_pdf
     from .render.viewer import render_viewer
 
     try:
@@ -658,12 +659,12 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         marker = "CRITIQUE" if failure.is_critical else "mineur"
         print(f"    [{marker}] {failure.source} : {failure.reason}")
 
+    # Dossier 100 % HTML (imprimable soi-même) : pas de PDF, trop de fichiers.
     # Deux dossiers distincts : météo (Météo-France) et NOTAM (SIA/SOFIA).
     for kind in ("meteo", "notam"):
         (out_dir / f"brief_{kind}_{label}.html").write_text(
             render_html(package, kind=kind), encoding="utf-8"
         )
-        render_pdf(package, out_dir / f"brief_{kind}_{label}.pdf", kind=kind)
     (out_dir / f"viewer_{label}.html").write_text(render_viewer(package), encoding="utf-8")
     registration = plan.aeronef or DEFAULT_REGISTRATION
     (out_dir / f"masse_centrage_{registration}.html").write_text(
@@ -674,11 +675,10 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
             plan.declinaison_deg, context.geometry.bounding_circle().center, plan.date
         )
         _render_navlog(context, out_dir / f"navlog_{label}.html", magnetic_variation_deg=variation)
-        _render_navlog(context, out_dir / f"navlog_{label}.pdf", magnetic_variation_deg=variation)
         _render_fuelbalance(
             context, out_dir / f"bilan_carburant_{label}.html", magnetic_variation_deg=variation
         )
-        _render_checklist(context, out_dir / f"checklist_{label}.pdf", zone=plan.zone)
+        _render_checklist(context, out_dir / f"checklist_{label}.html", zone=plan.zone)
 
     print(f"  → dossier complet écrit dans {out_dir}")
     return 0 if package.is_complete else 1

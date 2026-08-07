@@ -490,7 +490,12 @@ class HtmlRenderer:
             }
             for f in sorted(package.forecasts, key=lambda f: f.value.valid_at)
         ]
-        charts = [self._chart_view(c, moment, package.context.window) for c in package.charts]
+        # Satellite exclu du dossier : peu utile à l'impression (cf. TEMSI/WINTEM/fronts).
+        charts = [
+            self._chart_view(c, moment, package.context.window)
+            for c in package.charts
+            if c.value.kind != "satellite"
+        ]
         chart_groups = _group_charts(charts)
         sigmets = [
             {

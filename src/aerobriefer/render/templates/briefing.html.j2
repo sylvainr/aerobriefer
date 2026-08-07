@@ -227,6 +227,13 @@
     .frames .frame { display: none; margin: 0; }
     .frames .frame.is-current { display: block; }
     .print-only { display: none; }
+    /* « Tout déplier » : montre toutes les échéances à l'écran (aperçu impression). */
+    body.expand-all .frames .frame { display: block !important; margin: 0 0 4mm; }
+    body.expand-all .player-controls { display: none; }
+    body.expand-all .print-only { display: block; }
+    .expand-btn { font: inherit; font-size: 8pt; cursor: pointer; padding: 1mm 2.5mm;
+      border: 1pt solid #2b6cb0; background: #eaf2fb; color: #2b6cb0; border-radius: 1mm; }
+    .expand-btn.on { background: #2b6cb0; color: #fff; }
   }
   /* À l'impression / PDF : le JS ne pilote pas la vue. On réaffiche TOUTES les
      frames empilées (une par page) et on masque les commandes interactives. */
@@ -258,6 +265,9 @@
       </p>
       {% endif %}
       <p class="small muted">{{ purpose_label }} · heures locales = {{ display_timezone }}</p>
+      {% if chart_groups %}
+      <p class="no-print"><button type="button" id="expandBtn" class="expand-btn">Tout déplier (aperçu impression)</button></p>
+      {% endif %}
     </div>
     <div class="small" style="text-align:right; white-space:nowrap">
       <div><b>Dossier assemblé</b></div>
@@ -744,6 +754,22 @@
     slider.addEventListener('input', function () { stop(); show(parseInt(slider.value, 10)); });
     btn.addEventListener('click', play);
     show(0);
+  });
+})();
+
+// Bouton « Tout déplier » : montre toutes les échéances (aperçu de ce qui s'imprime).
+(function () {
+  var btn = document.getElementById('expandBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var on = document.body.classList.toggle('expand-all');
+    btn.classList.toggle('on', on);
+    btn.textContent = on ? 'Replier les cartes' : 'Tout déplier (aperçu impression)';
+    if (on) {
+      document.querySelectorAll('.play-btn').forEach(function (b) {
+        if (b.textContent !== '▶') b.click();  // stopper les animations en cours
+      });
+    }
   });
 })();
 </script>
