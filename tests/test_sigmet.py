@@ -435,3 +435,54 @@ def test_reseau_reel_isigmet():
         assert s.raw_text.strip()
         assert sourced.provenance.source == "noaa-awc"
         assert s.concerns(context.geometry, context.window)
+
+
+# --------------------------------------------------------------------------
+# SIGMET multi-zones (geom "AREAS") — coords = liste de zones (imbriqué)
+# --------------------------------------------------------------------------
+
+# Brazzaville, multi-zones : coords est une LISTE DE ZONES, chacune une liste de
+# {lon, lat}. Sans lecture de ce format, le polygone serait vide et la règle
+# « sans polygone → conservé » ferait entrer ce SIGMET du Congo dans un dossier
+# France (bug réel constaté).
+SIGMET_CONGO_MULTI = {
+    "icaoId": "FCBB",
+    "firId": "FCCC",
+    "firName": "FCCC BRAZZAVILLE",
+    "receiptTime": "2026-07-21T05:10:00.000Z",
+    "validTimeFrom": _VALID_FROM,
+    "validTimeTo": _VALID_TO,
+    "seriesId": "A1",
+    "hazard": "TS",
+    "geom": "AREAS",
+    "coords": [
+        [
+            {"lon": 13.97, "lat": 5.65},
+            {"lon": 20.32, "lat": 5.4},
+            {"lon": 20.32, "lat": 7.4},
+            {"lon": 13.97, "lat": 7.65},
+        ],
+        [
+            {"lon": 10.3, "lat": 6.77},
+            {"lon": 9.42, "lat": 3.78},
+            {"lon": 11.0, "lat": 3.0},
+            {"lon": 12.0, "lat": 6.0},
+        ],
+    ],
+    "rawSigmet": "FCCC SIGMET A1 VALID 210600/211200 FCBB- FCCC BRAZZAVILLE FIR TS",
+}
+
+
+def test_polygone_multizones_est_aplati():
+    """geom 'AREAS' : les zones imbriquées sont aplaties en un jeu de sommets."""
+    poly = sigmet._polygon(SIGMET_CONGO_MULTI)
+    assert len(poly) == 8  # 4 + 4 sommets, toutes zones confondues
+    assert poly[0] == Position(5.65, 13.97)  # lat, lon (pas l'inverse)
+
+
+def test_sigmet_multizones_lointain_est_ecarte(monkeypatch):
+    """Le SIGMET multi-zones du Congo ne doit PAS entrer dans un dossier France :
+    son polygone (aplati) est désormais non vide et situé loin → filtré."""
+    _stub_transport(monkeypatch, records=[SIGMET_CONGO_MULTI, SIGMET_FRANCE])
+    results = SigmetProvider().fetch(_context())
+    assert [s.value.fir for s in results] == ["LFBB"]  # Brazzaville écarté

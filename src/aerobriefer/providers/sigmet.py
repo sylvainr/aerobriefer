@@ -154,27 +154,42 @@ def _fetch() -> tuple[list[dict[str, Any]], str]:
 
 
 def _polygon(record: dict[str, Any]) -> tuple[Position, ...]:
-    """Mappe les `coords` [{lon, lat}] de la source vers des `Position(lat, lon)`.
+    """Mappe les `coords` de la source vers des `Position(lat, lon)`.
+
+    Deux formats coexistent selon `geom` :
+    - « AREA »  : `coords` = liste plate de {lon, lat} (une zone) ;
+    - « AREAS » : `coords` = liste de ZONES, chacune une liste de {lon, lat}
+      (SIGMET multi-zones, ex. plusieurs cellules orageuses).
+
+    On aplatit toutes les zones en un seul jeu de sommets — c'est SUFFISANT et
+    correct pour le filtrage de `Sigmet.concerns` (test sommet-par-sommet +
+    centre). NE PAS lire le format imbriqué laissait le polygone VIDE, et la règle
+    « sans polygone → conservé » faisait alors entrer des SIGMET lointains
+    (Brazzaville, Caracas…) dans un dossier France.
 
     ATTENTION à l'ordre : la source donne lon puis lat, le domaine attend lat
-    puis lon. Un sommet aberrant est ignoré plutôt que de faire tomber tout le
-    SIGMET — sans polygone exploitable, `Sigmet.concerns` conserve de toute façon.
+    puis lon. Un sommet aberrant est ignoré plutôt que de faire tomber le SIGMET.
     """
     coords = record.get("coords")
-    if not isinstance(coords, list):
+    if not isinstance(coords, list) or not coords:
         return ()
+    # Multi-zones si le premier élément est lui-même une liste ; sinon zone unique.
+    groups = coords if isinstance(coords[0], list) else [coords]
     vertices: list[Position] = []
-    for point in coords:
-        if not isinstance(point, dict):
+    for group in groups:
+        if not isinstance(group, list):
             continue
-        lat = point.get("lat")
-        lon = point.get("lon")
-        if lat is None or lon is None:
-            continue
-        try:
-            vertices.append(Position(float(lat), float(lon)))
-        except (TypeError, ValueError):
-            continue
+        for point in group:
+            if not isinstance(point, dict):
+                continue
+            lat = point.get("lat")
+            lon = point.get("lon")
+            if lat is None or lon is None:
+                continue
+            try:
+                vertices.append(Position(float(lat), float(lon)))
+            except (TypeError, ValueError):
+                continue
     return tuple(vertices)
 
 
