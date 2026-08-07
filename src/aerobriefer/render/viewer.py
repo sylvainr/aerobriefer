@@ -107,6 +107,8 @@ def viewer_data(package: BriefingPackage) -> dict[str, Any]:
             "polygon": [[p.lon, p.lat] for p in a.polygon],
         }
         for a in _region_airspaces(airspace, region)
+        # FIR exclu du viewer : volume à l'échelle de la région, il masque tout.
+        if a.airspace_type != "FIR"
     ]
 
     aerodromes = [
