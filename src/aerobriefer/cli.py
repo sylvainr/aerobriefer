@@ -12,6 +12,7 @@ import argparse
 from dataclasses import replace
 from datetime import timedelta  # noqa: TID251 - timedelta est une durée, pas un instant
 from pathlib import Path
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from .assemble import assemble_briefing
@@ -473,11 +474,9 @@ def _render_navlog(
     origin_icao = context.origin_icao or context.route.waypoints[0].name
     dest_icao = context.destination_icao or context.route.waypoints[-1].name
     perfs = runway_performance(aircraft, origin_icao, dest_icao)
-    render_navlog_pdf(
-        navlog,
-        output,
-        origin=context.origin_icao or context.route.waypoints[0].name,
-        destination=context.destination_icao or context.route.waypoints[-1].name,
+    meta: dict[str, Any] = dict(
+        origin=origin_icao,
+        destination=dest_icao,
         aircraft_name=aircraft.name,
         tas_kt=aircraft.cruise_tas_kt,
         fuel_flow_lph=aircraft.cruise_fuel_lph or None,
@@ -489,6 +488,13 @@ def _render_navlog(
         fuel_plan=fuel_plan,
         perfs=perfs,
     )
+    # Extension .html → page HTML (confort écran) ; sinon PDF imprimable.
+    if output.suffix.lower() == ".html":
+        from .render.navlog import render_navlog_html
+
+        output.write_text(render_navlog_html(navlog, **meta), encoding="utf-8")
+    else:
+        render_navlog_pdf(navlog, output, **meta)
 
 
 if __name__ == "__main__":

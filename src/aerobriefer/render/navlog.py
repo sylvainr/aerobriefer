@@ -114,7 +114,8 @@ def _diversion_view(div: Any | None) -> dict[str, Any] | None:
         "distance": div.distance_nm,
         "time_min": div.time_min,
         "relative": f"{div.side}{div.relative_deg}°",  # ex. « G16° »
-        "rotate": div.relative_signed_deg,  # rotation exacte de la flèche (° signé)
+        # Flèche compacte gauche/droite (relatif à la route), même style que Dv.
+        "dir_arrow": "◀" if div.side == "G" else "▶",
         "runways": [
             {
                 "ident": rw.ident,

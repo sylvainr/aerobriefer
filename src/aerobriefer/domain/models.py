@@ -35,14 +35,14 @@ class WindComponents:
 
     @property
     def arrow(self) -> str:
-        """Flèche indiquant d'où souffle le traversier : ← droite, → gauche.
+        """Flèche COMPACTE gauche/droite (◀ / ▶) du sens où le traversier pousse.
 
-        Le vent venant de la droite POUSSE l'avion vers la gauche : la flèche
-        pointe donc dans le sens de la poussée, vers la gauche, quand il vient de
-        droite. Sans traversier notable, pas de flèche."""
+        Style volontairement RELATIF (gauche/droite), pas une flèche directionnelle
+        qu'on confondrait avec un cap absolu. Le vent venant de la droite pousse
+        l'avion vers la GAUCHE (◀) ; sans traversier notable, pas de flèche."""
         if self.crosswind_kt < 0.5:
             return ""
-        return "←" if self.from_right else "→"
+        return "◀" if self.from_right else "▶"
 
 
 class Severity(IntEnum):

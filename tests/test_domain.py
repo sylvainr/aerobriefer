@@ -291,7 +291,7 @@ def test_crosswind_pure_from_right():
     assert abs(wc.crosswind_kt - 20.0) < 0.01
     assert abs(wc.headwind_kt) < 0.01
     assert wc.from_right is True
-    assert wc.arrow == "←"  # vient de droite → pousse vers la gauche
+    assert wc.arrow == "◀"  # vient de droite → pousse vers la gauche (flèche compacte G/D)
 
 
 def test_crosswind_pure_headwind_has_no_cross():

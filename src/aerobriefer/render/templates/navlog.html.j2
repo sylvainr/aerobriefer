@@ -7,7 +7,9 @@
   }
   html { font-size: 9pt; }
   body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #000; background: #fff; margin: 0; line-height: 1.15; }
-  @media screen { html { background: #ececec; } body { max-width: 940px; margin: 18px auto; padding: 16px 18px; box-shadow: 0 1px 6px rgba(0,0,0,.15); } }
+  /* À l'écran : plus large et confortable ; la table déborde en scroll horizontal
+     plutôt que de chevaucher si l'écran est étroit. */
+  @media screen { html { background: #ececec; } body { max-width: 1200px; margin: 18px auto; padding: 16px 22px; box-shadow: 0 1px 6px rgba(0,0,0,.15); overflow-x: auto; } }
 
   h1 { font-size: 11.5pt; margin: 0 0 1.5mm; color: #12232e; letter-spacing: .3px; }
   .facts { display: flex; flex-wrap: wrap; gap: .8mm 4mm; margin: 0 0 2mm; font-size: 7pt; }
@@ -15,7 +17,7 @@
   .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 
   table { width: 100%; border-collapse: collapse; font-size: 6.6pt; table-layout: fixed; }
-  th, td { border: .5pt solid #888; padding: 1mm 0.8mm; vertical-align: top; }
+  th, td { border: .5pt solid #888; padding: 1mm 0.8mm; vertical-align: top; overflow-wrap: break-word; word-break: break-word; }
   th { background: #12232e; color: #fff; font-size: 5.6pt; text-transform: uppercase; letter-spacing: .2px; text-align: center; padding: 1mm 0.4mm; }
   td { height: 14mm; }
   .c { text-align: center; }
@@ -25,7 +27,7 @@
   .auto b { color: #2b6cb0; }
   .arrow { font-size: 9pt; font-weight: 700; }
   .nw { white-space: nowrap; }               /* groupes valeur+unité insécables */
-  .dirarrow { display: inline-block; font-size: 10pt; font-weight: 700; color: #12232e; }
+  .lr { font-weight: 700; color: #12232e; }  /* flèche compacte gauche/droite (◀/▶) */
   .rwyfav { background: #d6ecd9; font-weight: 700; padding: 0 0.5mm; border-radius: 0.5mm; }
   .morse { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 5pt; letter-spacing: -0.3px; color: #2b6cb0; }
   th.big-h { font-size: 8pt; background: #35618e; }
@@ -101,14 +103,14 @@
       <td class="fill"></td>
       <td class="fill"></td>
       <td class="auto">
-        {% for radio in r.radios %}<div class="nw"><b>{{ radio.label }}</b> {{ radio.freq }} MHz</div>{% endfor %}
-        {% if r.vor %}<div class="sub"><span class="nw">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span></span> <span class="nw">{{ r.vor.freq }} MHz</span> <span class="nw">R{{ r.vor.radial }}° · {{ r.vor.distance }} NM</span> <span class="lbl">(→ pt)</span></div>{% endif %}
+        {% for radio in r.radios %}<div><b>{{ radio.label }}</b> <span class="nw">{{ radio.freq }} MHz</span></div>{% endfor %}
+        {% if r.vor %}<div class="sub">VOR {{ r.vor.ident }} <span class="morse">{{ r.vor.morse }}</span> <span class="nw">{{ r.vor.freq }} MHz</span> <span class="nw">R{{ r.vor.radial }}°</span> <span class="nw">{{ r.vor.distance }} NM</span> <span class="lbl">(→ pt)</span></div>{% endif %}
         <span class="blank"></span><span class="blank"></span><span class="blank"></span>
       </td>
       <td class="auto">
         {% if r.diversion %}
         <div><a href="{{ r.diversion.url }}"><b>{{ r.diversion.icao }}</b></a> <span class="sub">{{ r.diversion.name }}</span></div>
-        <div><span class="dirarrow" style="transform:rotate({{ r.diversion.rotate }}deg)">↑</span> <span class="nw"><b>{{ r.diversion.relative }}</b></span> · <span class="nw">{{ r.diversion.distance }} NM</span> · <span class="nw">{{ r.diversion.time_min }} min</span></div>
+        <div><span class="nw"><span class="lr">{{ r.diversion.dir_arrow }}</span> <b>{{ r.diversion.relative }}</b></span> · <span class="nw">{{ r.diversion.distance }} NM</span> · <span class="nw">{{ r.diversion.time_min }} min</span></div>
         {% if r.diversion.wind %}<div class="sub"><span class="nw">Vent {{ r.diversion.wind }}</span>{% if r.diversion.headwind is not none %} · <span class="nw">{% if r.diversion.headwind >= 0 %}face {{ r.diversion.headwind }}{% else %}arr. {{ -r.diversion.headwind }}{% endif %} kt</span> · <span class="nw">trav {{ r.diversion.crosswind }} kt {{ r.diversion.xwind_arrow }}</span>{% endif %}</div>{% endif %}
         {% if r.diversion.runways %}<div class="sub">Pistes : {% for rw in r.diversion.runways %}<span class="nw{% if rw.favoured %} rwyfav{% endif %}">{{ rw.ident }} {{ rw.length_m }} m</span>{% if not loop.last %} · {% endif %}{% endfor %}</div>{% endif %}
         {% for rw in r.diversion.runways %}{% if rw.favoured and rw.required %}<div class="sub"><span class="nw">Dist. atterrissage {{ rw.ident }} : {{ rw.required }} m {% if rw.ok %}<span class="go">✓</span>{% else %}<span class="nogo">✗</span>{% endif %}</span></div>{% endif %}{% endfor %}
