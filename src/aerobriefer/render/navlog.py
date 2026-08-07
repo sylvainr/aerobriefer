@@ -15,8 +15,10 @@ from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from ..data import airports
 from ..domain.navlog import LegComputation, NavLog
 from ..domain.window import UtcDateTime, utcnow
+from ..navlog_build import vac_url
 
 TEMPLATE_DIR = Path(__file__).parent / "templates"
 TEMPLATE_NAME = "navlog.html.j2"
@@ -95,6 +97,7 @@ def _diversion_view(div: Any | None) -> dict[str, Any] | None:
         return None
     return {
         "icao": div.icao,
+        "url": vac_url(div.icao),
         "distance": div.distance_nm,
         "relative": f"{div.side}{div.relative_deg}°",  # ex. « G16° »
         "arrow": div.arrow,
@@ -103,6 +106,14 @@ def _diversion_view(div: Any | None) -> dict[str, Any] | None:
         "margin_pct": f"{div.margin_pct:+.0f}" if div.margin_pct is not None else None,
         "ok": div.ok,
     }
+
+
+def _endpoint(name: str) -> dict[str, Any]:
+    """Point de branche : si c'est un terrain, on le rend CLIQUABLE vers sa VAC."""
+    aerodrome = airports.lookup(name)
+    if aerodrome is not None:
+        return {"name": aerodrome.icao, "url": vac_url(aerodrome.icao)}
+    return {"name": name, "url": None}
 
 
 def _vor_view(vor: Any | None) -> dict[str, Any] | None:
@@ -129,7 +140,8 @@ def _row(
 ) -> dict[str, Any]:
     tsv_h = leg.distance_nm / leg.tas_kt if leg.tas_kt else 0.0
     return {
-        "branch": f"{leg.leg.start.name} → {leg.leg.end.name}",
+        "from": _endpoint(leg.leg.start.name),
+        "to": _endpoint(leg.leg.end.name),
         "altitude": f"{leg.altitude_ft:.0f}" if leg.altitude_ft is not None else "—",
         "zmin": f"{zmin_ft:.0f}" if zmin_ft is not None else None,
         "true_track": f"{leg.true_track_deg:03.0f}",
@@ -187,10 +199,15 @@ def render_navlog_html(
     safety_ft: list[float] | None = None,
     fuel_plan: Any | None = None,
     perfs: list[Any] | None = None,
+    provisional: bool = False,
     display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
     now: UtcDateTime | None = None,
 ) -> str:
-    """Log de navigation en HTML A4 portrait autosuffisant."""
+    """Log de navigation en HTML A4 portrait autosuffisant.
+
+    `provisional` (drapeau venu du modèle avion, `weight_balance.is_placeholder`)
+    déclenche l'avertissement « TAS/conso provisoires » : il n'est affiché QUE si
+    la donnée avion est marquée fictive dans son propre code."""
     tz = ZoneInfo(display_timezone)
     moment = now if now is not None else utcnow()
     total_fuel = navlog.total_fuel_l
@@ -225,6 +242,20 @@ def render_navlog_html(
             }
             for p in (perfs or [])
         ],
+        "winds": [
+            {
+                "branch": f"{leg.leg.start.name} → {leg.leg.end.name}",
+                "altitude": f"{leg.altitude_ft:.0f}" if leg.altitude_ft is not None else "—",
+                "from_deg": f"{leg.wind.from_deg:03.0f}",
+                "speed_kt": f"{leg.wind.speed_kt:.0f}",
+            }
+            for leg in navlog.legs
+        ],
+        "winds_caption": (
+            f"Open-Meteo (modèle GFS/ARPEGE) · échéance {navlog.departure_time:%d/%m %H:%M}Z"
+            " · interpolé à l'altitude de branche"
+        ),
+        "provisional": provisional,
         "total_distance": f"{navlog.total_distance_nm:.1f}",
         "total_time": _duration(navlog.total_time),
         "total_fuel": f"{total_fuel:.1f} L" if total_fuel is not None else "—",

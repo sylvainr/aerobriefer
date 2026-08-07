@@ -138,7 +138,8 @@ class VacLink:
     url: str
 
 
-def _vac_url(icao: str) -> str:
+def vac_url(icao: str) -> str:
+    """Lien VAC officiel SIA pour un terrain (catalogue par OACI)."""
     return SIA_VAC_SEARCH.format(icao=icao)
 
 
@@ -263,17 +264,25 @@ def annotate_navlog(
     annotations: list[LegAnnotation] = []
     vac: dict[str, VacLink] = {}
 
-    def note_field(name: str) -> None:
-        aerodrome = airports.lookup(name)
-        if aerodrome is not None and aerodrome.icao not in vac:
-            vac[aerodrome.icao] = VacLink(aerodrome.icao, aerodrome.name, _vac_url(aerodrome.icao))
+    def note_icao(icao: str, name: str = "") -> None:
+        if icao not in vac:
+            resolved = airports.lookup(icao)
+            vac[icao] = VacLink(icao, name or (resolved.name if resolved else ""), vac_url(icao))
 
     if navlog.legs:
-        note_field(navlog.legs[0].leg.start.name)
+        start_ad = airports.lookup(navlog.legs[0].leg.start.name)
+        if start_ad:
+            note_icao(start_ad.icao, start_ad.name)
 
     for index, leg in enumerate(navlog.legs):
         start_ad = airports.lookup(leg.leg.start.name)
         end_ad = airports.lookup(leg.leg.end.name)
+        diversion = _diversion_for(
+            leg.leg.end.position,
+            end_ad.icao if end_ad else None,
+            aircraft,
+            leg.true_track_deg,
+        )
         annotations.append(
             LegAnnotation(
                 radios=_leg_radios(
@@ -282,15 +291,14 @@ def annotate_navlog(
                     arrival_icao=end_ad.icao if end_ad else None,
                 ),
                 vor=_vor_for(leg.leg.end.position, magnetic_variation_deg),
-                diversion=_diversion_for(
-                    leg.leg.end.position,
-                    end_ad.icao if end_ad else None,
-                    aircraft,
-                    leg.true_track_deg,
-                ),
+                diversion=diversion,
             )
         )
-        note_field(leg.leg.end.name)
+        if end_ad:
+            note_icao(end_ad.icao, end_ad.name)
+        # Les terrains de déroutement méritent aussi leur carte VAC.
+        if diversion is not None:
+            note_icao(diversion.icao)
 
     return annotations, list(vac.values())
 
