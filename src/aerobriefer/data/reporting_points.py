@@ -92,7 +92,10 @@ def resolve(spec: str) -> ReportingPoint | None:
     icao = icao.strip().upper()
     ident = ident.strip().upper()
     if _openaip_available():
-        point = _openaip_resolve(icao, ident)
+        try:
+            point = _openaip_resolve(icao, ident)
+        except Exception:  # noqa: BLE001 - OpenAIP indispo (429, réseau) → repli vrp_france
+            point = None
         if point is not None:
             return point
     return _load().get((icao, ident))
@@ -101,7 +104,10 @@ def resolve(spec: str) -> ReportingPoint | None:
 def for_icao(icao: str) -> list[ReportingPoint]:
     icao = icao.strip().upper()
     if _openaip_available():
-        points = _openaip_for_icao(icao)
+        try:
+            points = _openaip_for_icao(icao)
+        except Exception:  # noqa: BLE001 - OpenAIP indispo → repli vrp_france
+            points = []
         if points:
             return points
     return [p for (i, _), p in _load().items() if i == icao]
@@ -110,7 +116,10 @@ def for_icao(icao: str) -> list[ReportingPoint]:
 def near(position: Position, *, within_nm: float) -> list[ReportingPoint]:
     """Points de report dans un rayon, du plus proche au plus loin."""
     if _openaip_available():
-        points = _openaip_near(position, within_nm)
+        try:
+            points = _openaip_near(position, within_nm)
+        except Exception:  # noqa: BLE001 - OpenAIP indispo → repli vrp_france
+            points = []
         if points:
             return points
     scored = [(p, position.distance_nm(p.position)) for p in _load().values()]

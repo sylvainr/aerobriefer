@@ -203,8 +203,14 @@ def _route(context: BriefingContext) -> dict[str, Any] | None:
 
 
 def _region_airspaces(airspace_module: Any, region: Any) -> list[Any]:
-    """Tous les espaces touchant la région du viewer (plus large que le briefing)."""
-    return list(airspace_module.intersecting(region))
+    """Tous les espaces touchant la région du viewer (plus large que le briefing).
+
+    Source indisponible (hors ligne, quota) → liste vide plutôt qu'échec : le
+    viewer reste utilisable sans les volumes."""
+    try:
+        return list(airspace_module.intersecting(region))
+    except Exception:  # noqa: BLE001 - source espaces indisponible : viewer sans volumes
+        return []
 
 
 def _ground(

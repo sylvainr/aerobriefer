@@ -127,7 +127,10 @@ def intersecting(geometry: Geometry) -> list[Airspace]:
 
     Source privilégiée : OpenAIP (si clé configurée), sinon repli planeur-net."""
     if _openaip_available():
-        hits = _openaip_intersecting(geometry)
+        try:
+            hits = _openaip_intersecting(geometry)
+        except Exception:  # noqa: BLE001 - OpenAIP indispo (429, réseau) → repli planeur-net
+            hits = []
         if hits:
             return hits
     hits = [a for a in _all_airspaces() if a.intersects(geometry)]
