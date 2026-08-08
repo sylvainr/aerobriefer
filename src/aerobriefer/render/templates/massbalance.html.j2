@@ -46,6 +46,28 @@
   .data table { width:100%; border-collapse:collapse; font-size:12px; }
   .data th, .data td { border:1px solid var(--line); padding:5px 9px; text-align:left; vertical-align:top; }
   .data th { background:#f4f7f9; font-weight:600; white-space:nowrap; width:1%; }
+
+  /* Impression : tout sur UNE page A4 paysage (feuille + diagramme côte à côte).
+     Le tableau « Données utilisées » et le pied restent à l'écran, masqués à
+     l'impression (info secondaire, pas la feuille de travail). */
+  @media print {
+    @page { size: A4 landscape; margin: 7mm; }
+    body { background:#fff; }
+    header { padding:0 0 5px; border:0; }
+    h1 { font-size:15px; }
+    main { padding:0; gap:12px; align-items:stretch; flex-wrap:nowrap; }
+    .controls { flex:0 0 53%; width:53%; min-width:0; }
+    .plot { flex:0 0 45%; width:45%; min-width:0; }
+    .panel { border:1px solid #bbb; border-radius:0; padding:8px; box-shadow:none; }
+    table.sheet { font-size:10px; }
+    table.sheet th, table.sheet td { padding:3px 6px; }
+    table.sheet td.reg { width:auto; }                /* colonne étroite : curseurs masqués */
+    .reg input[type=range] { display:none; }          /* curseurs inutiles sur papier */
+    .reg .rv { min-width:0; }
+    .status { font-size:12px; padding:6px; margin-top:8px; }
+    svg { max-height:155mm; }
+    #wbdata, footer { display:none; }
+  }
 </style>
 </head>
 <body>
