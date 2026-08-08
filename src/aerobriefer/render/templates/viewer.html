@@ -920,7 +920,16 @@ function clearAllTiles() {
 
 // Niveau de zoom : la resolution d'une tuile doit ~= la resolution ecran a la cible.
 function chooseZoom(maxZoom) {
-  const d = camera.position.distanceTo(controls.target);
+  // Resolution basee sur la distance camera -> SOL VISE (centre ecran), et NON
+  // sur la cible d'orbite (elle est en altitude, au milieu des volumes : s'en
+  // servir choisit un zoom trop fin quand le sol est en fait loin).
+  const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+  const rc = new THREE.Raycaster();
+  const hit = new THREE.Vector3();
+  rc.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const d = rc.ray.intersectPlane(plane, hit)
+    ? camera.position.distanceTo(hit)
+    : camera.position.distanceTo(controls.target);
   const vFov = camera.fov * DEG;
   const H = renderer.domElement.clientHeight || window.innerHeight;
   const screenMpp = (2 * d * Math.tan(vFov / 2)) / H;      // metres / pixel
@@ -938,16 +947,25 @@ function visibleBounds() {
   const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
   const rc = new THREE.Raycaster();
   const hit = new THREE.Vector3();
-  const cx = controls.target.x, cy = controls.target.y;
-  const d = camera.position.distanceTo(controls.target);
-  const reach = d * 2.2;   // portee max d'un coin autour de la cible
+  // Centre = point SOL vise par le rayon central. La cible d'orbite est en
+  // altitude (milieu des volumes) : centrer dessus effondrait l'emprise au zoom.
+  rc.setFromCamera(new THREE.Vector2(0, 0), camera);
+  let cx, cy, groundDist;
+  if (rc.ray.intersectPlane(plane, hit)) {
+    cx = hit.x; cy = hit.y; groundDist = camera.position.distanceTo(hit);
+  } else {
+    cx = controls.target.x; cy = controls.target.y;
+    groundDist = camera.position.distanceTo(controls.target);
+  }
+  // Portee d'un coin liee a la distance camera -> SOL (pas a la cible elevee).
+  const reach = Math.max(groundDist * 1.6, 300);
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const [nx, ny] of [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]]) {
     rc.setFromCamera(new THREE.Vector2(nx, ny), camera);
     let px, py;
     if (rc.ray.intersectPlane(plane, hit)) { px = hit.x; py = hit.y; }
-    else { const p = rc.ray.origin.clone().add(rc.ray.direction.clone().multiplyScalar(d * 2)); px = p.x; py = p.y; }
-    px = clamp(px, cx - reach, cx + reach);   // borne le coin (horizon) autour de la cible
+    else { const p = rc.ray.origin.clone().add(rc.ray.direction.clone().multiplyScalar(groundDist * 2)); px = p.x; py = p.y; }
+    px = clamp(px, cx - reach, cx + reach);   // borne le coin (horizon) autour du sol vise
     py = clamp(py, cy - reach, cy + reach);
     minX = Math.min(minX, px); maxX = Math.max(maxX, px);
     minY = Math.min(minY, py); maxY = Math.max(maxY, py);
