@@ -71,7 +71,7 @@
     <h2>Enveloppe de centrage</h2>
     <svg id="chart" viewBox="0 0 520 420" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="legend">
-      <span><span class="dot" style="background:#2b6cb0"></span> config. carburant (chaque réservoir plein ou vide)</span>
+      <span><span class="dot" style="background:rgba(43,108,176,.5);border:1px dashed #2b6cb0"></span> domaine carburant (tout plein/vide possible)</span>
       <span><span class="dot" style="background:#12232e"></span> config. actuelle</span>
       <span><span class="dot" style="background:#b3261e"></span> hors enveloppe</span>
     </div>
@@ -81,9 +81,10 @@
 <section id="wbdata" class="panel data"></section>
 
 <footer>
-  Bras (m) en abscisse, masse (kg) en ordonnée. Chaque point est une configuration de remplissage
-  des réservoirs (chacun plein ou vide) : <b>tous</b> doivent rester dans l'enveloppe, car le centrage
-  se déplace en consommant selon les réservoirs utilisés. Calcul local, aucune donnée n'est envoyée.
+  Bras (m) en abscisse, masse (kg) en ordonnée. Le <b>polygone</b> est le domaine de centrage
+  atteignable en faisant varier le carburant (chaque réservoir de vide à plein) : il ne dépend que
+  du chargement (pax/bagages) et <b>tout</b> doit rester dans l'enveloppe. Le <b>point</b> est la
+  configuration carburant courante, qui se déplace dans ce domaine. Calcul local, aucune donnée n'est envoyée.
 </footer>
 
 <script>
@@ -236,35 +237,33 @@ function render() {
   const n = DATA.fuels.length;
   const full = state(loads, fuelsL);
 
-  // 2^n configurations : chaque réservoir soit vide, soit à sa valeur courante.
-  const configs = [];
+  // DOMAINE carburant : polygone des 2^n coins (chaque réservoir VIDE ou PLEIN à
+  // sa CAPACITE). Il englobe tous les états carburant → il ne dépend PAS du
+  // réglage carburant courant (ne bouge qu'avec le chargement pax/bagages). Tout
+  // le domaine doit tenir dans l'enveloppe pour que N'IMPORTE QUEL carburant soit OK.
+  const corners = [];
+  let allWithin = true;
   for (let mask = 0; mask < (1 << n); mask++) {
-    const f = DATA.fuels.map((t, i) => (mask >> i & 1) ? fuelsL[i] : 0);
+    const f = DATA.fuels.map((t, i) => (mask >> i & 1) ? t.capacity_l : 0);
     const st = state(loads, f);
-    configs.push({ x: st.arm, y: st.mass, within: st.within, current: mask === (1 << n) - 1 });
+    corners.push({ x: st.arm, y: st.mass });
+    if (!st.within) allWithin = false;
   }
-  // domaine (enveloppe convexe des configs)
-  const h = hull(configs);
+  const h = hull(corners);
   if (h.length >= 3) {
     dyn.appendChild(el('polygon', {
       points: h.map(p => X(p.x) + ',' + Y(p.y)).join(' '),
-      fill: 'rgba(18,35,46,.06)', stroke: '#12232e', 'stroke-width': 1, 'stroke-dasharray': '3 3',
+      fill: 'rgba(43,108,176,.08)', stroke: '#2b6cb0', 'stroke-width': 1, 'stroke-dasharray': '3 3',
     }));
-  } else if (configs.length >= 2) {
+  } else if (corners.length >= 2) {
     dyn.appendChild(el('line', {
-      x1: X(configs[0].x), y1: Y(configs[0].y), x2: X(configs[configs.length - 1].x), y2: Y(configs[configs.length - 1].y),
-      stroke: '#12232e', 'stroke-width': 1, 'stroke-dasharray': '3 3',
+      x1: X(corners[0].x), y1: Y(corners[0].y), x2: X(corners[corners.length - 1].x), y2: Y(corners[corners.length - 1].y),
+      stroke: '#2b6cb0', 'stroke-width': 1, 'stroke-dasharray': '3 3',
     }));
   }
-  // points de configuration
-  configs.forEach(c => {
-    const color = c.within ? '#2b6cb0' : '#b3261e';
-    if (c.current) {
-      dyn.appendChild(el('circle', { cx: X(c.x), cy: Y(c.y), r: 6.5, fill: color, stroke: '#12232e', 'stroke-width': 2 }));
-    } else {
-      dyn.appendChild(el('circle', { cx: X(c.x), cy: Y(c.y), r: 4, fill: color, 'fill-opacity': .85 }));
-    }
-  });
+  // UN SEUL point : la configuration carburant COURANTE (bouge dans le domaine).
+  const col = full.within ? '#12232e' : '#b3261e';
+  dyn.appendChild(el('circle', { cx: X(full.arm), cy: Y(full.mass), r: 6.5, fill: col, stroke: '#fff', 'stroke-width': 1.5 }));
 
   // feuille : poids & moments par poste + total
   DATA.stations.forEach((s, i) => {
@@ -285,13 +284,13 @@ function render() {
   document.getElementById('zfcg').textContent = zero.arm.toFixed(3);
   document.getElementById('fuelKg').textContent = full.fuelKg.toFixed(0);
 
-  const allWithin = configs.every(c => c.within);
-  document.getElementById('totRow').className = allWithin ? 'tot' : 'tot bad';
+  // La ligne TOTAL reflète la config COURANTE ; le bandeau reflète tout le domaine.
+  document.getElementById('totRow').className = full.within ? 'tot' : 'tot bad';
   const st = document.getElementById('status');
   st.className = 'status ' + (allWithin ? 'ok' : 'bad');
   st.textContent = allWithin
-    ? '✓ Dans l\'enveloppe pour toutes les configurations carburant'
-    : '⚠ Hors enveloppe / masse maxi dans au moins une configuration carburant';
+    ? '✓ Tout le domaine carburant reste dans l\'enveloppe'
+    : '⚠ Hors enveloppe / masse maxi pour au moins un état carburant';
 }
 render();
 </script>

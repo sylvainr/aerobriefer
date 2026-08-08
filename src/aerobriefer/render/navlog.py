@@ -91,6 +91,7 @@ def _rows(
     annotations: list[Any] | None,
     safety_ft: list[float] | None,
     speed_unit: str,
+    fuel_flow_lph: float | None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     total = navlog.total_distance_nm
@@ -112,6 +113,7 @@ def _rows(
                 note=note,
                 zmin_ft=zmin,
                 speed_unit=speed_unit,
+                fuel_flow_lph=fuel_flow_lph,
             )
         )
     return rows
@@ -189,9 +191,24 @@ def _row(
     note: Any | None,
     zmin_ft: float | None,
     speed_unit: str,
+    fuel_flow_lph: float | None,
 ) -> dict[str, Any]:
     tsv_h = leg.distance_nm / leg.tas_kt if leg.tas_kt else 0.0
+    # Temps-carburant : conso exprimée en minutes de vol (fuel ÷ conso horaire).
+    # Métrique principale de gestion carburant ; les litres restent en secondaire.
+    ft_leg = (
+        f"{round(leg.fuel_l / fuel_flow_lph * 60)}"
+        if (leg.fuel_l is not None and fuel_flow_lph)
+        else None
+    )
+    ft_cum = (
+        f"{round(cumulative_fuel / fuel_flow_lph * 60)}"
+        if (leg.fuel_l is not None and fuel_flow_lph)
+        else None
+    )
     return {
+        "fuel_time": ft_leg,
+        "fuel_time_cum": ft_cum,
         "from": _endpoint(leg.leg.start.name),
         "to": _endpoint(leg.leg.end.name),
         "altitude": f"{leg.altitude_ft:.0f}" if leg.altitude_ft is not None else "—",
@@ -275,7 +292,7 @@ def render_navlog_html(
         "departure_dual": _dual(navlog.departure_time, tz, with_date=True),
         "arrival_dual": _dual(navlog.eta_arrival, tz, with_date=True),
         "arrival_local": _dual(navlog.eta_arrival, tz),
-        "rows": _rows(navlog, tz, annotations, safety_ft, speed_unit),
+        "rows": _rows(navlog, tz, annotations, safety_ft, speed_unit, fuel_flow_lph),
         "all_radios": _all_radios(annotations),
         "show_diversions": show_diversions,
         "vac_links": [{"icao": v.icao, "name": v.name, "url": v.url} for v in (vac_links or [])],
