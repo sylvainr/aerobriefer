@@ -80,7 +80,7 @@
   .am > b { display: block; font-size: 5.3pt; text-transform: uppercase; letter-spacing: .3px;
     color: #35618e; margin-bottom: 0.4mm; border-bottom: .5pt solid #ccc; padding-bottom: 0.3mm; }
   /* Vraies checklists VERTICALES : un item par ligne, à cocher de haut en bas. */
-  .am .ticks span { display: block; white-space: nowrap; line-height: 1.45; }
+  .am .ticks span { display: block; line-height: 1.4; }   /* items longs : passent à la ligne */
   /* Radios du vol, une seule fois, triées alpha : libellé à gauche, fréq à droite. */
   .am .radios .rline { display: flex; justify-content: space-between; gap: 2mm; line-height: 1.45; white-space: nowrap; }
   .am .radios .rf { font-family: "SF Mono", Menlo, Consolas, monospace; }
@@ -100,7 +100,7 @@
   <div class="am">
     <b>Au point tournant</b>
     <div class="ticks">
-      <span>☐ TOP</span><span>☐ CAP</span><span>☐ ALT</span><span>☐ ESTIM</span><span>☐ RADIO</span><span>☐ NAV</span><span>☐ GIRO</span><span>☐ ESSENCE</span><span>☐ MOTEUR</span><span>☐ MÉTÉO</span>
+      <span>☐ TOP</span><span>☐ CAP</span><span>☐ ALTI</span><span>☐ ESTIM</span><span>☐ RADIO</span><span>☐ RADIO-NAV</span><span>☐ GYRO</span><span>☐ ESS</span><span>☐ MOT</span><span>☐ MTO</span>
     </div>
   </div>
   <div class="am">
@@ -112,7 +112,7 @@
   <div class="am">
     <b>Déroutement</b>
     <div class="ticks">
-      <span>☐ Décision</span><span>☐ Cap</span><span>☐ TOP (estimée)</span><span>☐ Carburant + réserve</span><span>☐ VAC (QFU / alt / fréq)</span><span>☐ Radio (annonce)</span><span>☐ Espaces + Zmin</span><span>☐ Météo</span>
+      <span>☐ TOP</span><span>☐ Cap approx</span><span>☐ Alt compatible (relief/obstacle/zone/espace)</span><span>☐ Route + dérive (cap ? vent !)</span><span>☐ Estimé arrivée</span><span>☐ Point carburant</span><span>☐ Étude VAC</span><span>☐ Briefing arrivée</span>
     </div>
   </div>
   <div class="am">
