@@ -80,6 +80,16 @@
     border-radius: 12px; box-shadow: var(--shadow); z-index: 20;
     padding: 12px 14px; width: 262px; font-size: 12.5px;
   }
+  /* En-tête repliable : masque toute la config d'un clic. */
+  #controls .ctl-head { display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none; }
+  #controls .ctl-head span { font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--ink-soft); font-weight: 700; }
+  #controls .ctl-head button { border: 0; background: transparent; cursor: pointer;
+    font-size: 15px; line-height: 1; color: var(--ink-soft); padding: 0 2px; transition: transform .12s; }
+  #ctlBody { margin-top: 10px; }
+  #controls.collapsed #ctlBody { display: none; }
+  #controls.collapsed .ctl-head button { transform: rotate(-90deg); }
   #controls .ctl { display: flex; align-items: center; gap: 10px; }
   #controls label { color: var(--ink-soft); white-space: nowrap; }
   #controls input[type=range] { flex: 1; accent-color: var(--accent); }
@@ -206,6 +216,11 @@
 </aside>
 
 <div id="controls">
+  <div class="ctl-head" id="ctlHead">
+    <span>Réglages</span>
+    <button type="button" id="ctlCollapse" aria-label="Replier / déplier">▾</button>
+  </div>
+  <div id="ctlBody">
   <div class="ctl ctl-col">
     <label for="exag">Exagération&nbsp;verticale</label>
     <div class="slider-row">
@@ -215,6 +230,7 @@
   </div>
   <label class="chk-row"><input type="checkbox" id="aeroLabelsOn" checked> Étiquettes aérodromes</label>
   <label class="chk-row" id="reportRow"><input type="checkbox" id="reportOn" checked> Points de report VFR</label>
+  <label class="chk-row"><input type="checkbox" id="rulerOn" checked> Échelle verticale (ft)</label>
   <div id="groundBlock">
     <div class="ctl ctl-col">
       <label>Fond de carte</label>
@@ -245,6 +261,7 @@
     Glisser&nbsp;: pivoter · molette&nbsp;: zoom · clic droit&nbsp;: déplacer.<br>
     Rouge&nbsp;<b>N</b> = nord · règle verticale au centre en pieds AMSL.
   </div>
+  </div><!-- #ctlBody -->
 </div>
 
 <div id="navpanel"></div>
@@ -402,6 +419,8 @@ scene.add(fill);
 // Groupes : "world" (échelle 1) et "vol" (exagération verticale sur Z).
 const worldGroup = new THREE.Group();
 const vertGroup = new THREE.Group();  // contient volumes + règle verticale
+const rulerGroup = new THREE.Group(); // règle verticale seule → toggle indépendant
+vertGroup.add(rulerGroup);            // enfant de vertGroup : suit l'exagération Z
 scene.add(worldGroup);
 scene.add(vertGroup);
 
@@ -672,7 +691,7 @@ function buildVerticalRuler(maxFt) {
     ]),
     new THREE.LineBasicMaterial({ color: 0x8894a5, transparent: true, opacity: 0.7 })
   );
-  vertGroup.add(axis);
+  rulerGroup.add(axis);
   const step = maxFt > 12000 ? 5000 : 2000;
   for (let ft = step; ft <= maxFt + 1; ft += step) {
     const z = ft * FT_TO_M;
@@ -682,14 +701,14 @@ function buildVerticalRuler(maxFt) {
       ]),
       new THREE.LineBasicMaterial({ color: 0x8894a5 })
     );
-    vertGroup.add(tick);
+    rulerGroup.add(tick);
     const lbl = makeLabel(ft.toLocaleString('fr-FR') + ' ft', {
       fontSize: 30, screenPx: 13, color: '#56617f',
     });
     lbl.position.set(radiusM * 0.09, 0, z);
     lbl.userData.rulerLabel = true;
     lbl.userData.baseZ = z;
-    vertGroup.add(lbl);
+    rulerGroup.add(lbl);
   }
 }
 
@@ -928,6 +947,19 @@ function applyExag(v) {
 }
 exagSlider.addEventListener('input', () => applyExag(parseFloat(exagSlider.value)));
 applyExag(parseFloat(exagSlider.value));
+
+// ---- Échelle verticale : affichage optionnel -------------------------------
+const rulerToggle = document.getElementById('rulerOn');
+if (rulerToggle) {
+  rulerToggle.addEventListener('change', () => { rulerGroup.visible = rulerToggle.checked; });
+}
+
+// ---- Bloc de réglages repliable --------------------------------------------
+const controlsPanel = document.getElementById('controls');
+const ctlHead = document.getElementById('ctlHead');
+if (ctlHead) {
+  ctlHead.addEventListener('click', () => controlsPanel.classList.toggle('collapsed'));
+}
 
 // ---- Fond de carte satellite : tuiles XYZ pyramidales (LOD) ----------------
 // Vraie carte web : on charge des tuiles Web-Mercator {z}/{x}/{y} au niveau de
