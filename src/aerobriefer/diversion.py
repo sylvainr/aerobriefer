@@ -1,20 +1,22 @@
 """Étude de déroutement / dégagement : les terrains où l'on POURRAIT se poser.
 
-Étape 1 du process, formalisée : autour des terrains du vol (départ, points
-tournants, destination), on cherche les aérodromes voisins, et pour CHACUN on
-répond à la seule question qui compte en cas de pépin — « puis-je m'y poser (et
-en repartir) avec CET avion, dans CES conditions ? ». La réponse croise :
+Étape 1 du process, formalisée : autour des terrains du vol (vol local) ou LE
+LONG DE LA ROUTE (navigation), on cherche les aérodromes voisins, et pour CHACUN
+on répond à la seule question qui compte en cas de pépin — « puis-je m'y poser
+(et en repartir) avec CET avion, dans CES conditions ? ». La réponse croise :
 
-- la distance et le cap (magnétique) depuis le terrain de référence le plus proche ;
-- la ou les pistes (longueur, revêtement) ;
+- la distance et le cap (magnétique) depuis le terrain / la route ;
+- la ou les pistes (longueur, orientation, revêtement) ;
 - la performance de l'avion aux conditions du terrain (altitude-pression déduite
   du QNH, température, vent dans le sens favorable) via le moteur `aircraft` ;
-- la météo observée (METAR du terrain, ou du voisin le plus proche à défaut).
+- la météo observée (METAR du terrain, ou du voisin le plus proche à défaut) ;
+- les radios (fréquences) du terrain.
 
 Aucune donnée n'est inventée : si un terrain n'a pas de longueur de piste
 connue, le verdict est « inconnu », pas « ok ». Les distances sont celles du
 franchissement des 15 m (obstacle VFR), corrigées, éventuellement majorées d'un
-facteur de sécurité.
+facteur de sécurité. Le STATUT D'USAGE (public / restreint / PPR) n'est pas dans
+nos données de référence : le dossier renvoie à la carte VAC, il ne l'invente pas.
 """
 
 from __future__ import annotations
@@ -26,9 +28,11 @@ from typing import Any
 
 from .aircraft.model import AircraftSpec, Conditions, isa_temperature_c
 from .aircraft.runway import RunwayAssessment, assess_runway
-from .data import airports
+from .data import airports, frequencies
+from .domain.geo import Position, project_onto_segment
 from .domain.models import Aerodrome, WindComponents
 from .domain.package import BriefingPackage
+from .domain.route import Route
 from .domain.window import UtcDateTime, utcnow
 from .navlog_build import vac_url
 
@@ -39,6 +43,9 @@ _STD_QNH_HPA = 1013.25
 # Seuils de verdict d'ATTERRISSAGE (marge = (dispo − requis) / dispo).
 _MARGIN_COMFORT_PCT = 20.0  # au-dessus : confortable
 
+# Un candidat = (aérodrome, distance_nm, along_route_nm|None, origine, étiquette).
+_Candidate = tuple[Aerodrome, float, "float | None", Position, str]
+
 
 @dataclass(frozen=True, slots=True)
 class RunwayPerf:
@@ -48,6 +55,7 @@ class RunwayPerf:
     length_m: int
     surface: str | None
     is_paved: bool | None
+    true_bearing_deg: float | None  # axe de la piste (QFU bas), pour le pictogramme
     headwind_kt: float  # composante de face retenue (sens favorable de la piste)
     landing: RunwayAssessment | None  # None si longueur de piste inconnue
     takeoff: RunwayAssessment | None
@@ -59,10 +67,13 @@ class DiversionField:
 
     icao: str
     name: str
+    lat: float
+    lon: float
     distance_nm: float
+    along_route_nm: float | None  # position le long de la route (nav), sinon None
     bearing_true_deg: float
     bearing_mag_deg: float
-    from_icao: str  # terrain de référence le plus proche
+    from_label: str  # terrain de référence, ou point de route le plus proche
 
     elevation_ft: int
     longest_runway_m: int | None
@@ -81,6 +92,8 @@ class DiversionField:
     best_landing: RunwayAssessment | None
     best_takeoff: RunwayAssessment | None
     verdict: str  # OK | SERRÉ | INSUFFISANT | INCONNU
+
+    frequencies: tuple[tuple[str, str], ...]  # (type, MHz), ex. ("A/A", "118.500")
 
     # Météo (source réelle, avec provenance)
     metar_station: str | None
@@ -102,6 +115,9 @@ class DiversionStudy:
 
     reference_icaos: tuple[str, ...]
     reference_names: tuple[str, ...]
+    is_route: bool
+    route_path: tuple[tuple[float, float], ...]  # (lat, lon) des points de route
+    reference_points: tuple[tuple[str, float, float], ...]  # (icao, lat, lon)
     aircraft_name: str
     registration: str
     radius_nm: float
@@ -112,6 +128,19 @@ class DiversionStudy:
     demonstrated_crosswind_kt: float | None
     fields: tuple[DiversionField, ...]
     notes: tuple[str, ...]
+
+
+def _is_radio(freq_mhz: str) -> bool:
+    """Vraie fréquence radio VFR (bande VHF aéronautique 118–137 MHz).
+
+    Écarte les valeurs hors bande présentes dans la donnée source (UHF militaire,
+    OPS, artefacts) : sur une quick-ref, on ne montre que ce qu'on peut afficher.
+    """
+    try:
+        value = float(freq_mhz)
+    except ValueError:
+        return False
+    return 118.0 <= value <= 137.0
 
 
 def _pressure_altitude_ft(elevation_ft: int, qnh_hpa: float | None) -> float:
@@ -156,10 +185,67 @@ def _verdict(best_landing: RunwayAssessment | None) -> str:
     return "OK"
 
 
+def _candidates_around(
+    references: list[Aerodrome], radius_nm: float, limit: int
+) -> list[_Candidate]:
+    """Vol local : voisins de chaque terrain de référence, triés par distance."""
+    flight_set = {a.icao for a in references}
+    best_by_icao: dict[str, _Candidate] = {}
+    for ref in references:
+        for aero, dist in airports.nearest(ref.position, within_nm=radius_nm, limit=limit * 4):
+            if aero.icao in flight_set:
+                continue
+            current = best_by_icao.get(aero.icao)
+            if current is None or dist < current[1]:
+                best_by_icao[aero.icao] = (aero, dist, None, ref.position, ref.icao)
+    return sorted(best_by_icao.values(), key=lambda c: c[1])[:limit]
+
+
+def _candidates_along_route(
+    route: Route, radius_nm: float, flight_set: set[str], limit: int
+) -> list[_Candidate]:
+    """Navigation : terrains dans le couloir de la route, triés LE LONG de la route.
+
+    Distance affichée = écart perpendiculaire à la route (au segment le plus
+    proche) ; l'ordre suit la progression sur la route (0 au départ).
+    """
+    wps = list(route.waypoints)
+    legs: list[tuple[Position, Position, float, float]] = []
+    cumulative = 0.0
+    for start, end in zip(wps, wps[1:], strict=False):
+        length = start.position.distance_nm(end.position)
+        legs.append((start.position, end.position, cumulative, length))
+        cumulative += length
+
+    out: list[_Candidate] = []
+    for aero in airports.all_aerodromes():
+        if aero.icao in flight_set:
+            continue
+        best: tuple[float, float, Position] | None = None  # (dist, along, foot)
+        for a_pos, b_pos, cum_start, length in legs:
+            foot, t = project_onto_segment(aero.position, a_pos, b_pos)
+            if t < 0.0:
+                dist, foot_pt = aero.position.distance_nm(a_pos), a_pos
+            elif t > 1.0:
+                dist, foot_pt = aero.position.distance_nm(b_pos), b_pos
+            else:
+                dist, foot_pt = aero.position.distance_nm(foot), foot
+            along = cum_start + min(max(t, 0.0), 1.0) * length
+            if best is None or dist < best[0]:
+                best = (dist, along, foot_pt)
+        if best is not None and best[0] <= radius_nm:
+            near = min(wps, key=lambda w: w.position.distance_nm(aero.position))
+            out.append((aero, best[0], best[1], best[2], near.name))
+    out.sort(key=lambda c: c[2] if c[2] is not None else 0.0)  # le long de la route
+    return out[:limit]
+
+
 def _study_field(
     aerodrome: Aerodrome,
     distance_nm: float,
-    from_icao: str,
+    along_route_nm: float | None,
+    origin_position: Position,
+    from_label: str,
     *,
     aircraft: AircraftSpec,
     package: BriefingPackage,
@@ -169,8 +255,7 @@ def _study_field(
     safety_factor: float,
     now: UtcDateTime,
 ) -> DiversionField:
-    origin = airports.require(from_icao)
-    bearing_true = math.degrees(origin.position.bearing_to(aerodrome.position)) % 360.0
+    bearing_true = math.degrees(origin_position.bearing_to(aerodrome.position)) % 360.0
     bearing_mag = (bearing_true - variation_deg) % 360.0
 
     # Météo : observation propre du terrain, sinon la plus proche (marquée « proxy »).
@@ -206,7 +291,16 @@ def _study_field(
     for rwy in aerodrome.runways:
         if not rwy.length_m or rwy.length_m <= 0:
             runways.append(
-                RunwayPerf(rwy.ident, rwy.length_m or 0, rwy.surface, rwy.is_paved, 0.0, None, None)
+                RunwayPerf(
+                    ident=rwy.ident,
+                    length_m=rwy.length_m or 0,
+                    surface=rwy.surface,
+                    is_paved=rwy.is_paved,
+                    true_bearing_deg=rwy.true_bearing_deg,
+                    headwind_kt=0.0,
+                    landing=None,
+                    takeoff=None,
+                )
             )
             continue
         # Vent dans le sens FAVORABLE de la piste : on retient la composante de face.
@@ -215,15 +309,18 @@ def _study_field(
             comp = rwy.wind_components(wind_dir, wind_speed)
             if comp is not None:
                 headwind = abs(comp.headwind_kt)
-        base = Conditions(
-            pressure_altitude_ft=pa_ft,
-            temperature_c=temp_c,
-            mass_kg=mass_landing_kg,
-            headwind_kt=headwind,
-            slope_pct=0.0,
-        )
         landing = assess_runway(
-            aircraft, rwy, base, operation="landing", safety_factor=safety_factor
+            aircraft,
+            rwy,
+            Conditions(
+                pressure_altitude_ft=pa_ft,
+                temperature_c=temp_c,
+                mass_kg=mass_landing_kg,
+                headwind_kt=headwind,
+                slope_pct=0.0,
+            ),
+            operation="landing",
+            safety_factor=safety_factor,
         )
         takeoff = assess_runway(
             aircraft,
@@ -240,7 +337,14 @@ def _study_field(
         )
         runways.append(
             RunwayPerf(
-                rwy.ident, rwy.length_m, rwy.surface, rwy.is_paved, headwind, landing, takeoff
+                ident=rwy.ident,
+                length_m=rwy.length_m,
+                surface=rwy.surface,
+                is_paved=rwy.is_paved,
+                true_bearing_deg=rwy.true_bearing_deg,
+                headwind_kt=headwind,
+                landing=landing,
+                takeoff=takeoff,
             )
         )
 
@@ -250,10 +354,13 @@ def _study_field(
     return DiversionField(
         icao=aerodrome.icao,
         name=aerodrome.name,
+        lat=aerodrome.position.lat,
+        lon=aerodrome.position.lon,
         distance_nm=distance_nm,
+        along_route_nm=along_route_nm,
         bearing_true_deg=bearing_true,
         bearing_mag_deg=bearing_mag,
-        from_icao=from_icao,
+        from_label=from_label,
         elevation_ft=aerodrome.elevation_ft,
         longest_runway_m=aerodrome.longest_runway_m,
         pressure_altitude_ft=pa_ft,
@@ -269,6 +376,11 @@ def _study_field(
         best_landing=best_landing,
         best_takeoff=best_takeoff,
         verdict=_verdict(best_landing),
+        frequencies=tuple(
+            (f.kind, f.freq_mhz)
+            for f in frequencies.for_icao(aerodrome.icao)
+            if _is_radio(f.freq_mhz)
+        ),
         metar_station=metar.value.station if metar else None,
         metar_distance_nm=metar_dist,
         metar_is_proxy=metar_is_proxy,
@@ -294,12 +406,11 @@ def build_diversion_study(
     mass_landing_kg: float | None = None,
     now: UtcDateTime | None = None,
 ) -> DiversionStudy:
-    """Construit l'étude de dégagement autour des terrains du vol.
+    """Construit l'étude de dégagement.
 
-    Les terrains de référence sont ceux du vol (`flight_aerodromes`). Autour de
-    chacun, on prend les aérodromes dans `radius_nm`, on les dédoublonne (distance
-    au plus proche des terrains de référence), on garde les `limit` plus proches,
-    et on étudie chacun. Masses par défaut : les MAXIMA (hypothèse conservatrice).
+    Navigation (une route dans le contexte) : terrains DANS LE COULOIR de la
+    route, triés le long de la route, distance = écart à la route. Vol local :
+    voisins du terrain, triés par distance. Masses par défaut : les MAXIMA.
     """
     now = now or utcnow()
     mtow = mass_takeoff_kg if mass_takeoff_kg is not None else aircraft.max_takeoff_mass_kg
@@ -310,23 +421,20 @@ def build_diversion_study(
     ]
     flight_set = {a.icao for a in references}
 
-    # Candidats : union des voisins de chaque terrain de référence, dédoublonnée
-    # par ICAO en gardant la plus courte distance (et son terrain de référence).
-    best_by_icao: dict[str, tuple[Aerodrome, float, str]] = {}
-    for ref in references:
-        for aero, dist in airports.nearest(ref.position, within_nm=radius_nm, limit=limit * 4):
-            if aero.icao in flight_set:
-                continue
-            current = best_by_icao.get(aero.icao)
-            if current is None or dist < current[1]:
-                best_by_icao[aero.icao] = (aero, dist, ref.icao)
+    route = package.context.route
+    is_route = route is not None and len(route.waypoints) >= 2
+    if is_route and route is not None:
+        candidates = _candidates_along_route(route, radius_nm, flight_set, limit)
+    else:
+        candidates = _candidates_around(references, radius_nm, limit)
 
-    ordered = sorted(best_by_icao.values(), key=lambda t: t[1])[:limit]
     fields = tuple(
         _study_field(
             aero,
             dist,
-            from_icao,
+            along,
+            origin_position,
+            from_label,
             aircraft=aircraft,
             package=package,
             variation_deg=variation_deg,
@@ -335,24 +443,37 @@ def build_diversion_study(
             safety_factor=safety_factor,
             now=now,
         )
-        for aero, dist, from_icao in ordered
+        for aero, dist, along, origin_position, from_label in candidates
     )
 
+    order_note = (
+        "Terrains triés LE LONG DE LA ROUTE ; « dist. » = écart perpendiculaire à la route."
+        if is_route
+        else "Terrains triés par distance au terrain de référence."
+    )
     notes = (
         f"Masses au maximum ({mtow:.0f} kg décollage / {mldw:.0f} kg atterrissage) — "
         "hypothèse conservatrice, à ajuster à votre chargement réel.",
-        "Distances = franchissement des 15 m (obstacle VFR), corrigées "
+        "Distances de piste = franchissement des 15 m (obstacle VFR), corrigées "
         "altitude-pression / température / vent"
         + (f", majorées ×{safety_factor:.2f}." if safety_factor != 1.0 else "."),
         "Vent pris dans le sens le PLUS FAVORABLE de chaque piste.",
-        "Météo « voisin » = observation empruntée au terrain doté d'un METAR le "
-        "plus proche, faute d'observation sur le terrain même.",
+        order_note,
+        "STATUT D'USAGE (public / restreint / PPR) et pistes autorisées : NON couverts "
+        "par nos données — à confirmer sur la carte VAC de chaque terrain.",
         "Aide à la décision — le commandant de bord reste seul juge, carte VAC à l'appui.",
     )
 
     return DiversionStudy(
         reference_icaos=tuple(a.icao for a in references),
         reference_names=tuple(a.name for a in references),
+        is_route=is_route,
+        route_path=(
+            tuple((w.position.lat, w.position.lon) for w in route.waypoints)
+            if is_route and route is not None
+            else ()
+        ),
+        reference_points=tuple((a.icao, a.position.lat, a.position.lon) for a in references),
         aircraft_name=aircraft.name,
         registration=aircraft.registration,
         radius_nm=radius_nm,

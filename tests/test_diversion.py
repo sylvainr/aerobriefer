@@ -9,8 +9,10 @@ from datetime import UTC, timedelta
 from aerobriefer.aircraft.model import Conditions
 from aerobriefer.aircraft.registry import resolve
 from aerobriefer.aircraft.runway import assess_runway
+from aerobriefer.data import airports
 from aerobriefer.diversion import (
     _STD_QNH_HPA,
+    _is_radio,
     _pressure_altitude_ft,
     _verdict,
     build_diversion_study,
@@ -19,6 +21,7 @@ from aerobriefer.domain.context import BriefingContext
 from aerobriefer.domain.geo import Position
 from aerobriefer.domain.models import Metar, Runway
 from aerobriefer.domain.package import BriefingPackage
+from aerobriefer.domain.route import Route, Waypoint
 from aerobriefer.domain.sourced import Provenance, Sourced
 from aerobriefer.domain.window import TimeWindow, UtcDateTime
 
@@ -127,6 +130,45 @@ def test_borrows_nearest_metar_when_field_has_none():
     assert borrowed.temp_is_isa is False  # une obs. (empruntée) fournit la température
     assert borrowed.qnh_hpa == 1018.0
     assert borrowed.flight_category == "VFR"
+
+
+def test_is_radio_keeps_only_vhf_com_band():
+    assert _is_radio("119.300")
+    assert _is_radio("118.0")
+    assert not _is_radio("29.372")  # artefact hors bande
+    assert not _is_radio("139.925")  # OPS militaire
+    assert not _is_radio("A/A")  # non numérique
+
+
+# --- navigation : tri le long de la route -----------------------------------
+
+
+def _route_ctx() -> BriefingContext:
+    origin = airports.require("LFCY")
+    dest = airports.require("LFBD")
+    route = Route((Waypoint("LFCY", origin.position), Waypoint("LFBD", dest.position)))
+    return BriefingContext.navigation(
+        route=route,
+        window=WINDOW,
+        half_width_nm=15.0,
+        origin_icao="LFCY",
+        destination_icao="LFBD",
+    )
+
+
+def test_route_mode_orders_along_route_within_corridor():
+    study = build_diversion_study(BriefingPackage(context=_route_ctx()), AC, radius_nm=15, limit=10)
+    assert study.is_route
+    assert len(study.route_path) == 2  # LFCY → LFBD
+    icaos = [f.icao for f in study.fields]
+    assert icaos
+    assert "LFCY" not in icaos and "LFBD" not in icaos  # terrains du vol exclus
+    # « distance » = écart perpendiculaire à la route, borné par le rayon.
+    assert all(f.distance_nm <= 15 for f in study.fields)
+    # L'ordre suit la progression le long de la route (along_route croissant).
+    along = [f.along_route_nm for f in study.fields]
+    assert all(a is not None for a in along)
+    assert along == sorted(along)
 
 
 # --- rendu ------------------------------------------------------------------
