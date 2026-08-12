@@ -221,6 +221,18 @@
   }
   .frame-slider { flex: 1; }
   .frame-label { font-weight: 700; min-width: 130px; }
+  /* Repères d'échéances : on VOIT d'un coup d'œil combien de cartes et à quelle
+     heure chacune, sans avoir à glisser le slider. Cliquables. */
+  .frame-ticks { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 2mm; }
+  .frame-ticks .tick {
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8pt;
+    padding: 1px 6px; border: 1pt solid #bbb; border-radius: 10px;
+    background: #f2f2f2; color: #333; cursor: pointer; line-height: 1.7; white-space: nowrap;
+  }
+  .frame-ticks .tick:hover { border-color: #2b6cb0; }
+  .frame-ticks .tick.is-active { background: #2b6cb0; border-color: #2b6cb0; color: #fff; font-weight: 700; }
+  .frame-ticks .tick.tick-out { color: #999; font-style: italic; background: #fafafa; }
+  .frame-ticks .tick.tick-out.is-active { background: #8a5a1a; border-color: #8a5a1a; color: #fff; font-style: normal; }
   .frames { position: relative; }
   /* À l'écran : une frame à la fois, les autres masquées par le JS. */
   @media screen {
@@ -229,7 +241,7 @@
     .print-only { display: none; }
     /* « Tout déplier » : montre toutes les échéances à l'écran (aperçu impression). */
     body.expand-all .frames .frame { display: block !important; margin: 0 0 4mm; }
-    body.expand-all .player-controls { display: none; }
+    body.expand-all .player-controls, body.expand-all .frame-ticks { display: none; }
     body.expand-all .print-only { display: block; }
     .expand-btn { font: inherit; font-size: 8pt; cursor: pointer; padding: 1mm 2.5mm;
       border: 1pt solid #2b6cb0; background: #eaf2fb; color: #2b6cb0; border-radius: 1mm; }
@@ -242,6 +254,17 @@
     .frames .frame { display: block !important; break-before: page; }
     .frames .frame:first-child { break-before: avoid; }
   }
+
+  /* -- guide de lecture (deep-links vers le guide aviation Météo-France) -- */
+  .guide { margin-top: 6mm; break-inside: avoid; }
+  .guide-links { list-style: none; padding: 0; margin: 2mm 0 0;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1mm 6mm; }
+  .guide-links li { margin: 0; }
+  .guide-links a { color: #2b6cb0; text-decoration: none; }
+  .guide-links a:hover { text-decoration: underline; }
+  .guide-links a::after { content: " \2197"; font-size: 8pt; }
+  .guide-links .gpage { color: #777; font-size: 8pt; margin-left: 3px; }
+  @media print { .guide-links { grid-template-columns: 1fr 1fr; } }
 
   /* -- pied ---------------------------------------------------------- */
   .foot {
@@ -672,6 +695,13 @@
       <input type="range" class="frame-slider" min="0" max="{{ g.frames | length - 1 }}" value="0">
       <span class="frame-label mono"></span>
     </div>
+    {# Repères d'échéances visibles d'emblée (heure de chaque carte, hors-créneau grisé). #}
+    <div class="frame-ticks no-print">
+      {% for c in g.frames %}
+      <button type="button" class="tick{% if not c.covers_window %} tick-out{% endif %}" data-index="{{ loop.index0 }}"
+              title="{{ c.valid_label }}{% if not c.covers_window %} · hors créneau{% endif %}">{{ c.valid_label }}</button>
+      {% endfor %}
+    </div>
     <div class="frames">
       {% for c in g.frames %}
       <figure class="frame" data-index="{{ loop.index0 }}"
@@ -711,6 +741,24 @@
 </section>
 {% endfor %}
 
+{% if document_kind != 'notam' %}
+{# Guide de lecture : deep-links vers le « Guide aviation » Météo-France. Chaque
+   lien ouvre le PDF directement à la bonne page (fiches de décodage officielles).
+   In context : tout en bas du briefing météo, à portée de clic. #}
+<section class="guide">
+  <h2>Guide de lecture — comment lire ces documents</h2>
+  <p class="small muted">Fiches de décodage officielles Météo-France («&nbsp;Guide aviation&nbsp;»).
+    Chaque lien ouvre le PDF à la bonne page dans un nouvel onglet.</p>
+  <ul class="guide-links">
+    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=9" target="_blank" rel="noopener">Lire une carte TEMSI (temps significatif)</a><span class="gpage">p.9</span></li>
+    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=15" target="_blank" rel="noopener">Lire un WINTEM &amp; une carte des fronts</a><span class="gpage">p.15</span></li>
+    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=16" target="_blank" rel="noopener">Lire une image satellite</a><span class="gpage">p.16</span></li>
+    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=17" target="_blank" rel="noopener">Lire une image radar</a><span class="gpage">p.17</span></li>
+    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=18" target="_blank" rel="noopener">Déchiffrer un message METAR</a><span class="gpage">p.18</span></li>
+  </ul>
+</section>
+{% endif %}
+
 {# =================== PIED =================== #}
 <footer class="foot">
   <p class="disclaimer">
@@ -736,11 +784,13 @@
     var slider = group.querySelector('.frame-slider');
     var label = group.querySelector('.frame-label');
     var btn = group.querySelector('.play-btn');
+    var ticks = Array.prototype.slice.call(group.querySelectorAll('.frame-ticks .tick'));
     var idx = 0, timer = null;
 
     function show(i) {
       idx = (i + frames.length) % frames.length;
       frames.forEach(function (f, k) { f.classList.toggle('is-current', k === idx); });
+      ticks.forEach(function (t, k) { t.classList.toggle('is-active', k === idx); });
       slider.value = idx;
       label.textContent = frames[idx].getAttribute('data-label') || '';
     }
@@ -752,6 +802,9 @@
     }
 
     slider.addEventListener('input', function () { stop(); show(parseInt(slider.value, 10)); });
+    ticks.forEach(function (t) {
+      t.addEventListener('click', function () { stop(); show(parseInt(t.getAttribute('data-index'), 10)); });
+    });
     btn.addEventListener('click', play);
     show(0);
   });
