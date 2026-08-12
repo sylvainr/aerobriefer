@@ -284,22 +284,30 @@ const aerodromes = Array.isArray(flight.aerodromes) ? flight.aerodromes : [];
 const classColors = data.class_colors || {};
 
 // ---- Catégories couleur, façon carte OACI 500k -----------------------------
-// Contrôlé (a une classe OACI A-F : CTR/TMA/CTA) → bleu ; SIV → vert ;
-// tout le reste (R/P/D, ZRT, dangers, planeur…) → rouge.
-const CAT_COLOR = { CTRL: '#2b6cb0', SIV: '#1f8f4e', RPD: '#b3261e' };
-const CAT_LABEL = { CTRL: 'Contrôlé (C/D/E)', SIV: 'SIV', RPD: 'R / P / D' };
-const CAT_ORDER = ['CTRL', 'SIV', 'RPD'];
+// On distingue le contrôlé RESTRICTIF (classes A/B/C/D : clairance / annonce
+// obligatoire → bleu franc) du contrôlé PLUS SOUPLE (classe E/F, pénétrable
+// sans contact → bleu clair), pour pouvoir filtrer l'un sans l'autre. SIV →
+// vert ; tout le reste (R/P/D, ZRT, dangers, planeur…) → rouge.
+const CAT_COLOR = { CD: '#2b6cb0', E: '#7fb2e6', SIV: '#1f8f4e', RPD: '#b3261e' };
+const CAT_LABEL = {
+  CD: 'Contrôlé C/D (annonce)',
+  E: 'Classe E/F (souple)',
+  SIV: 'SIV',
+  RPD: 'R / P / D',
+};
+const CAT_ORDER = ['CD', 'E', 'SIV', 'RPD'];
 function categoryOf(a) {
   const t = String(a.type || '').toUpperCase();
   if (t === 'SIV' || t === 'FIS') return 'SIV';
   const c = String(a.class || '').toUpperCase();
-  if (['A', 'B', 'C', 'D', 'E', 'F'].includes(c)) return 'CTRL';
+  if (['A', 'B', 'C', 'D'].includes(c)) return 'CD';
+  if (['E', 'F'].includes(c)) return 'E';
   return 'RPD';
 }
 function badgeOf(a) {
   const cat = categoryOf(a);
   if (cat === 'SIV') return 'SIV';
-  if (cat === 'CTRL') return String(a.class || '').toUpperCase();
+  if (cat === 'CD' || cat === 'E') return String(a.class || '').toUpperCase();
   return 'R/P/D';
 }
 const ground = data.ground || null;
@@ -687,38 +695,99 @@ function buildVerticalRuler(maxFt) {
 
 // ---- Volumes d'espaces aériens ---------------------------------------------
 const airspaceMeshes = [];
-function buildAirspaces() {
-  airspaces.forEach((a, i) => {
-    const ring = a.polygon || [];
-    if (ring.length < 3) return;
+const INSET_M = 90;      // retrait horizontal par niveau de recouvrement (mètres)
+const MAX_RANK = 6;      // plafond : au-delà, on n'imbrique plus davantage
 
+// Pré-calcul des empreintes projetées : bbox, centroïde, aire, tranche
+// d'altitude. Sert à repérer les volumes qui se recouvrent pour les décaler.
+function footprintOf(a) {
+  const ring = (a.polygon || []).map(([lon, lat]) => project(lon, lat));
+  if (ring.length < 3) return { ok: false };
+  let minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
+  let cross2 = 0, cx = 0, cy = 0;
+  for (let k = 0; k < ring.length; k++) {
+    const [x1, y1] = ring[k];
+    const [x2, y2] = ring[(k + 1) % ring.length];
+    minx = Math.min(minx, x1); miny = Math.min(miny, y1);
+    maxx = Math.max(maxx, x1); maxy = Math.max(maxy, y1);
+    const cr = x1 * y2 - x2 * y1;
+    cross2 += cr; cx += (x1 + x2) * cr; cy += (y1 + y2) * cr;
+  }
+  const area = Math.abs(cross2 / 2);
+  if (Math.abs(cross2) > 1e-6) { cx /= (3 * cross2); cy /= (3 * cross2); }
+  else { cx = (minx + maxx) / 2; cy = (miny + maxy) / 2; }
+  let lo = Number(a.lower_ft) || 0;
+  let hi = Number(a.upper_ft);
+  if (!(hi > lo)) hi = lo + 100; // épaisseur mini pour ne pas dégénérer
+  return { ok: true, ring, cx, cy, area, lo, hi, bbox: [minx, miny, maxx, maxy] };
+}
+
+// Rang de recouvrement : combien d'espaces PLUS GRANDS (donc englobants, en
+// général) chevauchent celui-ci, en emprise ET en altitude. On regarde tous
+// les polygones ensemble AVANT de dessiner, puis on décale les plus petits
+// vers l'intérieur pour qu'ils ne se confondent pas avec les surfaces voisines.
+function overlapRanks(foots) {
+  const bboxHit = (A, B) => A[0] <= B[2] && B[0] <= A[2] && A[1] <= B[3] && B[1] <= A[3];
+  const altHit = (a, b) => a.lo < b.hi && b.lo < a.hi;
+  const order = foots.map((f, i) => i).filter((i) => foots[i].ok)
+    .sort((i, j) => foots[j].area - foots[i].area);   // aire décroissante
+  const rank = new Array(foots.length).fill(0);
+  for (let p = 0; p < order.length; p++) {
+    const i = order[p]; let r = 0;
+    for (let q = 0; q < p; q++) {
+      const j = order[q];
+      if (bboxHit(foots[i].bbox, foots[j].bbox) && altHit(foots[i], foots[j])) r++;
+    }
+    rank[i] = Math.min(r, MAX_RANK);
+  }
+  return rank;
+}
+
+function buildAirspaces() {
+  const foots = airspaces.map(footprintOf);
+  const rank = overlapRanks(foots);
+
+  airspaces.forEach((a, i) => {
+    const f = foots[i];
+    if (!f.ok) return;
+
+    // Retrait vers le centroïde, proportionnel au rang de recouvrement : les
+    // volumes imbriqués rapetissent d'un cran chacun → parois distinctes.
+    const inset = rank[i] * INSET_M;
     const shape = new THREE.Shape();
-    ring.forEach(([lon, lat], k) => {
-      const [x, y] = project(lon, lat);
-      if (k === 0) shape.moveTo(x, y); else shape.lineTo(x, y);
+    f.ring.forEach(([x, y], k) => {
+      let px = x, py = y;
+      if (inset > 0) {
+        const dx = f.cx - x, dy = f.cy - y, d = Math.hypot(dx, dy) || 1;
+        const step = Math.min(inset, d * 0.85);   // ne jamais franchir le centre
+        px = x + dx / d * step; py = y + dy / d * step;
+      }
+      if (k === 0) shape.moveTo(px, py); else shape.lineTo(px, py);
     });
 
-    let lower = Number(a.lower_ft) || 0;
-    let upper = Number(a.upper_ft);
-    if (!(upper > lower)) upper = lower + 100; // épaisseur mini pour ne pas dégénérer
-    const depth = (upper - lower) * FT_TO_M;
-
+    const depth = (f.hi - f.lo) * FT_TO_M;
     const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, steps: 1 });
-    geo.translate(0, 0, lower * FT_TO_M);
+    geo.translate(0, 0, f.lo * FT_TO_M);
 
     const col = new THREE.Color(colorOf(a));
     const mat = new THREE.MeshLambertMaterial({
       color: col, transparent: true, opacity: 0.22,
       side: THREE.DoubleSide, depthWrite: false,
       clippingPlanes: [clipPlane],   // coupe à l'altitude max (inactif tant que constant=1e12)
+      polygonOffset: true, polygonOffsetFactor: -1 - rank[i], polygonOffsetUnits: -1 - rank[i],
     });
     const mesh = new THREE.Mesh(geo, mat);
+    // Dessiner les plus imbriqués en dernier : tri de transparence stable.
+    mesh.renderOrder = rank[i];
 
     // Arêtes plus lisibles
     const edgeCol = col.clone().multiplyScalar(0.6);
     const edges = new THREE.LineSegments(
       new THREE.EdgesGeometry(geo, 15),
-      new THREE.LineBasicMaterial({ color: edgeCol, transparent: true, opacity: 0.85, clippingPlanes: [clipPlane] })
+      new THREE.LineBasicMaterial({
+        color: edgeCol, transparent: true, opacity: 0.85, clippingPlanes: [clipPlane],
+        polygonOffset: true, polygonOffsetFactor: -1 - rank[i], polygonOffsetUnits: -1 - rank[i],
+      })
     );
     mesh.add(edges);
 
@@ -1170,7 +1239,7 @@ function escapeHtmlSafe(s) {
 setupGroundLayers();
 
 // ---- Légende (HTML) --------------------------------------------------------
-const catState = {};   // catégorie (CTRL/SIV/RPD) -> bool actif
+const catState = {};   // catégorie (CD/E/SIV/RPD) -> bool actif
 const rowByIndex = {};
 function colorOf(a) { return CAT_COLOR[categoryOf(a)] || '#888888'; }
 
