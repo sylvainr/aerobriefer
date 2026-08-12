@@ -12,7 +12,7 @@ import argparse
 from dataclasses import replace
 from datetime import timedelta  # noqa: TID251 - timedelta est une durée, pas un instant
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from zoneinfo import ZoneInfo
 
 from .assemble import assemble_briefing
@@ -23,6 +23,11 @@ from .domain.models import Aerodrome
 from .domain.route import Route, Waypoint
 from .domain.window import TimeWindow, UtcDateTime
 from .providers.base import Provider
+
+if TYPE_CHECKING:
+    from .aircraft.model import AircraftSpec
+    from .diversion import DiversionStudy
+    from .domain.package import BriefingPackage
 
 DEFAULT_ZONE = "Europe/Paris"
 
@@ -349,6 +354,20 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="chemin de la checklist de préparation nav à produire (PDF, exige --route)",
     )
+    parser.add_argument(
+        "--degagement",
+        type=Path,
+        default=None,
+        help="chemin du briefing de dégagement/déroutement à produire (HTML) : "
+        "terrains voisins + perfs déco/atterro + météo",
+    )
+    parser.add_argument(
+        "--rayon-degagement",
+        type=float,
+        default=30.0,
+        dest="rayon_degagement",
+        help="rayon de recherche des terrains de dégagement en NM (défaut 30)",
+    )
     args = parser.parse_args(argv)
 
     # Mode « fichier de navigation » : lit le JSON et génère TOUT le dossier.
@@ -437,7 +456,48 @@ def main(argv: list[str] | None = None) -> int:
         _render_checklist(context, args.checklist, zone=args.zone)
         print(f"  Checklist : {args.checklist}")
 
+    if args.degagement:
+        aircraft, study = _render_diversion(
+            context,
+            package,
+            args.degagement,
+            aeronef=args.aeronef,
+            radius_nm=args.rayon_degagement,
+            declinaison=args.declinaison,
+        )
+        print(f"  Dégagement ({aircraft.name}, {len(study.fields)} terrains) : {args.degagement}")
+
     return 0 if package.is_complete else 1
+
+
+def _render_diversion(
+    context: BriefingContext,
+    package: BriefingPackage,
+    output: Path,
+    *,
+    aeronef: str | None,
+    radius_nm: float,
+    declinaison: float | None,
+) -> tuple[AircraftSpec, DiversionStudy]:
+    """Écrit le briefing de dégagement. Retourne (avion, étude) pour le log."""
+    from .aircraft.registry import resolve as resolve_aircraft
+    from .diversion import build_diversion_study
+    from .render.diversion import render_diversion_html
+
+    aircraft = resolve_aircraft(aeronef)
+    variation = _declination(
+        declinaison,
+        context.geometry.bounding_circle().center,
+        context.window.start.strftime("%Y-%m-%d"),
+    )
+    study = build_diversion_study(
+        package,
+        aircraft,
+        radius_nm=radius_nm,
+        variation_deg=variation,
+    )
+    output.write_text(render_diversion_html(study), encoding="utf-8")
+    return aircraft, study
 
 
 def _render_checklist(context: BriefingContext, output: Path, *, zone: str) -> None:
@@ -674,6 +734,15 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
     registration = plan.aeronef or DEFAULT_REGISTRATION
     (out_dir / f"masse_centrage_{registration}.html").write_text(
         render_massbalance(resolve_aircraft(plan.aeronef)), encoding="utf-8"
+    )
+    # Briefing de dégagement : terrains posables autour du vol + perfs déco/atterro.
+    _render_diversion(
+        context,
+        package,
+        out_dir / f"brief_degagement_{label}.html",
+        aeronef=plan.aeronef,
+        radius_nm=30.0,
+        declinaison=plan.declinaison_deg,
     )
     if context.route is not None:
         variation = _declination(
