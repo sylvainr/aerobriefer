@@ -61,6 +61,18 @@ CHART_LABELS: dict[str, str] = {
     "radar": "Image radar",
 }
 
+# Guide aviation Météo-France : page de LÉGENDE par type de carte. Le lien vit
+# SOUS la carte concernée, à portée de clic (PDF, nouvel onglet).
+GUIDE_URL = "https://aviation.meteo.fr/documentation/guide_aviation.pdf"
+GUIDE_PAGES: dict[str, int] = {
+    "temsi": 9,
+    "wintem": 15,
+    "front": 15,
+    "satellite": 16,
+    "radar": 17,
+}
+GUIDE_METAR_PAGE = 18  # déchiffrer un message METAR
+
 
 # --------------------------------------------------------------------------
 # Formatage des heures
@@ -490,12 +502,8 @@ class HtmlRenderer:
             }
             for f in sorted(package.forecasts, key=lambda f: f.value.valid_at)
         ]
-        # Satellite exclu du dossier : peu utile à l'impression (cf. TEMSI/WINTEM/fronts).
-        charts = [
-            self._chart_view(c, moment, package.context.window)
-            for c in package.charts
-            if c.value.kind != "satellite"
-        ]
+        # Toutes les cartes, satellite (couverture nuageuse) compris.
+        charts = [self._chart_view(c, moment, package.context.window) for c in package.charts]
         chart_groups = _group_charts(charts)
         sigmets = [
             {
@@ -571,6 +579,8 @@ class HtmlRenderer:
             "display_timezone": self.display_timezone,
             "document_kind": "all",
             "doc_label": "BRIEFING VFR",
+            "guide_url": GUIDE_URL,
+            "guide_metar_page": GUIDE_METAR_PAGE,
         }
 
     def render(
@@ -663,6 +673,7 @@ def _group_charts(charts: list[ChartView]) -> list[dict[str, Any]]:
                 "frames": items,
                 "animated": len(items) > 1,
                 "any_covers_window": any(c.covers_window for c in items),
+                "guide_page": GUIDE_PAGES.get(kind),
             }
         )
     return groups

@@ -255,16 +255,26 @@
     .frames .frame:first-child { break-before: avoid; }
   }
 
-  /* -- guide de lecture (deep-links vers le guide aviation Météo-France) -- */
-  .guide { margin-top: 6mm; break-inside: avoid; }
-  .guide-links { list-style: none; padding: 0; margin: 2mm 0 0;
-    display: grid; grid-template-columns: 1fr 1fr; gap: 1mm 6mm; }
-  .guide-links li { margin: 0; }
-  .guide-links a { color: #2b6cb0; text-decoration: none; }
-  .guide-links a:hover { text-decoration: underline; }
-  .guide-links a::after { content: " \2197"; font-size: 8pt; }
-  .guide-links .gpage { color: #777; font-size: 8pt; margin-left: 3px; }
-  @media print { .guide-links { grid-template-columns: 1fr 1fr; } }
+  /* -- lien de légende, SOUS la section concernée (guide aviation Météo-France) -- */
+  .chart-legend { font-size: 8.5pt; margin-top: 1.5mm; }
+  .chart-legend a { color: #2b6cb0; text-decoration: none; }
+  .chart-legend a:hover { text-decoration: underline; }
+
+  /* -- masquage par section + 3 modes d'affichage (préparation impression) -- */
+  .modebar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0; }
+  .modebar .mode-btn { font: inherit; font-size: 8pt; cursor: pointer; padding: 1mm 2.5mm;
+    border: 1pt solid #2b6cb0; background: #eaf2fb; color: #2b6cb0; border-radius: 1mm; }
+  .modebar .mode-btn.on { background: #2b6cb0; color: #fff; }
+  .modebar .modehint { font-size: 8pt; color: #666; }
+  .sec-toggle { font: inherit; font-size: 11pt; line-height: 1; cursor: pointer; border: 0;
+    background: transparent; color: #8a94a0; padding: 0 5px 0 0; vertical-align: baseline; }
+  .sec-toggle:hover { color: #2b6cb0; }
+  section.collapsed > :not(h2) { display: none !important; }
+  section.collapsed > h2 { opacity: .5; }
+  @media print {
+    section.collapsed { display: none !important; }
+    .sec-toggle { display: none !important; }
+  }
 
   /* -- pied ---------------------------------------------------------- */
   .foot {
@@ -288,9 +298,13 @@
       </p>
       {% endif %}
       <p class="small muted">{{ purpose_label }} · heures locales = {{ display_timezone }}</p>
-      {% if chart_groups %}
-      <p class="no-print"><button type="button" id="expandBtn" class="expand-btn">Tout déplier (aperçu impression)</button></p>
-      {% endif %}
+      <p class="no-print modebar" id="modebar">
+        <span class="small muted">Affichage :</span>
+        <button type="button" class="mode-btn" data-mode="normal">Normal (écran)</button>
+        <button type="button" class="mode-btn" data-mode="expand">Tout déplier (impression)</button>
+        <button type="button" class="mode-btn" data-mode="collapse">Tout masquer</button>
+        <span class="modehint">Masquez une section (bouton <b>▾</b> dans son titre) pour l'exclure de l'impression.</span>
+      </p>
     </div>
     <div class="small" style="text-align:right; white-space:nowrap">
       <div><b>Dossier assemblé</b></div>
@@ -509,6 +523,7 @@
   {% else %}
   <p><b>Aucun METAR dans ce dossier.</b> Absence de donnée — ne pas lire comme « conditions normales ».</p>
   {% endif %}
+  <p class="chart-legend"><a href="{{ guide_url }}#page={{ guide_metar_page }}" target="_blank" rel="noopener">Déchiffrer un METAR — guide aviation Météo-France (p.{{ guide_metar_page }}) ↗</a></p>
 </section>
 
 {# =================== TAF =================== #}
@@ -738,26 +753,11 @@
   {% endif %}
   <p class="prov">Source <b>{{ c.source.source }}</b> · récupérée {{ c.source.retrieved_dual }}</p>
   {% endif %}
+  {% if g.guide_page %}
+  <p class="chart-legend"><a href="{{ guide_url }}#page={{ g.guide_page }}" target="_blank" rel="noopener">Légende — guide aviation Météo-France (p.{{ g.guide_page }}) ↗</a></p>
+  {% endif %}
 </section>
 {% endfor %}
-
-{% if document_kind != 'notam' %}
-{# Guide de lecture : deep-links vers le « Guide aviation » Météo-France. Chaque
-   lien ouvre le PDF directement à la bonne page (fiches de décodage officielles).
-   In context : tout en bas du briefing météo, à portée de clic. #}
-<section class="guide">
-  <h2>Guide de lecture — comment lire ces documents</h2>
-  <p class="small muted">Fiches de décodage officielles Météo-France («&nbsp;Guide aviation&nbsp;»).
-    Chaque lien ouvre le PDF à la bonne page dans un nouvel onglet.</p>
-  <ul class="guide-links">
-    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=9" target="_blank" rel="noopener">Lire une carte TEMSI (temps significatif)</a><span class="gpage">p.9</span></li>
-    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=15" target="_blank" rel="noopener">Lire un WINTEM &amp; une carte des fronts</a><span class="gpage">p.15</span></li>
-    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=16" target="_blank" rel="noopener">Lire une image satellite</a><span class="gpage">p.16</span></li>
-    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=17" target="_blank" rel="noopener">Lire une image radar</a><span class="gpage">p.17</span></li>
-    <li><a href="https://aviation.meteo.fr/documentation/guide_aviation.pdf#page=18" target="_blank" rel="noopener">Déchiffrer un message METAR</a><span class="gpage">p.18</span></li>
-  </ul>
-</section>
-{% endif %}
 
 {# =================== PIED =================== #}
 <footer class="foot">
@@ -810,19 +810,57 @@
   });
 })();
 
-// Bouton « Tout déplier » : montre toutes les échéances (aperçu de ce qui s'imprime).
+// Masquage PAR SECTION + 3 modes. Chaque section (hors bandeaux) reçoit un
+// bouton ▾/▸ dans son titre ; masquée, elle disparaît aussi de l'impression.
+//   Normal      : tout visible, cartes en lecteur interactif (vue écran).
+//   Tout déplier : toutes les échéances empilées (aperçu de ce qui s'imprime).
+//   Tout masquer : tout replié — on ré-ouvre ensuite ce qu'on veut imprimer.
 (function () {
-  var btn = document.getElementById('expandBtn');
-  if (!btn) return;
-  btn.addEventListener('click', function () {
-    var on = document.body.classList.toggle('expand-all');
-    btn.classList.toggle('on', on);
-    btn.textContent = on ? 'Replier les cartes' : 'Tout déplier (aperçu impression)';
-    if (on) {
+  var sections = Array.prototype.slice
+    .call(document.querySelectorAll('section:not(.banner)'))
+    .filter(function (s) { return s.querySelector('h2'); });
+
+  function setCollapsed(sec, on) {
+    sec.classList.toggle('collapsed', on);
+    if (sec._toggle) sec._toggle.textContent = on ? '▸' : '▾';
+  }
+  function clearModes() {
+    document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.remove('on'); });
+  }
+
+  sections.forEach(function (sec) {
+    var h2 = sec.querySelector('h2');
+    var t = document.createElement('button');
+    t.type = 'button';
+    t.className = 'sec-toggle no-print';
+    t.textContent = '▾';
+    t.setAttribute('aria-label', 'Masquer ou afficher la section');
+    t.addEventListener('click', function () {
+      setCollapsed(sec, !sec.classList.contains('collapsed'));
+      clearModes();  // état devenu « sur mesure »
+    });
+    h2.insertBefore(t, h2.firstChild);
+    sec._toggle = t;
+  });
+
+  function applyMode(mode, clicked) {
+    clearModes();
+    if (clicked) clicked.classList.add('on');
+    if (mode === 'expand') {
+      document.body.classList.add('expand-all');
+      sections.forEach(function (s) { setCollapsed(s, false); });
       document.querySelectorAll('.play-btn').forEach(function (b) {
         if (b.textContent !== '▶') b.click();  // stopper les animations en cours
       });
+    } else if (mode === 'collapse') {
+      sections.forEach(function (s) { setCollapsed(s, true); });
+    } else {  // normal
+      document.body.classList.remove('expand-all');
+      sections.forEach(function (s) { setCollapsed(s, false); });
     }
+  }
+  document.querySelectorAll('.mode-btn').forEach(function (b) {
+    b.addEventListener('click', function () { applyMode(b.getAttribute('data-mode'), b); });
   });
 })();
 </script>
