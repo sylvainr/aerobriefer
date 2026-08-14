@@ -43,6 +43,11 @@
   }
   #legend header { padding: 11px 14px 8px; border-bottom: 1px solid var(--panel-border); }
   #legend header h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--ink-soft); }
+  .list-search { padding: 8px 10px 6px; border-bottom: 1px solid var(--panel-border); }
+  .as-search { width: 100%; box-sizing: border-box; margin: 0; padding: 6px 9px;
+    font: inherit; font-size: 13px; border: 1px solid var(--panel-border); border-radius: 7px;
+    background: #fff; color: var(--ink); }
+  .as-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(43,108,176,.15); }
   #classFilters { display: flex; flex-wrap: wrap; gap: 5px 8px; }
   .classchip {
     display: inline-flex; align-items: center; gap: 5px; font-size: 12px;
@@ -62,6 +67,7 @@
   .as-row.as-selected { background: rgba(43,108,176,0.22); box-shadow: inset 3px 0 0 #2b6cb0; }
   .as-row.hidden { opacity: .38; }
   .as-row.hidden .as-name { text-decoration: line-through; }
+  .as-row.search-out { display: none; }   /* recherche active : on retire les non-trouvés */
   .as-row .bar { flex: 0 0 4px; align-self: stretch; border-radius: 3px; min-height: 30px; }
   .as-row .meta { flex: 1; min-width: 0; }
   .as-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -169,6 +175,29 @@
   #aeropanel td { padding: 3px 4px 3px 0; border-bottom: 1px solid #eceff3; font-variant-numeric: tabular-nums; }
   #aeropanel .ap-norwy { color: var(--ink-soft); font-style: italic; }
 
+  /* Panneau « colonne » : tous les espaces empilés à un point (double-clic) */
+  #columnpanel {
+    position: absolute; z-index: 32; display: none; width: 300px; max-height: 70vh; overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--panel-border);
+    border-radius: 12px; box-shadow: var(--shadow); padding: 11px 13px; font-size: 12.5px;
+  }
+  #columnpanel.show { display: block; }
+  #columnpanel .col-close { position: absolute; top: 7px; right: 10px; cursor: pointer;
+    color: var(--ink-soft); font-size: 16px; line-height: 1; }
+  #columnpanel .col-close:hover { color: var(--ink); }
+  #columnpanel h3 { margin: 0 6px 2px 0; font-size: 13px; }
+  #columnpanel .col-sub { color: var(--ink-soft); font-size: 11px; margin-bottom: 7px; }
+  #columnpanel .col-item { display: flex; gap: 8px; align-items: flex-start; padding: 5px 4px;
+    border-top: 1px solid #eceff3; cursor: pointer; border-radius: 6px; }
+  #columnpanel .col-item:first-of-type { border-top: 0; }
+  #columnpanel .col-item:hover { background: rgba(43,108,176,.08); }
+  #columnpanel .col-bar { flex: 0 0 4px; align-self: stretch; border-radius: 2px; min-height: 26px; }
+  #columnpanel .col-badge { display: inline-block; font-size: 9.5px; font-weight: 700; color: #fff;
+    padding: 0 5px; border-radius: 3px; vertical-align: 1px; }
+  #columnpanel .col-name { font-weight: 600; }
+  #columnpanel .col-alt { color: var(--ink-soft); font-variant-numeric: tabular-nums; font-size: 11.5px; }
+  #columnpanel .col-freq { color: var(--ink-soft); font-size: 11px; }
+
   /* Tooltip */
   #tooltip {
     position: absolute; z-index: 30; pointer-events: none; display: none;
@@ -208,6 +237,9 @@
       <label class="cliprow"><input id="clipMax" type="checkbox">Couper les volumes à l'altitude max</label>
     </div>
   </header>
+  <div class="list-search">
+    <input id="asSearch" class="as-search" type="search" placeholder="Filtrer la liste : nom, type, R, SIV, TMA…" autocomplete="off">
+  </div>
   <div id="legendList"></div>
   <footer>
     <span class="btn" id="showAll">Tout afficher</span> ·
@@ -266,6 +298,7 @@
 
 <div id="navpanel"></div>
 <div id="aeropanel"></div>
+<div id="columnpanel"></div>
 <div id="tooltip"></div>
 <div id="empty">Aucune donnée d'espace aérien à afficher.</div>
 
@@ -1324,12 +1357,28 @@ function buildLegend() {
 }
 
 function passesAlt(a) { return (Number(a.lower_ft) || 0) <= altThreshold; }
+// Recherche texte : masque à la fois la ligne ET le volume 3D non trouvé.
+let searchQuery = '';
+function matchesSearch(a) {
+  const q = searchQuery;
+  if (!q) return true;
+  const type = (a.type || '').toLowerCase();
+  const badge = badgeOf(a).toLowerCase();
+  if (type.startsWith(q) || badge.startsWith(q) || (a.class || '').toLowerCase() === q) return true;
+  if (q.length >= 2) {
+    return (a.name || '').toLowerCase().includes(q)
+      || type.includes(q)
+      || (a.frequency || '').toLowerCase().includes(q)
+      || (CAT_LABEL[categoryOf(a)] || '').toLowerCase().includes(q);
+  }
+  return false;
+}
 function meshShown(i) {
   const a = airspaces[i];
   const mesh = airspaceMeshes[i];
   if (!mesh) return false;
   const clOn = catState[categoryOf(a)] !== false;
-  return mesh.userData.visible && clOn && passesAlt(a);
+  return mesh.userData.visible && clOn && passesAlt(a) && matchesSearch(a);
 }
 function setVisible(i, vis) {
   const mesh = airspaceMeshes[i];
@@ -1345,8 +1394,10 @@ function refreshRows() {
     const row = rowByIndex[i]; if (!row) return;
     const clOn = catState[categoryOf(a)] !== false;
     const indiv = mesh.userData.visible;
-    const keptByToggle = indiv && clOn;          // non masqué par classe/clic
+    const match = matchesSearch(a);
+    const keptByToggle = indiv && clOn && match;              // classe / clic / recherche
     row.classList.toggle('hidden', !keptByToggle);
+    row.classList.toggle('search-out', !match);              // recherche : retire les non-trouvés
     row.classList.toggle('filtered-alt', keptByToggle && !passesAlt(a)); // exclu par altitude
   });
 }
@@ -1362,6 +1413,15 @@ document.getElementById('hideAll').addEventListener('click', () => {
   airspaces.forEach((a, i) => airspaceMeshes[i].userData.visible = false);
   refreshRows();
 });
+
+// Barre de recherche : filtre la liste ET la visibilité des volumes.
+const asSearch = document.getElementById('asSearch');
+if (asSearch) {
+  asSearch.addEventListener('input', () => {
+    searchQuery = asSearch.value.trim().toLowerCase();
+    refreshRows();
+  });
+}
 
 // ---- Filtre d'altitude max -------------------------------------------------
 const altMaxSlider = document.getElementById('altMax');
@@ -1518,6 +1578,69 @@ function selectAirspace(i) {
   row.classList.add('as-selected');
   row.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
+
+// ---- Double-clic : COLONNE de tous les espaces empilés à ce point ----------
+// On projette le clic au sol (z=0), puis on teste l'appartenance au polygone de
+// CHAQUE espace (même masqué par un filtre) : on liste toute la colonne verticale.
+const columnPanel = document.getElementById('columnpanel');
+const groundPlane0 = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+function hideColumnPanel() { columnPanel.classList.remove('show'); }
+function pointInAirspace(a, x, y) {
+  const ring = a.polygon || [];
+  if (ring.length < 3) return false;
+  let inside = false;
+  for (let k = 0, m = ring.length - 1; k < ring.length; m = k++) {
+    const p1 = project(ring[k][0], ring[k][1]);
+    const p2 = project(ring[m][0], ring[m][1]);
+    if (((p1[1] > y) !== (p2[1] > y))
+        && (x < (p2[0] - p1[0]) * (y - p1[1]) / (p2[1] - p1[1]) + p1[0])) inside = !inside;
+  }
+  return inside;
+}
+function showColumnPanel(indices, clientX, clientY) {
+  const items = indices.map((i) => {
+    const a = airspaces[i];
+    const col = colorOf(a);
+    const lo = escapeHtml(a.lower_label || (a.lower_ft + ' ft'));
+    const hi = escapeHtml(a.upper_label || (a.upper_ft + ' ft'));
+    return `<div class="col-item" data-i="${i}">`
+      + `<span class="col-bar" style="background:${col}"></span>`
+      + `<span><span class="col-name"><span class="col-badge" style="background:${col}">`
+      + `${escapeHtml(badgeOf(a))}</span> ${escapeHtml(a.name || '(sans nom)')}</span><br>`
+      + `<span class="col-alt">${lo} → ${hi}</span>`
+      + (a.frequency ? ` <span class="col-freq">· ${escapeHtml(a.frequency)} MHz</span>` : '')
+      + `</span></div>`;
+  }).join('');
+  columnPanel.innerHTML =
+    `<span class="col-close" id="colClose">×</span>`
+    + `<h3>${indices.length} espace${indices.length > 1 ? 's' : ''} à ce point</h3>`
+    + `<div class="col-sub">Du plus haut au plus bas · clic = repérer dans la liste</div>` + items;
+  columnPanel.classList.add('show');
+  const pw = columnPanel.offsetWidth, ph = columnPanel.offsetHeight;
+  let px = clientX + 16, py = clientY + 16;
+  if (px + pw > window.innerWidth - 8) px = clientX - pw - 16;
+  if (py + ph > window.innerHeight - 8) py = window.innerHeight - ph - 8;
+  if (px < 8) px = 8;
+  if (py < 8) py = 8;
+  columnPanel.style.left = px + 'px';
+  columnPanel.style.top = py + 'px';
+  document.getElementById('colClose').addEventListener('click', (e) => { e.stopPropagation(); hideColumnPanel(); });
+  columnPanel.querySelectorAll('.col-item').forEach((el) => {
+    el.addEventListener('click', () => selectAirspace(parseInt(el.getAttribute('data-i'), 10)));
+  });
+}
+renderer.domElement.addEventListener('dblclick', (ev) => {
+  pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hit = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(groundPlane0, hit)) { hideColumnPanel(); return; }
+  const found = [];
+  airspaces.forEach((a, i) => { if (pointInAirspace(a, hit.x, hit.y)) found.push(i); });
+  if (!found.length) { hideColumnPanel(); return; }
+  found.sort((i, j) => (Number(airspaces[j].lower_ft) || 0) - (Number(airspaces[i].lower_ft) || 0));
+  showColumnPanel(found, ev.clientX, ev.clientY);
+});
 
 if (airspaces.length) {
   buildLegend();
