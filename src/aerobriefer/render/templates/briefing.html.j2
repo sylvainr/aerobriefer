@@ -162,6 +162,9 @@
   .legend-active { background: #d6ecd9; padding: 0 1mm; font-weight: 700; }
   .row-transient td { font-style: italic; color: #444; }
   .gust { color: var(--c-blocking); }
+  /* Écart T/Td faible → risque de brume/brouillard : on surligne en orange. */
+  .td-warn { background: #fff2df; }
+  .td-flag { color: #a85400; font-weight: 700; font-size: 8pt; white-space: nowrap; }
   .chg {
     display: inline-block; padding: 0 1.2mm; border-radius: 1mm;
     font-size: 7pt; font-weight: 700; letter-spacing: .3px; color: #fff;
@@ -478,7 +481,9 @@
       <td>{% if m.value.wind_speed_kt is not none %}{{ '%03d' % m.value.wind_dir_deg if m.value.wind_dir_deg is not none else 'VRB' }}° / {{ m.value.wind_speed_kt }} kt{% if m.value.wind_gust_kt %} <b class="gust">raf. {{ m.value.wind_gust_kt }}</b>{% endif %}{% else %}—{% endif %}</td>
       <td>{{ (m.value.visibility_m ~ ' m') if m.value.visibility_m is not none else '—' }}</td>
       <td>{{ (m.value.ceiling_ft ~ ' ft') if m.value.ceiling_ft is not none else '—' }}</td>
-      <td>{{ m.value.temperature_c if m.value.temperature_c is not none else '—' }} / {{ m.value.dewpoint_c if m.value.dewpoint_c is not none else '—' }} °C</td>
+      {% set _t = m.value.temperature_c %}{% set _td = m.value.dewpoint_c %}
+      {% set _spread = (_t - _td) if (_t is not none and _td is not none) else none %}
+      <td{% if _spread is not none and _spread <= 2 %} class="td-warn" title="Écart T/Td faible : air proche de la saturation, risque de brume/brouillard"{% endif %}>{{ _t if _t is not none else '—' }} / {{ _td if _td is not none else '—' }} °C{% if _spread is not none and _spread <= 2 %} <span class="td-flag">Δ{{ _spread | round(1) }}°&nbsp;· brume&nbsp;?</span>{% endif %}</td>
       <td>{{ m.value.qnh_hpa if m.value.qnh_hpa is not none else '—' }}</td>
       <td>{{ m.value.conditions | join(', ') if m.value.conditions else '—' }}</td>
     </tr>
