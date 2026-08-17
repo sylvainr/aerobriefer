@@ -1151,20 +1151,37 @@ function createTile(layerKey, z, x, y, key, token) {
   if (texCache.has(url)) { applyTexture(mesh, texCache.get(url)); return; }
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin('anonymous');
-  loader.load(
-    url,
-    (tex) => {
-      texCache.set(url, tex);
-      if (token !== tileToken) return;
-      const rec = activeTiles.get(key);
-      if (rec && rec.mesh === mesh) applyTexture(mesh, tex);
-    },
-    undefined,
-    () => {   // tuile en echec : on la retire (sol neutre dessous), pas de plantage
-      const rec = activeTiles.get(key);
-      if (rec && rec.mesh === mesh) { disposeTile(rec); activeTiles.delete(key); }
-    }
-  );
+
+  // Chargement avec RÉESSAIS : un aléa réseau laissait sinon un trou gris
+  // (sol neutre) là où la tuile a échoué. On retente quelques fois en backoff
+  // avant d'abandonner ; on stoppe si la vue a changé (token) ou si la tuile
+  // n'est plus nécessaire.
+  const MAX_TRIES = 4;
+  let tries = 0;
+  function attempt() {
+    tries++;
+    loader.load(
+      url,
+      (tex) => {
+        texCache.set(url, tex);
+        if (token !== tileToken) return;
+        const rec = activeTiles.get(key);
+        if (rec && rec.mesh === mesh) applyTexture(mesh, tex);
+      },
+      undefined,
+      () => {
+        if (token !== tileToken) return;             // vue changée : inutile
+        const rec = activeTiles.get(key);
+        if (!rec || rec.mesh !== mesh) return;        // tuile devenue inutile
+        if (tries < MAX_TRIES) {
+          setTimeout(attempt, 350 * tries);           // backoff : 350, 700, 1050 ms
+        } else {
+          disposeTile(rec); activeTiles.delete(key);  // abandon : sol neutre dessous
+        }
+      }
+    );
+  }
+  attempt();
 }
 
 const MAXT = 220;   // plafond de tuiles chargees simultanement
