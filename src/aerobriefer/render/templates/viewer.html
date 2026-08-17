@@ -1149,37 +1149,48 @@ function createTile(layerKey, z, x, y, key, token) {
 
   const url = XYZ_LAYERS[layerKey].url(z, x, y);
   if (texCache.has(url)) { applyTexture(mesh, texCache.get(url)); return; }
-  const loader = new THREE.TextureLoader();
-  loader.setCrossOrigin('anonymous');
 
-  // Chargement avec RÉESSAIS : un aléa réseau laissait sinon un trou gris
-  // (sol neutre) là où la tuile a échoué. On retente quelques fois en backoff
-  // avant d'abandonner ; on stoppe si la vue a changé (token) ou si la tuile
-  // n'est plus nécessaire.
-  const MAX_TRIES = 4;
+  // Chargement via fetch pour DISTINGUER le code HTTP : une tuile 404 (hors
+  // couverture / hors matrice de la couche) N'EST JAMAIS réessayée — inutile et
+  // ça martèlerait le serveur. Seul un vrai échec RÉSEAU (fetch qui rejette) est
+  // retenté, 2 fois au plus. Dans tous les cas d'abandon : sol neutre dessous.
+  const MAX_NET_RETRIES = 2;
   let tries = 0;
+  function giveUp() {
+    if (token !== tileToken) return;
+    const rec = activeTiles.get(key);
+    if (rec && rec.mesh === mesh) { disposeTile(rec); activeTiles.delete(key); }
+  }
   function attempt() {
     tries++;
-    loader.load(
-      url,
-      (tex) => {
-        texCache.set(url, tex);
+    fetch(url, { credentials: 'omit' })
+      .then((resp) => {
+        if (!resp.ok) { giveUp(); return null; }   // 404/4xx/5xx : PAS de retry
+        return resp.blob();
+      })
+      .then((blob) => {
+        if (!blob) return;
+        const obj = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          URL.revokeObjectURL(obj);
+          const tex = new THREE.Texture(img);
+          tex.needsUpdate = true;
+          texCache.set(url, tex);
+          if (token !== tileToken) return;
+          const rec = activeTiles.get(key);
+          if (rec && rec.mesh === mesh) applyTexture(mesh, tex);
+        };
+        img.onerror = () => { URL.revokeObjectURL(obj); giveUp(); };  // décodage : pas de retry
+        img.src = obj;
+      })
+      .catch(() => {                                // échec réseau : transitoire
         if (token !== tileToken) return;
         const rec = activeTiles.get(key);
-        if (rec && rec.mesh === mesh) applyTexture(mesh, tex);
-      },
-      undefined,
-      () => {
-        if (token !== tileToken) return;             // vue changée : inutile
-        const rec = activeTiles.get(key);
-        if (!rec || rec.mesh !== mesh) return;        // tuile devenue inutile
-        if (tries < MAX_TRIES) {
-          setTimeout(attempt, 350 * tries);           // backoff : 350, 700, 1050 ms
-        } else {
-          disposeTile(rec); activeTiles.delete(key);  // abandon : sol neutre dessous
-        }
-      }
-    );
+        if (!rec || rec.mesh !== mesh) return;
+        if (tries <= MAX_NET_RETRIES) setTimeout(attempt, 500 * tries);
+        else giveUp();
+      });
   }
   attempt();
 }
