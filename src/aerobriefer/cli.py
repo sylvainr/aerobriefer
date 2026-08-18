@@ -503,7 +503,7 @@ def _render_diversion(
 def _render_checklist(context: BriefingContext, output: Path, *, zone: str) -> None:
     """Checklist de prépa nav, indépendante du réseau : coucher du soleil, liste
     VAC et carburant mini ESTIMÉ (sans vent) pré-remplis en tête."""
-    from .aircraft.examples.dr400 import DR400_160
+    from .aircraft.registry import resolve as resolve_aircraft
     from .data import airports
     from .domain.fuel import fuel_plan
     from .domain.sun import sun_times
@@ -511,7 +511,7 @@ def _render_checklist(context: BriefingContext, output: Path, *, zone: str) -> N
 
     assert context.route is not None
     route = context.route
-    aircraft = DR400_160()
+    aircraft = resolve_aircraft(context.aircraft_id)
     tz = ZoneInfo(zone)
     local_start = context.window.start.astimezone(tz)
 
