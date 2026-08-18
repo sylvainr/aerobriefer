@@ -34,10 +34,11 @@
     background: no-repeat center/contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2312232e" stroke-width="2.2" stroke-linecap="round"><path d="M2 9h11a2.6 2.6 0 1 0-2.6-2.6"/><path d="M2 14h15a2.6 2.6 0 1 1-2.6 2.6"/></svg>'); }
   .qfu { font-size: 7.4pt; font-weight: 700; color: #12232e; background: #d6ecd9; padding: 0.4mm 1mm; border-radius: 0.6mm; margin: 0.5mm 0; }
   .qfu b { font-size: 8.5pt; }
-  /* Colonne Branche : verticale (départ ↓ arrivée), avec le nom du terrain. */
-  .branche { text-align: left; }
-  .branche .b { font-size: 8.5pt; font-weight: 700; }
-  .branche .down { color: #888; font-size: 8pt; line-height: 1; margin: 0.3mm 0; }
+  /* Colonne Branche : départ (en haut) et arrivée (en bas), en gros, centrés. */
+  .branche { text-align: center; }
+  .branche .b { font-size: 11pt; font-weight: 700; line-height: 1.15; }
+  .branche .sub { font-size: 6.6pt; }
+  .branche .to { margin-top: 0.8mm; }
   /* Radios en TABLE alignée : libellé à gauche, fréquence à droite (mono). */
   table.radiotbl { width: 100%; border-collapse: collapse; }
   table.radiotbl td { height: auto; border: 0; padding: 0 0 0.3mm 0; vertical-align: top; font-size: 6.4pt; }
@@ -148,8 +149,7 @@
       <td class="branche">
         <div class="mono b">{% if r.from.url %}<a href="{{ r.from.url }}">{{ r.from.code }}</a>{% else %}{{ r.from.code }}{% endif %}</div>
         {% if r.from.name %}<div class="sub">{{ r.from.name }}</div>{% endif %}
-        <div class="down">↓</div>
-        <div class="mono b">{% if r.to.url %}<a href="{{ r.to.url }}">{{ r.to.code }}</a>{% else %}{{ r.to.code }}{% endif %}</div>
+        <div class="mono b to">{% if r.to.url %}<a href="{{ r.to.url }}">{{ r.to.code }}</a>{% else %}{{ r.to.code }}{% endif %}</div>
         {% if r.to.name %}<div class="sub">{{ r.to.name }}</div>{% endif %}
       </td>
       <td class="c">
@@ -183,7 +183,7 @@
         {% endif %}
         <div class="subblock">
           <div class="subhead">Observations</div>
-          {% if r.vor %}<div class="obs-vor"><span class="nw"><b>{{ r.vor.ident }}</b> <span class="morse">{{ r.vor.morse }}</span></span> · <span class="nw">QDR <b>{{ r.vor.radial }}°</b></span> · <span class="nw">DME {{ r.vor.distance }} NM</span></div>{% endif %}
+          {% if r.vor %}<div class="obs-vor"><span class="nw"><b>{{ r.vor.ident }}</b> <b class="vfreq">{{ r.vor.freq }}</b> <span class="morse">{{ r.vor.morse }}</span></span> · <span class="nw">QDR <b>{{ r.vor.radial }}°</b></span> · <span class="nw">DME {{ r.vor.distance }} NM</span></div>{% endif %}
           <span class="blank"></span><span class="blank"></span>
         </div>
       </td>
@@ -244,10 +244,10 @@
   <b>AIDE À LA PRÉPARATION — ne remplace pas le calcul officiel ni le jugement du commandant de bord.</b>
   HE/HR = heure estimée / réelle, à remplir. <b>RM = Rv − déclinaison</b> ({{ mag_var_label }}, à confirmer sur la carte).
   Dist : DI branche, cumul, DTG restante. Temps : avec vent (svt = sans vent).
-  Branche : départ ↓ arrivée. Radios (terrains + espaces traversés) regroupées UNE fois en tête, triées A→Z.
+  Branche : départ (en haut) et arrivée (en bas). Radios (terrains + espaces traversés) regroupées UNE fois en tête, triées A→Z.
   Déroutement = terrain le plus proche, direction RELATIVE à la route (flèche + G/D de X°),
   avec sa piste et la marge d'atterrissage DR400.
-  Observations : radiale VOR en <b>QDR</b> (relèvement magnétique DEPUIS la station) — ident + Morse · QDR · DME ;
+  Observations : radiale VOR en <b>QDR</b> (relèvement magnétique DEPUIS la station) — ident + fréquence + Morse · QDR · DME ;
   lignes vides à remplir à la main.
   Vent : <b>Open-Meteo</b> (GFS/ARPEGE), à l'heure de départ.
   Zmin = relief max du couloir + 1000 ft (Open-Meteo/SRTM, <b>terrain seul</b>).
