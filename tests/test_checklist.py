@@ -19,8 +19,21 @@ def test_checklist_contient_entete_et_sections():
     assert "LFCY" in html and "LFBD" in html
     assert "21:18" in html and "21:48" in html
     assert "40" in html
-    # Les grandes sections de la prépa (casse du gabarit ; l'affichage MAJUSCULE
-    # vient du CSS text-transform).
-    for section in ("Météo", "NOTAM", "performances", "Navigation", "sécurité"):
+    # Les étapes de la méthode « entonnoir » (0→8), ordre terrains → … → route.
+    for section in (
+        "cadre du vol",
+        "terrains",
+        "espaces aériens",
+        "météo",
+        "route",
+        "carburant",
+        "centrage",
+        "log de nav",
+        "Décision",
+    ):
         assert section in html
+    # Principe : la route (étape 4) est une CONCLUSION — elle vient APRÈS les
+    # terrains (étape 1) et la météo (étape 3).
+    assert html.index("1 ·") < html.index("4 ·")
+    assert html.index("3 ·") < html.index("4 ·")
     assert "☐" in html  # cases à cocher (CSS ::before)

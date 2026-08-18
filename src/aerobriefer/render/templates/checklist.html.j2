@@ -1,96 +1,162 @@
 <meta charset="utf-8">
-<title>Checklist prépa nav {{ origin }} → {{ destination }}</title>
+<title>Prépa nav {{ origin }} → {{ destination }}</title>
 <style>
   @page { size: A4 portrait; margin: 12mm 12mm 14mm 12mm;
-    @bottom-left { content: "Checklist prépa — {{ origin }} → {{ destination }}"; font: 7pt Arial; color: #666; }
+    @bottom-left { content: "Prépa nav — {{ origin }} → {{ destination }}"; font: 7pt Arial; color: #666; }
     @bottom-right { content: "page " counter(page) " / " counter(pages); font: 7pt Arial; color: #666; }
   }
   html { font-size: 10pt; }
-  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #12232e; margin: 0; line-height: 1.4; }
-  @media screen { html { background: #ececec; } body { max-width: 800px; margin: 20px auto; padding: 28px 34px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.15); } }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #12232e; margin: 0; line-height: 1.38; }
+  @media screen { html { background: #ececec; } body { max-width: 820px; margin: 20px auto; padding: 26px 34px; background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.15); } }
 
-  h1 { font-size: 16pt; margin: 0 0 1mm; letter-spacing: .3px; }
-  .head { border-bottom: 2pt solid #12232e; padding-bottom: 3mm; margin-bottom: 4mm; }
+  h1 { font-size: 15pt; margin: 0 0 1mm; letter-spacing: .3px; }
+  .sub { color: #555; font-size: 9pt; }
+  .head { border-bottom: 2pt solid #12232e; padding-bottom: 3mm; margin-bottom: 3mm; }
   .facts { display: flex; flex-wrap: wrap; gap: 1.5mm 7mm; margin-top: 2mm; font-size: 9pt; }
   .fact b { display: block; font-size: 7pt; text-transform: uppercase; letter-spacing: .5px; color: #666; }
   .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
 
-  h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: .8px; margin: 5mm 0 1.5mm; padding-bottom: 1mm; border-bottom: 1pt solid #b7c2ca; }
-  ul { list-style: none; margin: 0; padding: 0; column-count: 1; }
-  li { padding: 1.1mm 0 1.1mm 7mm; text-indent: -7mm; break-inside: avoid; }
+  .principle { background: #eef3f8; border-left: 3pt solid #35618e; padding: 2.5mm 4mm; margin: 0 0 4mm; font-size: 9pt; }
+  .principle b { color: #12232e; }
+
+  h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: .5px; margin: 5mm 0 1mm;
+    padding-bottom: 1mm; border-bottom: 1pt solid #b7c2ca; break-after: avoid; }
+  h2 .n { color: #35618e; }
+  .lead { font-size: 8.6pt; color: #555; margin: 0 0 1.5mm; }
+  ul { list-style: none; margin: 0 0 1mm; padding: 0; }
+  li { padding: 1mm 0 1mm 7mm; text-indent: -7mm; break-inside: avoid; }
   li::before { content: "☐"; font-size: 12pt; margin-right: 2.5mm; color: #35618e; }
-  .note { color: #555; font-size: 8.5pt; }
-  .cols { columns: 2; column-gap: 10mm; }
-  .warn { color: #b3261e; }
-  .foot { margin-top: 6mm; padding-top: 2mm; border-top: 1pt solid #999; font-size: 7.5pt; color: #555; }
+  li .s { display: block; text-indent: 0; color: #666; font-size: 8.3pt; }
+  .stepnote { margin: 0.5mm 0 2mm 7mm; padding: 1.5mm 3mm; background: #fbf7ee;
+    border-left: 2pt solid #b7791f; font-size: 8.3pt; color: #6b4e12; font-style: italic; }
+  .warn { color: #b3261e; font-weight: 600; }
+  .fill { color: #1f6b3a; font-weight: 600; }
+  .foot { margin-top: 5mm; padding-top: 2mm; border-top: 1pt solid #999; font-size: 7.6pt; color: #555; }
+  .foot .rule { color: #b3261e; font-weight: 600; }
+  .decision { margin-top: 4mm; border: 1.5pt solid #12232e; border-radius: 2mm; padding: 3mm 4mm; break-inside: avoid; }
+  .decision h2 { margin-top: 0; border: 0; }
+  .gonogo { font-weight: 700; font-size: 11pt; letter-spacing: .5px; }
 </style>
 
 <div class="head">
-  <h1>CHECKLIST PRÉPARATION NAV — {{ origin }} → {{ destination }}</h1>
+  <h1>PRÉPARATION DE NAVIGATION — {{ origin }} → {{ destination }}</h1>
+  <div class="sub">Méthode « entonnoir » : du général au particulier. La route est une CONCLUSION, pas un point de départ.</div>
   <div class="facts">
     <div class="fact"><b>Date</b><span class="mono">{{ date_label }}</span></div>
     <div class="fact"><b>Aéronef</b><span class="mono">{{ aircraft_name }}</span></div>
     {% if sunset %}<div class="fact"><b>Coucher du soleil</b><span class="mono">{{ sunset }}</span></div>{% endif %}
     {% if night %}<div class="fact"><b>Nuit aéro (SS+30)</b><span class="mono">{{ night }}</span></div>{% endif %}
-    {% if fuel_min_l %}<div class="fact"><b>Carburant mini</b><span class="mono">{{ fuel_min_l }} L</span></div>{% endif %}
+    {% if fuel_min_l %}<div class="fact"><b>Carburant mini (est.)</b><span class="mono">{{ fuel_min_l }} L</span></div>{% endif %}
   </div>
 </div>
 
-<h2>1 · Météo &amp; conditions</h2>
-<ul class="cols">
-  <li>METAR départ / arrivée / dégagements lus</li>
-  <li>TAF départ / arrivée dans la fenêtre</li>
-  <li>TEMSI + WINTEM consultés</li>
-  <li>Vent en altitude (dérive du log)</li>
-  <li>Plafond / visibilité compatibles VFR</li>
-  <li>SIGMET / phénomènes dangereux</li>
-  <li>Coucher du soleil noté — posé avant la nuit aéro</li>
-  <li>Tendance / évolution (rebriefer avant départ)</li>
+<div class="principle">
+  <b>Le principe qui explique tout :</b> la route ne se pose qu'à l'<b>étape 4</b>, après avoir démontré
+  qu'elle est <b>atterrissable</b> (terrains + NOTAM), <b>traversable</b> (espaces + hauteurs mini) et
+  <b>volable</b> (météo). On part du général, on resserre, la route tombe à la fin.
+</div>
+
+<h2><span class="n">0 ·</span> Le cadre du vol</h2>
+<ul>
+  <li>Objet du vol, passagers, bagages</li>
+  <li>Aéronef : <span class="mono">{{ aircraft_name }}</span> — disponibilité, potentiel, documents à bord</li>
+  <li>Contraintes horaires : heure de départ souhaitée · <b>coucher du soleil{% if sunset %} {{ sunset }}{% endif %} = heure limite VFR</b>{% if night %} · nuit aéro {{ night }}{% endif %}</li>
+  <li>Mon état : forme, fatigue, expérience récente (<b>IMSAFE</b>)</li>
 </ul>
 
-<h2>2 · NOTAM</h2>
-<ul class="cols">
-  <li>NOTAM départ / arrivée / dégagements</li>
-  <li>NOTAM en-route (couloir)</li>
-  <li>Zones réglementées temporaires (ZRT) — activation vérifiée</li>
-  <li>Zones P/R/D sur la route</li>
-  <li>Parachutage / voltige / aéromodélisme</li>
-  <li>Obstacles / grues signalés</li>
+<h2><span class="n">1 ·</span> Les terrains — départ, arrivée, DÉGAGEMENTS</h2>
+<p class="lead">On commence par là : contraintes DURES qui ne bougent pas de la journée. Pour CHAQUE terrain envisagé :</p>
+<ul>
+  <li><b>Carte VAC lue INTÉGRALEMENT</b>, petites lignes comprises<span class="s">itinéraires, altitudes imposées, consignes particulières, zones à éviter, activités (para, treuil, voltige)</span></li>
+  <li><b>Piste</b> : longueur, revêtement, orientation → compatible avec mes distances de décollage et d'atterrissage <b>du jour</b> (masse + température + altitude + vent + état de piste)</li>
+  <li><span class="warn">NOTAM du terrain</span> : piste fermée, travaux, distances réduites, balisage, obstacles nouveaux, AZBA</li>
+  <li>Horaires d'ouverture · agent AFIS/ATC présent · carburant disponible</li>
+  <li>Fréquences : tour / AFIS / ATIS</li>
+  <li><b>Accessible par MOI, AUJOURD'HUI, dans CET avion ?</b> Si ce n'est pas un oui argumenté, ce n'est pas un dégagement.</li>
+  {% if vac_icaos %}<li class="fill">VAC à imprimer et lire : {{ vac_icaos | join(' · ') }}</li>{% else %}<li>Cartes VAC de tous les terrains imprimées</li>{% endif %}
+</ul>
+<div class="stepnote">« Un dégagement non vérifié n'est pas un dégagement. C'est une intention. »</div>
+
+<h2><span class="n">2 ·</span> Les espaces aériens et les zones</h2>
+<ul>
+  <li>Classes d'espace traversées, planchers et plafonds, conditions d'entrée</li>
+  <li>Zones réglementées, dangereuses, interdites (<b>P · D · R</b>) sur ou près de la route</li>
+  <li><b>AZBA du jour</b> : réseau très basse altitude militaire, horaires d'activité</li>
+  <li>Zones de <b>parachutage, voltige, treuillage, ULM</b><span class="s warn">jamais un point tournant à la verticale d'un terrain à para (leçon Bordeaux)</span></li>
+  <li><b>Hauteurs mini de survol</b> : 500 ft hors agglo · 1 650 ft village · 3 300 ft ville moyenne · 5 000 ft grande ville</li>
+  <li>Si mon itinéraire est plafonné bas (ex. 1 500 ft) → <b>je ne survole aucune agglo</b> → je contourne</li>
 </ul>
 
-<h2>3 · Aéronef &amp; performances</h2>
-<ul class="cols">
-  <li>Masse &amp; centrage dans l'enveloppe (avec ET sans carburant)</li>
-  <li>Perfs décollage OK (piste, altitude, température)</li>
-  <li>Perfs atterrissage OK (dest + dégagements)</li>
-  <li>Carburant embarqué ≥ minimum{% if fuel_min_l %} ({{ fuel_min_l }} L){% endif %}</li>
-  <li>Documents avion à bord (à jour)</li>
-  <li>Vne / Vno / Va connues</li>
+<h2><span class="n">3 ·</span> La météo, du plus large au plus fin (l'entonnoir)</h2>
+<p class="lead">L'ordre compte : on descend d'échelle, on ne commence JAMAIS par le METAR.</p>
+<ul>
+  <li><b>Situation générale</b> : carte des fronts / analyse de surface. Quel régime ? D'où vient l'air ? Ça évolue comment ?</li>
+  <li><b>Satellite et radar</b> : où sont réellement nuages et précipitations en ce moment</li>
+  <li><b>TEMSI</b> : fronts, nuages, phénomènes sur ma zone et à mon altitude</li>
+  <li><b>WINTEM</b> : vent et température aux niveaux utiles<span class="s">c'est lui qui alimente mon Fb et mes dérives</span></li>
+  <li><b>TAF</b> — départ, destination, dégagements : l'évolution prévue</li>
+  <li><b>METAR</b> — départ, destination, dégagements : l'état actuel (en DERNIER)</li>
+  <li><b>Synthèse perso</b> : je vole ou pas, et pourquoi. Quel est le paramètre le plus limitant ?</li>
+</ul>
+<div class="stepnote">Pièges : lire les METAR en premier (ils disent ce qui EST, pas ce qui SERA) ; consulter la météo trop tôt (c'est l'info la plus périssable — se vérifie au plus près du départ).</div>
+
+<h2><span class="n">4 ·</span> La route — elle tombe MAINTENANT, pas avant</h2>
+<p class="lead">Elle découle des étapes 1 à 3.</p>
+<ul>
+  <li>Tracé, en évitant : zones actives, agglomérations, terrains à para, relief</li>
+  <li><b>Points tournants</b> : contrastés, identifiables, jamais sur une verticale à para</li>
+  <li>Prévisualisation de chaque point (Google Maps / Street View)</li>
+  <li><b>Altitude de croisière</b> : compatible espaces, hauteurs mini, règle semi-circulaire, vent (WINTEM), plafond</li>
+  <li>Distances, caps vrais → <b>caps magnétiques</b> (déclinaison)</li>
+  <li><b>Fb = 60 ÷ Vp(kt)</b> · F-GGJY à 2450 tr/min : Vp ≈ 124 kt → <b>Fb ≈ 0,5</b></li>
+  <li>Dérive = vent traversier × Fb · correction de temps = vent effectif × Fb</li>
+  <li>Temps par branche, cumul, heure estimée à chaque point</li>
 </ul>
 
-<h2>4 · Navigation</h2>
-<ul class="cols">
-  <li>Log de navigation préparé (caps, temps, ETA)</li>
-  <li>Zmin par branche notée</li>
-  <li>Fréquences radio par point</li>
-  <li>Radiales VOR / points de report</li>
-  <li>Espaces aériens traversés (classes, plafonds)</li>
-  <li>Cartes 1/500 000 à jour</li>
-  {% if vac_icaos %}<li>Cartes VAC imprimées : {{ vac_icaos | join(' · ') }}</li>
-  {% else %}<li>Cartes VAC des terrains imprimées</li>{% endif %}
+<h2><span class="n">5 ·</span> Le carburant</h2>
+<ul>
+  <li><b>Méthode du club (en TEMPS d'abord, litres ensuite)</b><span class="s">nav + roulages (5 min ch.) + intégrations (10 min ch.) + déroutement forfait (32 min) + impact vent + marge sécu (15 min) + réserve finale (30 min)</span></li>
+  <li>Conversion en litres : <b>30 L/h à 2450 tr/min</b> <span class="warn">(corriger le 24 L/h de l'ancienne feuille)</span></li>
+  <li>Emport réel vs capacité (<b>110 AR + 40 + 40 = 190 L</b>) · les 10 derniers litres du réservoir arrière : vol horizontal seulement</li>
+  {% if fuel_min_l %}<li class="fill">Carburant mini estimé du jour : {{ fuel_min_l }} L — embarqué ≥ ce minimum</li>{% endif %}
+  <li><b>Autonomie utile en DURÉE</b> → au top départ, la convertir en <b>HEURE LIMITE</b> écrite en gros sur le log</li>
 </ul>
 
-<h2>5 · Administratif &amp; sécurité</h2>
-<ul class="cols">
-  <li>Documents pilote (licence, médical, SEP/validité)</li>
-  <li>Plan de vol déposé si requis</li>
-  <li>Dégagements choisis + raison</li>
-  <li>Réserve carburant finale (30 min VFR jour)</li>
-  <li>Briefing passagers / sécurité</li>
-  <li>Téléphone / contacts (aéroclub, ATS)</li>
+<h2><span class="n">6 ·</span> Masse et centrage, performances</h2>
+<ul>
+  <li>Masse au décollage et à l'atterrissage, centrage dans le domaine, évolution en vol</li>
+  <li><b>Distances déco / atterro du jour</b> : température, altitude terrain, vent, état de piste, avec marge</li>
+  <li>Comparaison avec les longueurs réelles de chaque terrain (étape 1) → <b>c'est là que la boucle se ferme</b></li>
 </ul>
 
-<p class="foot">
-  Checklist de PRÉPARATION — aide-mémoire, ne remplace pas les checklists avion ni le jugement du commandant de bord.
-  Générée le {{ generated }} ({{ display_timezone }}). À adapter à votre exploitation.
-</p>
+<h2><span class="n">7 ·</span> Le log de nav (version 2)</h2>
+<ul>
+  <li>Branches, caps, distances, temps, cumul, altitudes</li>
+  <li>Colonne <b>« Alt mini »</b> par branche (obstacle le plus haut + 500 ft · mention « agglos : contourner »)</li>
+  <li><b>Radios : 2 fréquences par branche</b> — ACTIVE (celle où je suis) + VEILLE (la suivante). Jamais la liste exhaustive.</li>
+  <li>Case <b>HEURE LIMITE</b> en gros</li>
+  <li>Constantes en en-tête : Fb 0,5 · 0,5 L/min · litres ≈ NM ÷ 4 · finesse 9,8 → 1000 ft ≈ 1,6 NM</li>
+  <li>Tableau des dégagements : terrain / fréquence / QFU / élévation / piste — <b>pas de caps pré-calculés</b></li>
+  <li>Carte pliée, surlignée : route, zones actives, altitudes imposées</li>
+</ul>
+
+<h2><span class="n">8 ·</span> Administratif et final</h2>
+<ul>
+  <li>Documents pilote (licence, médical, carnet) et avion</li>
+  <li>Plan de vol déposé si nécessaire</li>
+</ul>
+
+<div class="decision">
+  <h2><span class="n">▸</span> Décision</h2>
+  <p class="gonogo">GO / NO-GO — argumentée</p>
+  <ul>
+    <li>Le vol est-il atterrissable, traversable, volable ? (étapes 1-2-3)</li>
+    <li>Paramètre le plus limitant identifié</li>
+    <li><b>Critères qui feraient basculer</b> vers demi-tour ou déroutement, écrits à l'avance</li>
+  </ul>
+</div>
+
+<div class="foot">
+  <p class="rule">L'erreur à ne plus refaire : parler de la route avant d'avoir démontré qu'elle est atterrissable (terrains + NOTAM), traversable (espaces + hauteurs) et volable (météo). La route arrive en 4ᵉ position, jamais en 1ʳᵉ.</p>
+  <p>Checklist de PRÉPARATION — méthode issue du briefing avec Arnaud (17/08/2026). Aide-mémoire : ne remplace pas les checklists avion ni le jugement du commandant de bord. Générée le {{ generated }} ({{ display_timezone }}).</p>
+</div>
