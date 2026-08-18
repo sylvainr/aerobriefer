@@ -424,7 +424,7 @@ camera.updateProjectionMatrix();   // near/far à l'échelle de l'emprise (~300 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.08;
-controls.target.set(0, 0, radiusM * 0.18);
+controls.target.set(0, 0, 0);
 controls.maxPolarAngle = Math.PI * 0.495; // ne pas passer sous l'horizon
 // Navigation fluide à toutes les échelles (scène ~300 km, mais on descend à
 // quelques centaines de m). OrbitControls fait un dolly RELATIF (proportionnel
