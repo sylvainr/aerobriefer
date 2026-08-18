@@ -36,4 +36,6 @@ def test_checklist_contient_entete_et_sections():
     # terrains (étape 1) et la météo (étape 3).
     assert html.index("1 ·") < html.index("4 ·")
     assert html.index("3 ·") < html.index("4 ·")
-    assert "☐" in html  # cases à cocher (CSS ::before)
+    # Cases à cocher cliquables : le JS injecte une vraie checkbox et barre l'item.
+    assert "cb.type = 'checkbox'" in html
+    assert "line-through" in html

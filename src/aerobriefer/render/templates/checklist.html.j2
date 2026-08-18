@@ -24,9 +24,13 @@
   h2 .n { color: #35618e; }
   .lead { font-size: 8.6pt; color: #555; margin: 0 0 1.5mm; }
   ul { list-style: none; margin: 0 0 1mm; padding: 0; }
-  li { padding: 1mm 0 1mm 7mm; text-indent: -7mm; break-inside: avoid; }
-  li::before { content: "☐"; font-size: 12pt; margin-right: 2.5mm; color: #35618e; }
-  li .s { display: block; text-indent: 0; color: #666; font-size: 8.3pt; }
+  li { padding: 1mm 0; break-inside: avoid; display: flex; align-items: flex-start; gap: 2.5mm; }
+  li > input[type=checkbox] { margin: 0.7mm 0 0; width: 13px; height: 13px; flex: 0 0 auto;
+    accent-color: #35618e; cursor: pointer; }
+  li .txt { flex: 1 1 auto; }
+  li .s { display: block; color: #666; font-size: 8.3pt; }
+  li.done .txt { text-decoration: line-through; color: #9aa4ad; }
+  li.done .txt b, li.done .txt .warn, li.done .txt .fill { color: #9aa4ad; font-weight: 400; }
   .stepnote { margin: 0.5mm 0 2mm 7mm; padding: 1.5mm 3mm; background: #fbf7ee;
     border-left: 2pt solid #b7791f; font-size: 8.3pt; color: #6b4e12; font-style: italic; }
   .warn { color: #b3261e; font-weight: 600; }
@@ -160,3 +164,18 @@
   <p class="rule">L'erreur à ne plus refaire : parler de la route avant d'avoir démontré qu'elle est atterrissable (terrains + NOTAM), traversable (espaces + hauteurs) et volable (météo). La route arrive en 4ᵉ position, jamais en 1ʳᵉ.</p>
   <p>Checklist de PRÉPARATION — méthode issue du briefing avec Arnaud (17/08/2026). Aide-mémoire : ne remplace pas les checklists avion ni le jugement du commandant de bord. Générée le {{ generated }} ({{ display_timezone }}).</p>
 </div>
+
+<script>
+// Cases à cocher CLIQUABLES : chaque item reçoit une vraie checkbox ; cocher =
+// item barré. Utilisable à l'écran (on suit sa prépa) comme à l'impression.
+document.querySelectorAll('li').forEach(function (li) {
+  var txt = document.createElement('span');
+  txt.className = 'txt';
+  while (li.firstChild) txt.appendChild(li.firstChild);
+  var cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.addEventListener('change', function () { li.classList.toggle('done', cb.checked); });
+  li.appendChild(cb);
+  li.appendChild(txt);
+});
+</script>
