@@ -237,26 +237,21 @@
   .frame-ticks .tick.tick-out { color: #999; font-style: italic; background: #fafafa; }
   .frame-ticks .tick.tick-out.is-active { background: #8a5a1a; border-color: #8a5a1a; color: #fff; font-style: normal; }
   .frames { position: relative; }
-  /* À l'écran : une frame à la fois, les autres masquées par le JS. */
-  @media screen {
-    .frames .frame { display: none; margin: 0; }
-    .frames .frame.is-current { display: block; }
-    .print-only { display: none; }
-    /* « Tout déplier » : montre toutes les échéances à l'écran (aperçu impression). */
-    body.expand-all .frames .frame { display: block !important; margin: 0 0 4mm; }
-    body.expand-all .player-controls, body.expand-all .frame-ticks { display: none; }
-    body.expand-all .print-only { display: block; }
-    .expand-btn { font: inherit; font-size: 8pt; cursor: pointer; padding: 1mm 2.5mm;
-      border: 1pt solid #2b6cb0; background: #eaf2fb; color: #2b6cb0; border-radius: 1mm; }
-    .expand-btn.on { background: #2b6cb0; color: #fff; }
-  }
-  /* À l'impression / PDF : le JS ne pilote pas la vue. On réaffiche TOUTES les
-     frames empilées (une par page) et on masque les commandes interactives. */
-  @media print {
-    .no-print { display: none !important; }
-    .frames .frame { display: block !important; break-before: page; }
-    .frames .frame:first-child { break-before: avoid; }
-  }
+  /* Visibilité des frames pilotée par le JS, valable À L'ÉCRAN ET À L'IMPRESSION :
+     l'impression sort EXACTEMENT ce qui est affiché, sans rien retoucher. */
+  .frames .frame { display: none; margin: 0; break-inside: avoid; }
+  .chart-group:not(.multi) .frames .frame.is-current { display: block; }        /* mode « 1 image » */
+  .chart-group.multi .frames .frame.is-shown { display: block; margin: 0 0 4mm; } /* mode « plusieurs » */
+  .chart-group.multi .frames .frame.is-shown .print-only { display: block; }
+  .print-only { display: none; }
+  /* Commutateur d'affichage par carte : 1 image / plusieurs (cocher les échéances). */
+  .view-mode { display: flex; gap: 5px; margin: 0 0 2mm; }
+  .view-mode button { font: inherit; font-size: 8pt; cursor: pointer; padding: 1mm 2.5mm;
+    border: 1pt solid #2b6cb0; background: #eaf2fb; color: #2b6cb0; border-radius: 1mm; }
+  .view-mode button.on { background: #2b6cb0; color: #fff; }
+  .chart-group.multi .player-controls { display: none; }  /* slider/lecture inutiles en multi */
+  /* À l'impression : on masque juste les commandes ; rien d'autre n'est retouché. */
+  @media print { .no-print { display: none !important; } }
 
   /* -- lien de légende, SOUS la section concernée (guide aviation Météo-France) -- */
   .chart-legend { font-size: 8.5pt; margin-top: 1.5mm; }
@@ -302,11 +297,11 @@
       {% endif %}
       <p class="small muted">{{ purpose_label }} · heures locales = {{ display_timezone }}</p>
       <p class="no-print modebar" id="modebar">
-        <span class="small muted">Affichage :</span>
-        <button type="button" class="mode-btn" data-mode="normal">Normal (écran)</button>
-        <button type="button" class="mode-btn" data-mode="expand">Tout déplier (impression)</button>
+        <span class="small muted">Sections :</span>
+        <button type="button" class="mode-btn" data-mode="show">Tout afficher</button>
+        <button type="button" class="mode-btn" data-mode="allimg">Toutes les images</button>
         <button type="button" class="mode-btn" data-mode="collapse">Tout masquer</button>
-        <span class="modehint">Masquez une section (bouton <b>▾</b> dans son titre) pour l'exclure de l'impression.</span>
+        <span class="modehint">Repliez une section (<b>▾</b> dans son titre) pour l'exclure de l'impression. L'impression sort exactement ce qui est affiché.</span>
       </p>
     </div>
     <div class="small" style="text-align:right; white-space:nowrap">
@@ -710,6 +705,10 @@
 
   {% if g.animated %}
   <div class="player">
+    <div class="view-mode no-print">
+      <button type="button" class="vm-btn on" data-vm="single">1 image</button>
+      <button type="button" class="vm-btn" data-vm="multi">Plusieurs (cocher les échéances)</button>
+    </div>
     <div class="player-controls no-print">
       <button type="button" class="play-btn" aria-label="Lecture/pause">▶</button>
       <input type="range" class="frame-slider" min="0" max="{{ g.frames | length - 1 }}" value="0">
@@ -790,8 +789,10 @@
     var label = group.querySelector('.frame-label');
     var btn = group.querySelector('.play-btn');
     var ticks = Array.prototype.slice.call(group.querySelectorAll('.frame-ticks .tick'));
-    var idx = 0, timer = null;
+    var vmBtns = Array.prototype.slice.call(group.querySelectorAll('.vm-btn'));
+    var idx = 0, timer = null, multi = false;
 
+    // -- mode « 1 image » : la frame courante (slider + lecture) --------------
     function show(i) {
       idx = (i + frames.length) % frames.length;
       frames.forEach(function (f, k) { f.classList.toggle('is-current', k === idx); });
@@ -805,21 +806,55 @@
       btn.textContent = '❚❚';
       timer = setInterval(function () { show(idx + 1); }, 700);
     }
+    // -- mode « plusieurs » : cocher/décocher des échéances (empilées) --------
+    function setShown(k, on) {
+      frames[k].classList.toggle('is-shown', on);
+      ticks[k].classList.toggle('is-active', on);
+    }
+    function syncTicks() {
+      ticks.forEach(function (t, k) { t.classList.toggle('is-active', frames[k].classList.contains('is-shown')); });
+    }
+    function setMode(m) {
+      multi = (m === 'multi');
+      group.classList.toggle('multi', multi);
+      vmBtns.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-vm') === m); });
+      stop();
+      if (multi) {
+        frames.forEach(function (f) { f.classList.remove('is-current'); });
+        if (!frames.some(function (f) { return f.classList.contains('is-shown'); })) setShown(idx, true);
+        syncTicks();
+      } else {
+        frames.forEach(function (f) { f.classList.remove('is-shown'); });
+        show(idx);
+      }
+    }
 
     slider.addEventListener('input', function () { stop(); show(parseInt(slider.value, 10)); });
-    ticks.forEach(function (t) {
-      t.addEventListener('click', function () { stop(); show(parseInt(t.getAttribute('data-index'), 10)); });
+    ticks.forEach(function (t, k) {
+      t.addEventListener('click', function () {
+        if (multi) { setShown(k, !frames[k].classList.contains('is-shown')); }
+        else { stop(); show(k); }
+      });
     });
     btn.addEventListener('click', play);
-    show(0);
+    vmBtns.forEach(function (b) { b.addEventListener('click', function () { setMode(b.getAttribute('data-vm')); }); });
+
+    // Contrôleur exposé pour la barre du haut (« Tout afficher » / « Toutes les images »).
+    group._chart = {
+      toSingle: function () { setMode('single'); },
+      toAllImages: function () { setMode('multi'); frames.forEach(function (f, k) { setShown(k, true); }); },
+    };
+    setMode('single');
   });
 })();
 
-// Masquage PAR SECTION + 3 modes. Chaque section (hors bandeaux) reçoit un
-// bouton ▾/▸ dans son titre ; masquée, elle disparaît aussi de l'impression.
-//   Normal      : tout visible, cartes en lecteur interactif (vue écran).
-//   Tout déplier : toutes les échéances empilées (aperçu de ce qui s'imprime).
-//   Tout masquer : tout replié — on ré-ouvre ensuite ce qu'on veut imprimer.
+// Masquage PAR SECTION. Chaque section (hors bandeaux) reçoit un bouton ▾/▸ dans
+// son titre ; repliée, elle disparaît aussi de l'impression (titre compris).
+// Raccourcis de la barre du haut :
+//   Tout afficher     : toutes les sections ouvertes, cartes en « 1 image ».
+//   Toutes les images : toutes ouvertes + chaque carte en « plusieurs » (toutes cochées).
+//   Tout masquer      : toutes les sections repliées.
+// L'impression ne retouche RIEN : elle sort exactement l'état affiché.
 (function () {
   var sections = Array.prototype.slice
     .call(document.querySelectorAll('section:not(.banner)'))
@@ -851,18 +886,16 @@
   function applyMode(mode, clicked) {
     clearModes();
     if (clicked) clicked.classList.add('on');
-    if (mode === 'expand') {
-      document.body.classList.add('expand-all');
-      sections.forEach(function (s) { setCollapsed(s, false); });
-      document.querySelectorAll('.play-btn').forEach(function (b) {
-        if (b.textContent !== '▶') b.click();  // stopper les animations en cours
-      });
-    } else if (mode === 'collapse') {
+    if (mode === 'collapse') {
       sections.forEach(function (s) { setCollapsed(s, true); });
-    } else {  // normal
-      document.body.classList.remove('expand-all');
-      sections.forEach(function (s) { setCollapsed(s, false); });
+      return;
     }
+    sections.forEach(function (s) { setCollapsed(s, false); });
+    Array.prototype.slice.call(document.querySelectorAll('.chart-group[data-animated="true"]'))
+      .forEach(function (g) {
+        if (!g._chart) return;
+        if (mode === 'allimg') g._chart.toAllImages(); else g._chart.toSingle();
+      });
   }
   document.querySelectorAll('.mode-btn').forEach(function (b) {
     b.addEventListener('click', function () { applyMode(b.getAttribute('data-mode'), b); });
