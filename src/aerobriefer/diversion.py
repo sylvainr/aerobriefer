@@ -236,8 +236,16 @@ def _candidates_along_route(
         if best is not None and best[0] <= radius_nm:
             near = min(wps, key=lambda w: w.position.distance_nm(aero.position))
             out.append((aero, best[0], best[1], best[2], near.name))
-    out.sort(key=lambda c: c[2] if c[2] is not None else 0.0)  # le long de la route
-    return out[:limit]
+    # Le plafond doit garder les terrains les PLUS ATTEIGNABLES (écart le plus
+    # faible à la route), pas seulement le début du vol : trier d'abord le long
+    # de la route puis couper laissait tout le quota au voisinage du départ et
+    # amputait le bout de route (côté destination). On sélectionne donc les
+    # `limit` plus proches de la route, PUIS on les remet dans l'ordre de la
+    # route pour l'affichage.
+    out.sort(key=lambda c: c[1])  # écart perpendiculaire croissant
+    kept = out[:limit]
+    kept.sort(key=lambda c: c[2] if c[2] is not None else 0.0)  # affichage le long de la route
+    return kept
 
 
 def _study_field(
