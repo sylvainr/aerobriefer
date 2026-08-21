@@ -20,15 +20,16 @@ Ces interdictions ne sont pas seulement documentées, elles sont INCARNÉES
 dans le code — c'est le seul moyen qu'elles survivent à une relecture
 distraite :
 
-  1. Cache disque obligatoire. Une échéance déjà téléchargée n'est JAMAIS
-     re-téléchargée : le couple (produit, validité) désigne une image
-     immuable. Le cache n'est pas une optimisation, c'est la garantie
-     structurelle qu'aucune boucle appelante ne peut transformer ce module
-     en aspirateur.
-  2. Les index d'échéances portent un TTL égal à la cadence de PRODUCTION du
-     produit (15 min radar/satellite, 3 h TEMSI/WINTEM, 6 h fronts).
-     Interroger plus vite que la production est impossible : la réponse
-     vient du disque. Voir `_Product.cadence`.
+  1. Cache disque à TTL (défaut 1 h, cf. `_cache_ttl`). Il sert UNIQUEMENT à ne
+     pas marteler Météo-France pendant des régénérations rapprochées : en deçà
+     du TTL, la réponse vient du disque ; au-delà, on re-télécharge. Le couple
+     (produit, validité) n'est PAS immuable — une carte de prévision peut être
+     ré-émise depuis un réseau plus récent pour la même validité ; servir
+     éternellement la première version = donnée d'hier présentée comme fraîche.
+  2. Les index d'échéances portent un TTL = min(cadence de PRODUCTION, TTL du
+     cache). Cadence produit : 15 min radar/satellite, 3 h TEMSI/WINTEM, 6 h
+     fronts (cf. `_Product.cadence`). Le TTL borne le tout pour voir les
+     nouveaux réseaux même dans un cycle de production long.
   3. Une seule session HTTP, un seul login, réutilisés. Aucune boucle de
      polling n'existe dans ce module et il ne faut pas en ajouter.
   4. User-Agent identifiable (`_USER_AGENT`) : on ne se déguise pas en
@@ -123,6 +124,24 @@ from .base import ProviderError, sanity_check
 
 SOURCE = "aeroweb"
 BASE_URL = "https://aviation.meteo.fr"
+
+#: TTL du cache disque. Le cache sert UNIQUEMENT à ne pas marteler Météo-France
+#: quand on régénère un brief plusieurs fois d'affilée. Au-delà de ce délai, on
+#: re-télécharge : une carte de prévision (fronts, TEMSI, WINTEM) peut avoir été
+#: ré-émise depuis un réseau plus récent pour la même validité. 1 h par défaut,
+#: réglable via AEROBRIEFER_AEROWEB_TTL (en secondes ; 0 = jamais de cache).
+_DEFAULT_CACHE_TTL = timedelta(hours=1)
+
+
+def _cache_ttl() -> timedelta:
+    raw = (os.environ.get("AEROBRIEFER_AEROWEB_TTL") or "").strip()
+    if raw:
+        try:
+            return timedelta(seconds=max(0.0, float(raw)))
+        except ValueError:
+            pass
+    return _DEFAULT_CACHE_TTL
+
 
 _USER_AGENT = (
     "aerobriefer/0.1 (briefing VFR personnel, non commercial, usage local ; "
@@ -387,12 +406,11 @@ class AerowebProvider:
         return image_type.replace("/", "_")
 
     def _cached_index(self, key: str, max_age: timedelta) -> str | None:
-        """Index encore valide au regard de la cadence de production.
-
-        C'est ici que se joue l'interdiction d'extraction systématique : tant
-        que le TTL court, aucune requête ne part, quelle que soit l'insistance
-        de l'appelant.
+        """Index encore valide : au plus tôt entre la cadence de production et le
+        TTL du cache. Un index plus vieux que le TTL est re-téléchargé, pour voir
+        les nouveaux réseaux même si la cadence nominale n'est pas écoulée.
         """
+        max_age = min(max_age, _cache_ttl())
         path = self._cache_path("index", f"{key}.html")
         if not path.exists():
             return None
@@ -442,15 +460,19 @@ class AerowebProvider:
         return tuple(sorted({_parse_echeance(s) for s in stamps}))
 
     def _fetch_image(self, product: _Product, valid_at: UtcDateTime) -> bytes:
-        """Octets PNG d'une échéance, depuis le cache si déjà rapatriée.
+        """Octets PNG d'une échéance, depuis le cache s'il est encore FRAIS.
 
-        Le couple (produit, validité) désigne une image immuable : une fois sur
-        disque, elle n'est jamais redemandée. C'est ce qui rend structurellement
-        impossible l'« extraction répétée » que les CGU prohibent.
+        Le cache évite de marteler Météo-France lors de régénérations rapprochées.
+        Mais une carte de prévision (fronts/TEMSI/WINTEM) pour une validité donnée
+        peut être RÉ-ÉMISE depuis un réseau plus récent : on ne peut donc pas la
+        considérer immuable. Au-delà du TTL (`_cache_ttl`), on re-télécharge.
         """
         path = self.image_path(product, valid_at)
         if path.exists() and path.stat().st_size > 0:
-            return path.read_bytes()
+            age = time.time() - path.stat().st_mtime
+            if age < _cache_ttl().total_seconds():
+                return path.read_bytes()
+            # Cache expiré → réseau peut-être plus récent : on re-télécharge.
 
         self._authenticate()
         client = self._ensure_client()

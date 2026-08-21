@@ -607,3 +607,46 @@ def test_real_aeroweb_round_trip(tmp_path):
             )
     finally:
         provider.close()
+
+
+# --- TTL du cache : au-delà de 1 h, on re-télécharge -------------------------
+
+
+def test_image_cache_respects_ttl(tmp_path):
+    """Cache frais → servi du disque ; cache périmé (> TTL) → re-téléchargé."""
+    import time
+
+    provider, fake = make_provider(tmp_path)
+    product = next(p for p in PRODUCTS if p.kind == "front")
+    valid = UtcDateTime(2026, 7, 21, 0, 0, tzinfo=UTC)
+    path = provider.image_path(product, valid)
+    cached = b"\x89PNG\r\n\x1a\n" + b"CACHED"  # signature PNG + marqueur distinct
+    path.write_bytes(cached)
+
+    # 1) FRAIS (mtime récent) → servi du cache, aucune requête réseau.
+    os.utime(path, (time.time(), time.time()))
+    assert provider._fetch_image(product, valid) == cached
+    assert len(fake.image_requests) == 0
+
+    # 2) PÉRIMÉ (2 h > TTL 1 h) → re-téléchargé, cache écrasé.
+    old = time.time() - 2 * 3600
+    os.utime(path, (old, old))
+    assert provider._fetch_image(product, valid) == fake.image
+    assert len(fake.image_requests) == 1
+    assert path.read_bytes() == fake.image
+
+
+def test_image_cache_ttl_zero_disables_cache(tmp_path, monkeypatch):
+    """AEROBRIEFER_AEROWEB_TTL=0 → jamais de cache, on re-télécharge toujours."""
+    import time
+
+    monkeypatch.setenv("AEROBRIEFER_AEROWEB_TTL", "0")
+    provider, fake = make_provider(tmp_path)
+    product = next(p for p in PRODUCTS if p.kind == "front")
+    valid = UtcDateTime(2026, 7, 21, 0, 0, tzinfo=UTC)
+    path = provider.image_path(product, valid)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"CACHED")
+    os.utime(path, (time.time(), time.time()))  # tout frais, mais TTL=0
+
+    assert provider._fetch_image(product, valid) == fake.image
+    assert len(fake.image_requests) == 1
