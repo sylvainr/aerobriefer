@@ -210,6 +210,11 @@ class SourceInfo:
 class ChartView:
     kind_label: str
     kind: str
+    is_observation: bool
+    """Vrai pour radar/satellite (issued_at = valid_at → l'âge est RÉEL). Faux
+    pour les prévisions (front/TEMSI/WINTEM) : issued_at inconnu, l'« âge »
+    retomberait sur l'heure de téléchargement — trompeur, donc on ne l'affiche
+    pas ; on montre la validité et l'heure de récupération à la place."""
     area: str | None
     flight_level: str | None
     issued_dual: str | None
@@ -305,6 +310,7 @@ class HtmlRenderer:
         return ChartView(
             kind_label=CHART_LABELS.get(chart.kind, chart.kind.upper()),
             kind=chart.kind,
+            is_observation=chart.issued_at is not None,
             area=chart.area,
             flight_level=chart.flight_level,
             issued_dual=self._dual(chart.issued_at, with_date=True) if chart.issued_at else None,
@@ -668,6 +674,7 @@ def _group_charts(charts: list[ChartView]) -> list[dict[str, Any]]:
             {
                 "kind": kind,
                 "kind_label": head.kind_label,
+                "is_observation": head.is_observation,
                 "area": head.area,
                 "flight_level": head.flight_level,
                 "frames": items,

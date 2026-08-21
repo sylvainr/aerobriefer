@@ -735,15 +735,18 @@
       {% endfor %}
     </div>
   </div>
-  <p class="prov">Source <b>{{ g.frames[0].source.source }}</b> · {{ g.frames | length }} échéances · récupérées {{ g.frames[0].source.retrieved_dual }}</p>
+  <p class="prov">Source <b>{{ g.frames[0].source.source }}</b> · {{ g.frames | length }} échéances · récupérées {{ g.frames[0].source.retrieved_dual }}{% if g.is_observation %} · dernière échéance <span class="age">âge {{ (g.frames | last).source.age_label }}</span>{% endif %}</p>
 
   {% else %}
   {% set c = g.frames[0] %}
   <p class="small">
     {% if c.valid_dual %}Validité <b class="mono">{{ c.valid_dual }}</b>{% endif %}
-    {% if c.issued_dual %} · émise <span class="mono">{{ c.issued_dual }}</span>{% endif %}
-    · âge <span class="age">{{ c.source.age_label }}</span>
-    {% if c.source.is_stale %}<span class="stale">périmé &gt; {{ c.source.freshness_limit }}</span>{% endif %}
+    {% if c.is_observation %}
+      · émise <span class="mono">{{ c.issued_dual }}</span> · <span class="age">âge {{ c.source.age_label }}</span>
+      {% if c.source.is_stale %}<span class="stale">périmé &gt; {{ c.source.freshness_limit }}</span>{% endif %}
+    {% else %}
+      · récupérée <span class="mono">{{ c.source.retrieved_dual }}</span>
+    {% endif %}
   </p>
   {% if not c.covers_window %}
   <p class="warn"><b>CETTE CARTE NE COUVRE PAS LA FENÊTRE DE VOL.</b>
