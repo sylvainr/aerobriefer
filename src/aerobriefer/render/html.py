@@ -197,6 +197,9 @@ class SourceInfo:
 
     source: str
     age_label: str
+    ref_iso: str
+    """Instant (ISO UTC) depuis lequel l'âge est compté — pour l'âge VIVANT côté
+    navigateur (data-age). = émission si connue, sinon récupération."""
     is_stale: bool
     freshness_limit: str
     """Seuil retenu, en clair. Un « périmé » sans seuil affiché est une
@@ -291,6 +294,7 @@ class HtmlRenderer:
         return SourceInfo(
             source=prov.source,
             age_label=format_age(item.age_minutes(now)),
+            ref_iso=(prov.issued_at or prov.retrieved_at).strftime("%Y-%m-%dT%H:%M:%SZ"),
             is_stale=item.is_stale(max_age_minutes(item.value), now),
             freshness_limit=freshness_label(item.value),
             issued_dual=self._dual(prov.issued_at, with_date=True) if prov.issued_at else None,
@@ -562,6 +566,7 @@ class HtmlRenderer:
                 f"({window.duration_hours:.1f} h) — assemblé {self._dual(package.assembled_at)}"
             ),
             "assembled_dual": self._dual(package.assembled_at, with_date=True),
+            "assembled_iso": package.assembled_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "generated_dual": self._dual(moment, with_date=True),
             "is_complete": package.is_complete,
             "critical_failures": critical_failures,
