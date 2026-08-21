@@ -180,6 +180,8 @@ def test_render_diversion_html_smoke():
     study = build_diversion_study(BriefingPackage(context=_ctx()), AC, radius_nm=30, limit=6)
     html = render_diversion_html(study, now=T0)
     assert "BRIEFING DÉGAGEMENT" in html
-    assert "Synthèse" in html
+    # Liste consolidée : une seule table (1 ligne = 1 piste, groupée par terrain).
+    assert "Terrains posables" in html
+    assert 'class="tcon"' in html
     assert study.fields[0].icao in html
     assert "Carte VAC" in html

@@ -91,10 +91,40 @@
     color: var(--ink-soft); }
   footer .disc { font-weight: 700; color: var(--ink); }
 
+  /* -- sections repliables (carte / liste), comme les autres briefings -- */
+  .sec-h { display: flex; align-items: center; gap: 8px; }
+  .sec-toggle { border: 1pt solid var(--line); background: #fff; border-radius: 4px;
+    cursor: pointer; font-size: 9pt; line-height: 1; padding: 1px 7px; color: var(--ink-soft); }
+  .sec.collapsed .sec-body { display: none; }
+  .sec.collapsed .sec-h { border-bottom-style: dashed; }
+
+  /* -- barre d'actions de la liste -- */
+  .tbar { display: flex; align-items: center; gap: 8px; margin: 1mm 0 2mm; flex-wrap: wrap; }
+  .tbar .xall { border: 1pt solid var(--line); background: #fff; border-radius: 4px;
+    cursor: pointer; font-size: 8.5pt; padding: 2px 8px; color: var(--ink); }
+  .tbar .xall:hover { background: #eef2f6; }
+
+  /* -- table consolidée : 1 ligne = 1 piste, groupée par terrain -- */
+  .tcon td, .tcon th { font-size: 9pt; }
+  .tcon tr.lead > td { border-top: 1.5pt solid #cbd3db; }
+  .tcon .tcell { cursor: pointer; }
+  .tcon .tcell .ic { font-size: 10.5pt; }
+  .tcon .caret { display: inline-block; color: var(--ink-soft); font-size: 8pt;
+    transition: transform .12s; margin-right: 1px; }
+  .terr.open .caret { transform: rotate(90deg); }
+  .terr .detail { display: none; }
+  .terr.open .detail { display: table-row; }
+  .terr .detail > td { background: #f8fafb; padding: 2mm 3mm 3mm 8mm; }
+  .terr .detail .cond { margin-bottom: 1.5mm; }
+  .tcon tbody.serre tr.rwy > td { background: #fff8e8; }
+  .tcon tbody.bad tr.rwy > td { background: #fdece9; }
+
   @media print {
     body { padding: 0; font-size: 10pt; }
     @page { size: A4; margin: 10mm; }
     a { color: inherit; text-decoration: none; }
+    /* Impression = état affiché à l'écran (comme le brief météo). */
+    .no-print, .caret { display: none; }
   }
 </style>
 
@@ -122,14 +152,20 @@
 </div>
 
 {% if view.map_svg %}
-{{ view.map_svg | safe }}
-<div class="maplegend">
-  <span><span class="dot" style="background:#1f8f4e"></span>posable</span>
-  <span><span class="dot" style="background:#b7791f"></span>serré</span>
-  <span><span class="dot" style="background:#b3261e"></span>insuffisant</span>
-  <span><span class="dot" style="background:#64748b"></span>inconnu</span>
-  <span>■ terrain de référence{% if view.is_route %} · trait orange = route{% else %} · cercle = rayon{% endif %}</span>
-</div>
+<section class="sec" id="sec-carte">
+  <h2 class="sec-h">Carte de situation<button class="sec-toggle no-print" type="button"
+    aria-label="Replier ou déplier la carte">▾</button></h2>
+  <div class="sec-body">
+    {{ view.map_svg | safe }}
+    <div class="maplegend">
+      <span><span class="dot" style="background:#1f8f4e"></span>posable</span>
+      <span><span class="dot" style="background:#b7791f"></span>serré</span>
+      <span><span class="dot" style="background:#b3261e"></span>insuffisant</span>
+      <span><span class="dot" style="background:#64748b"></span>inconnu</span>
+      <span>■ terrain de référence{% if view.is_route %} · trait orange = route{% else %} · cercle = rayon{% endif %}</span>
+    </div>
+  </div>
+</section>
 {% endif %}
 
 <div class="hyp">
@@ -139,87 +175,119 @@
   </ul>
 </div>
 
-{# ===================== SYNTHÈSE ===================== #}
-<h2>Synthèse — {{ view.fields | length }} terrains</h2>
-<table class="tsum">
-  <tr>
-    <th>Terrain</th><th class="num">Dist.</th><th class="num">Cap°M</th><th class="num">Alt.</th>
-    <th>Piste</th><th>Atterrissage (requis / piste)</th><th>Décollage</th><th>Vent / trav.</th><th>Météo</th><th>Verdict</th>
-  </tr>
-  {% for f in view.fields %}
-  <tr class="{% if f.verdict == 'SERRÉ' %}serre{% elif f.verdict == 'INSUFFISANT' %}bad{% endif %}">
-    <td><b class="mono">{{ f.icao }}</b><br><span class="small muted">{{ f.name }}</span></td>
-    <td class="num">{{ f.distance_nm }}<br><span class="small muted">NM</span></td>
-    <td class="num mono">{{ '%03d' % f.bearing_mag }}</td>
-    <td class="num">{{ f.elevation_ft }}<br><span class="small muted">ft</span></td>
-    <td>{{ f.primary_icon | safe }}{% if f.longest_runway_m %} <span class="small">{{ f.longest_runway_m }} m</span>{% endif %}</td>
-    <td>{% if f.best_landing %}<span class="barrow">{{ f.best_landing_bar | safe }}<span class="lab">{{ f.best_landing.required_m }}/{{ f.best_landing.available_m }} m <span class="m-{{ f.best_landing.band }}">{{ '%+.0f' % f.best_landing.margin_pct }}%</span></span></span>{% else %}<span class="muted">—</span>{% endif %}</td>
-    <td>{% if f.best_takeoff %}<span class="barrow">{{ f.best_takeoff_bar | safe }}<span class="lab"><span class="m-{{ f.best_takeoff.band }}">{{ '%+.0f' % f.best_takeoff.margin_pct }}%</span></span></span>{% else %}<span class="muted">—</span>{% endif %}</td>
-    <td class="small">{% if f.wind_speed is not none %}
-        {% if f.wind_dir is not none %}{{ '%03d' % f.wind_dir }}°{% else %}VRB{% endif %}/{{ f.wind_speed }}kt
-        {% if f.has_xwind %}<br>trav. <b class="{% if f.crosswind_over_demo %}flag{% endif %}">{{ f.xw_kt }}kt</b> {{ f.xw_arrow }} {{ f.xw_side }}{% endif %}
-        {% else %}<span class="muted">—</span>{% endif %}</td>
-    <td>{% if f.flight_category %}<span class="cat cat-{{ f.flight_category | lower }}">{{ f.flight_category }}</span>{% if f.metar_is_proxy %} <span class="small muted">{{ f.metar_station }} {{ f.metar_distance_nm }}NM</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
-    <td><span class="badge {{ f.verdict_class }}">{{ f.verdict_label }}</span></td>
-  </tr>
-  {% endfor %}
-</table>
-<p class="small muted" style="margin-top:2mm">Barre = longueur de piste à l'échelle ; remplissage coloré = distance requise (franchissement 15 m, corrigée). Marge = (piste − requis) / piste : ≥ 20 % posable, &lt; 20 % serré, négative insuffisant.</p>
-
-{# ===================== FICHES ===================== #}
-<h2>Fiches par terrain</h2>
-{% for f in view.fields %}
-<div class="card">
-  <div class="card-head">
-    <div class="who"><b class="mono">{{ f.icao }}</b> {{ f.name }}
-      <span class="badge {{ f.verdict_class }}">{{ f.verdict_label }}</span></div>
-    <div class="dist">{{ f.distance_nm }} NM · cap <b class="mono">{{ '%03d' % f.bearing_mag }}°M</b>
-      <span class="muted">({{ '%03d' % f.bearing_true }}°V)</span> depuis {{ f.from_label }}</div>
+{# ============ LISTE DES TERRAINS — une seule table, 1 ligne = 1 piste ============ #}
+<section class="sec" id="sec-liste">
+  <h2 class="sec-h">Terrains posables — {{ view.fields | length }}<button class="sec-toggle no-print"
+    type="button" aria-label="Replier ou déplier la liste">▾</button></h2>
+  <div class="sec-body">
+    <div class="tbar no-print">
+      <button type="button" class="xall" data-act="expand">Tout déplier</button>
+      <button type="button" class="xall" data-act="collapse">Tout replier</button>
+      <span class="small muted">Clic sur un terrain = météo, fréquences, VAC.</span>
+    </div>
+    <table class="tcon">
+      <thead>
+        <tr>
+          <th>Terrain</th><th>Piste</th><th class="num">Long.</th><th>Revêt.</th>
+          <th class="num">Vent face</th><th>Atterrissage (requis / piste)</th><th>Décollage</th>
+          <th>Météo</th><th>Verdict</th>
+        </tr>
+      </thead>
+      {% for f in view.fields %}
+      {% set nr = (f.runways | length) or 1 %}
+      <tbody class="terr{% if f.verdict == 'SERRÉ' %} serre{% elif f.verdict == 'INSUFFISANT' %} bad{% endif %}">
+        {% for r in f.runways %}
+        <tr class="rwy{% if loop.first %} lead{% endif %}">
+          {% if loop.first %}
+          <td rowspan="{{ nr }}" class="tcell">
+            <span class="caret" aria-hidden="true">▸</span>
+            <b class="mono ic">{{ f.icao }}</b> <span class="small muted">{{ f.name }}</span><br>
+            <span class="small muted">{{ f.distance_nm }} NM · cap <b class="mono">{{ '%03d' % f.bearing_mag }}°M</b> · {{ f.elevation_ft }} ft</span>
+          </td>
+          {% endif %}
+          <td class="mono">{{ r.icon | safe }} {{ r.ident }}</td>
+          <td class="num">{% if r.length_m %}{{ r.length_m }} m{% else %}<span class="muted">?</span>{% endif %}</td>
+          <td class="small">{{ r.surface_label }}</td>
+          <td class="num small">{{ r.headwind_kt }} kt</td>
+          <td>{% if r.landing %}<span class="barrow">{{ r.landing_bar | safe }}<span class="lab"><span class="op">{{ r.landing.roll_m }}/{{ r.landing.over15_m }} m</span> <span class="m-{{ r.landing.band }}">{{ '%+.0f' % r.landing.margin_pct }}%</span></span></span>{% else %}<span class="muted">longueur inconnue</span>{% endif %}</td>
+          <td>{% if r.takeoff %}<span class="barrow">{{ r.takeoff_bar | safe }}<span class="lab"><span class="op">{{ r.takeoff.roll_m }}/{{ r.takeoff.over15_m }} m</span> <span class="m-{{ r.takeoff.band }}">{{ '%+.0f' % r.takeoff.margin_pct }}%</span></span></span>{% else %}<span class="muted">—</span>{% endif %}</td>
+          {% if loop.first %}
+          <td rowspan="{{ nr }}">{% if f.flight_category %}<span class="cat cat-{{ f.flight_category | lower }}">{{ f.flight_category }}</span>{% if f.metar_is_proxy %}<br><span class="small muted">{{ f.metar_station }} {{ f.metar_distance_nm }}NM</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td rowspan="{{ nr }}"><span class="badge {{ f.verdict_class }}">{{ f.verdict_label }}</span></td>
+          {% endif %}
+        </tr>
+        {% else %}
+        <tr class="rwy lead">
+          <td class="tcell">
+            <span class="caret" aria-hidden="true">▸</span>
+            <b class="mono ic">{{ f.icao }}</b> <span class="small muted">{{ f.name }}</span><br>
+            <span class="small muted">{{ f.distance_nm }} NM · cap <b class="mono">{{ '%03d' % f.bearing_mag }}°M</b> · {{ f.elevation_ft }} ft</span>
+          </td>
+          <td colspan="6" class="muted small">Pistes inconnues — voir VAC.</td>
+          <td>{% if f.flight_category %}<span class="cat cat-{{ f.flight_category | lower }}">{{ f.flight_category }}</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+          <td><span class="badge {{ f.verdict_class }}">{{ f.verdict_label }}</span></td>
+        </tr>
+        {% endfor %}
+        <tr class="detail">
+          <td colspan="9">
+            <div class="cond">
+              cap <b class="mono">{{ '%03d' % f.bearing_mag }}°M</b> <span class="muted">({{ '%03d' % f.bearing_true }}°V)</span> depuis {{ f.from_label }}
+              · alt-pression <b>{{ f.pa_ft }} ft</b> · temp <b>{{ f.temp_c }} °C</b>{% if f.temp_is_isa %} <span class="muted">(ISA, pas d'obs.)</span>{% endif %}
+              {% if f.qnh %} · QNH <b>{{ f.qnh }}</b>{% endif %}
+              {% if f.wind_speed is not none %} · vent {% if f.wind_dir is not none %}{{ '%03d' % f.wind_dir }}°{% else %}VRB{% endif %}/{{ f.wind_speed }} kt{% if f.wind_gust %} raf. {{ f.wind_gust }}{% endif %}{% endif %}
+              {% if f.has_xwind %} · traversier max <b class="{% if f.crosswind_over_demo %}flag{% endif %}">{{ f.xw_kt }} kt {{ f.xw_arrow }} {{ f.xw_side }}</b>{% if f.crosswind_over_demo and view.demo_xw %} <span class="flag">&gt; démontré {{ view.demo_xw }} kt</span>{% endif %}{% endif %}
+            </div>
+            {% if f.frequencies %}<div class="freqs">{% for fr in f.frequencies %}<span class="freq">{{ fr }}</span>{% endfor %}</div>{% endif %}
+            <div class="wx">
+              {% if f.metar_raw %}<b>METAR</b>{% if f.metar_is_proxy %} <span class="muted">(voisin {{ f.metar_station }}, {{ f.metar_distance_nm }} NM)</span>{% endif %}{% if f.metar_age %} <span class="muted">· {{ f.metar_age }}</span>{% endif %}
+                <div class="raw">{{ f.metar_raw }}</div>{% endif %}
+              {% if f.taf_raw %}<div style="margin-top:1.5mm"><b>TAF</b>{% if f.taf_is_proxy %} <span class="muted">(voisin {{ f.taf_station }})</span>{% endif %}
+                <div class="raw">{{ f.taf_raw }}</div></div>{% endif %}
+              {% if not f.metar_raw and not f.taf_raw %}<span class="muted">Pas de météo rattachable.</span>{% endif %}
+            </div>
+            <div class="vac-note">⚠ Statut d'usage (public / restreint / PPR) et pistes autorisées : à vérifier sur la VAC.</div>
+            <div class="links"><a href="{{ f.vac_url }}" target="_blank" rel="noopener">Carte VAC {{ f.icao }} (SIA) ↗</a></div>
+          </td>
+        </tr>
+      </tbody>
+      {% endfor %}
+    </table>
+    <p class="small muted" style="margin-top:2mm">Barre = longueur de piste à l'échelle ; remplissage coloré = distance requise (franchissement 15 m, corrigée). Marge = (piste − requis) / piste : ≥ 20 % posable, &lt; 20 % serré, négative insuffisant.</p>
   </div>
-
-  <div class="cond">
-    Alt. terrain <b>{{ f.elevation_ft }} ft</b> · alt-pression <b>{{ f.pa_ft }} ft</b>
-    · temp <b>{{ f.temp_c }} °C</b>{% if f.temp_is_isa %} <span class="muted">(ISA, pas d'obs.)</span>{% endif %}
-    {% if f.qnh %} · QNH <b>{{ f.qnh }}</b>{% endif %}
-    {% if f.wind_speed is not none %} · vent
-      {% if f.wind_dir is not none %}{{ '%03d' % f.wind_dir }}°{% else %}VRB{% endif %}/{{ f.wind_speed }} kt{% if f.wind_gust %} raf. {{ f.wind_gust }}{% endif %}{% endif %}
-    {% if f.has_xwind %} · traversier max <b class="{% if f.crosswind_over_demo %}flag{% endif %}">{{ f.xw_kt }} kt {{ f.xw_arrow }} {{ f.xw_side }}</b>{% if f.crosswind_over_demo and view.demo_xw %} <span class="flag">&gt; démontré {{ view.demo_xw }} kt</span>{% endif %}{% endif %}
-  </div>
-
-  {% if f.frequencies %}
-  <div class="freqs">{% for fr in f.frequencies %}<span class="freq">{{ fr }}</span>{% endfor %}</div>
-  {% endif %}
-
-  <table class="rwy-tbl">
-    <tr><th>Piste</th><th>Long.</th><th>Revêt.</th><th class="num">Vent face</th>
-      <th>Atterrissage</th><th>Décollage</th></tr>
-    {% for r in f.runways %}
-    <tr>
-      <td class="mono">{{ r.icon | safe }} {{ r.ident }}</td>
-      <td class="num">{% if r.length_m %}{{ r.length_m }} m{% else %}<span class="muted">?</span>{% endif %}</td>
-      <td class="small">{{ r.surface_label }}</td>
-      <td class="num small">{{ r.headwind_kt }} kt</td>
-      <td>{% if r.landing %}<span class="barrow">{{ r.landing_bar | safe }}<span class="lab"><span class="op">{{ r.landing.roll_m }}/{{ r.landing.over15_m }} m</span> <span class="m-{{ r.landing.band }}">{{ '%+.0f' % r.landing.margin_pct }}%</span></span></span>{% else %}<span class="muted">longueur inconnue</span>{% endif %}</td>
-      <td>{% if r.takeoff %}<span class="barrow">{{ r.takeoff_bar | safe }}<span class="lab"><span class="op">{{ r.takeoff.roll_m }}/{{ r.takeoff.over15_m }} m</span> <span class="m-{{ r.takeoff.band }}">{{ '%+.0f' % r.takeoff.margin_pct }}%</span></span></span>{% else %}<span class="muted">—</span>{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table>
-
-  <div class="wx">
-    {% if f.metar_raw %}<b>METAR</b>{% if f.metar_is_proxy %} <span class="muted">(voisin {{ f.metar_station }}, {{ f.metar_distance_nm }} NM — pas d'obs. sur le terrain)</span>{% endif %}{% if f.metar_age %} <span class="muted">· {{ f.metar_age }}</span>{% endif %}
-      <div class="raw">{{ f.metar_raw }}</div>{% endif %}
-    {% if f.taf_raw %}<div style="margin-top:1.5mm"><b>TAF</b>{% if f.taf_is_proxy %} <span class="muted">(voisin {{ f.taf_station }})</span>{% endif %}
-      <div class="raw">{{ f.taf_raw }}</div></div>{% endif %}
-    {% if not f.metar_raw and not f.taf_raw %}<span class="muted">Pas de météo rattachable.</span>{% endif %}
-  </div>
-
-  <div class="vac-note">⚠ Statut d'usage (public / restreint / PPR) et pistes autorisées : à vérifier sur la VAC.</div>
-  <div class="links"><a href="{{ f.vac_url }}" target="_blank" rel="noopener">Carte VAC {{ f.icao }} (SIA) ↗</a></div>
-</div>
-{% endfor %}
+</section>
 
 <footer>
   <p class="disc">AIDE À LA PRÉPARATION — ne remplace pas l'étude des cartes VAC officielles ni le jugement du commandant de bord.</p>
   <p>Performances calculées par interpolation des tables du manuel de vol (jamais d'extrapolation hors table) ·
     déclinaison magnétique {{ view.variation_deg }}° · heures locales {{ view.display_timezone }}.</p>
 </footer>
+
+<script>
+(function () {
+  // Sections repliables (carte / liste) — comme les autres briefings.
+  document.querySelectorAll('.sec').forEach(function (sec) {
+    var btn = sec.querySelector('.sec-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var collapsed = sec.classList.toggle('collapsed');
+      btn.textContent = collapsed ? '▸' : '▾';
+    });
+  });
+  // Détail par terrain (météo, fréquences, VAC) : clic sur la cellule terrain.
+  document.querySelectorAll('.tcon .tcell').forEach(function (cell) {
+    cell.addEventListener('click', function () {
+      var body = cell.closest('tbody.terr');
+      if (body) body.classList.toggle('open');
+    });
+  });
+  // Tout déplier / Tout replier.
+  document.querySelectorAll('.tbar .xall').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var open = b.getAttribute('data-act') === 'expand';
+      document.querySelectorAll('.tcon tbody.terr').forEach(function (t) {
+        t.classList.toggle('open', open);
+      });
+    });
+  });
+})();
+</script>
