@@ -112,6 +112,19 @@ def _perf_bar(a: RunwayAssessment | None, length_m: int, scale: float) -> str:
 _MAP_W, _MAP_H, _MAP_PAD = 600, 300, 30
 
 
+def _merc_world_px(lat: float, lon: float, z: int) -> tuple[float, float]:
+    """Coordonnées « pixel monde » Web Mercator (EPSG:3857) au zoom `z` — le même
+    repère que les tuiles OSM (256 px/tuile). Indispensable pour poser un fond de
+    tuiles ET les vecteurs dans le MÊME système : sinon la route flotte à côté de
+    la carte."""
+    n = 256.0 * (2**z)
+    x = (lon + 180.0) / 360.0 * n
+    s = math.sin(math.radians(lat))
+    s = min(max(s, -0.9999), 0.9999)
+    y = (0.5 - math.log((1.0 + s) / (1.0 - s)) / (4.0 * math.pi)) * n
+    return x, y
+
+
 def _map_svg(study: DiversionStudy) -> str:
     points: list[tuple[float, float]] = [(la, lo) for _, la, lo in study.reference_points]
     points += list(study.route_path)
@@ -119,71 +132,128 @@ def _map_svg(study: DiversionStudy) -> str:
     if len(points) < 2:
         return ""
 
-    lat0 = sum(p[0] for p in points) / len(points)
-    coslat = math.cos(math.radians(lat0))
+    lats = [la for la, _ in points]
+    lons = [lo for _, lo in points]
+    minlat, maxlat, minlon, maxlon = min(lats), max(lats), min(lons), max(lons)
+    lat0 = sum(lats) / len(lats)
 
-    def flat(la: float, lo: float) -> tuple[float, float]:
-        return (lo * coslat, la)  # x est, y nord (degrés)
+    # Zoom natif = le plus grand où l'emprise tient dans la fenêtre sans agrandir
+    # les tuiles ; on ré-étire ensuite (facteur < 2) pour REMPLIR le cadre. Sans ce
+    # ré-étirement, un pas de zoom OSM (×2) laisse la route minuscule au centre dès
+    # que l'emprise dépasse d'un cheveu le zoom supérieur.
+    avail_w, avail_h = _MAP_W - 2 * _MAP_PAD, _MAP_H - 2 * _MAP_PAD
+    # On autorise l'emprise à dépasser un peu la fenêtre au moment de CHOISIR le
+    # zoom : sinon un dépassement d'un cheveu au zoom supérieur nous coince au zoom
+    # inférieur et force un ré-étirement ×2 (tuiles floues). Le facteur `s` ci-dessous,
+    # lui, est calculé sur la surface RÉELLE : il redimensionne pile, sans débord.
+    tol = 1.25
+    z = 1
+    for zz in range(1, 17):  # 16 = plafond : évite de sur-zoomer une emprise minuscule
+        xa, ya = _merc_world_px(maxlat, minlon, zz)  # coin haut-gauche
+        xb, yb = _merc_world_px(minlat, maxlon, zz)  # coin bas-droite
+        if (xb - xa) <= avail_w * tol and (yb - ya) <= avail_h * tol:
+            z = zz
+        else:
+            break
 
-    xs = [flat(la, lo)[0] for la, lo in points]
-    ys = [flat(la, lo)[1] for la, lo in points]
-    minx, maxx, miny, maxy = min(xs), max(xs), min(ys), max(ys)
-    spanx = (maxx - minx) or 1e-6
-    spany = (maxy - miny) or 1e-6
-    inner_w, inner_h = _MAP_W - 2 * _MAP_PAD, _MAP_H - 2 * _MAP_PAD
-    scale = min(inner_w / spanx, inner_h / spany)
-    off_x = (inner_w - spanx * scale) / 2
-    off_y = (inner_h - spany * scale) / 2
+    world = [_merc_world_px(la, lo, z) for la, lo in points]
+    cminx, cmaxx = min(w[0] for w in world), max(w[0] for w in world)
+    cminy, cmaxy = min(w[1] for w in world), max(w[1] for w in world)
+    bbox_w = (cmaxx - cminx) or 1.0
+    bbox_h = (cmaxy - cminy) or 1.0
+    s = min(avail_w / bbox_w, avail_h / bbox_h)  # ré-étirement (∈ [1, 2))
+    off_x = _MAP_PAD + (avail_w - bbox_w * s) / 2.0
+    off_y = _MAP_PAD + (avail_h - bbox_h * s) / 2.0
 
     def px(la: float, lo: float) -> tuple[float, float]:
-        x, y = flat(la, lo)
-        return (_MAP_PAD + off_x + (x - minx) * scale, _MAP_PAD + off_y + (maxy - y) * scale)
+        wx, wy = _merc_world_px(la, lo, z)
+        return (off_x + (wx - cminx) * s, off_y + (wy - cminy) * s)
 
     parts = [
         f'<svg class="sitmap" width="100%" viewBox="0 0 {_MAP_W} {_MAP_H}" '
         f'preserveAspectRatio="xMidYMid meet" role="img">',
-        f'<rect x="0" y="0" width="{_MAP_W}" height="{_MAP_H}" fill="#f6f8fa" '
-        f'stroke="#d3dae2" rx="6"/>',
+        # Repli sous les tuiles : si le réseau manque (impression, vol), le fond
+        # gris clair garde la carte lisible plutôt qu'un rectangle blanc.
+        f'<defs><clipPath id="mapclip"><rect x="0" y="0" width="{_MAP_W}" height="{_MAP_H}" '
+        f'rx="6"/></clipPath></defs>',
+        f'<rect x="0" y="0" width="{_MAP_W}" height="{_MAP_H}" fill="#eef1f4" rx="6"/>',
     ]
+
+    # Fond OSM : tuiles chargées EN DIRECT depuis le serveur (léger, mais vide hors
+    # ligne). Attribution « © OpenStreetMap » obligatoire (voir plus bas).
+    tile_parts: list[str] = ['<g clip-path="url(#mapclip)">']
+    n_tiles = 2**z
+    tsz = 256.0 * s
+    # Coins de la fenêtre visible → coordonnées monde, pour couvrir tout le cadre.
+    w_left, w_right = cminx - off_x / s, cminx + (_MAP_W - off_x) / s
+    w_top, w_bottom = cminy - off_y / s, cminy + (_MAP_H - off_y) / s
+    tx0, tx1 = int(w_left // 256), int(w_right // 256)
+    ty0, ty1 = int(w_top // 256), int(w_bottom // 256)
+    for tx in range(tx0, tx1 + 1):
+        for ty in range(ty0, ty1 + 1):
+            if not (0 <= tx < n_tiles and 0 <= ty < n_tiles):
+                continue
+            sx = off_x + (tx * 256 - cminx) * s
+            sy = off_y + (ty * 256 - cminy) * s
+            tile_parts.append(
+                f'<image href="https://tile.openstreetmap.org/{z}/{tx}/{ty}.png" '
+                f'x="{sx:.1f}" y="{sy:.1f}" width="{tsz:.1f}" height="{tsz:.1f}"/>'
+            )
+    tile_parts.append("</g>")
+    parts.extend(tile_parts)
+    parts.append(
+        f'<rect x="0" y="0" width="{_MAP_W}" height="{_MAP_H}" fill="none" '
+        f'stroke="#d3dae2" rx="6"/>'
+    )
 
     if study.is_route and len(study.route_path) >= 2:
         line = " ".join(f"{px(la, lo)[0]:.1f},{px(la, lo)[1]:.1f}" for la, lo in study.route_path)
+        # Double trait : liseré blanc dessous pour ressortir sur les tuiles colorées.
+        parts.append(f'<polyline points="{line}" fill="none" stroke="#fff" stroke-width="4.5"/>')
         parts.append(f'<polyline points="{line}" fill="none" stroke="#ff5a1f" stroke-width="2.4"/>')
     elif study.reference_points:
         # Vol local : cercle du rayon de recherche autour du terrain.
-        icao, la, lo = study.reference_points[0]
+        _icao, la, lo = study.reference_points[0]
         cx, cy = px(la, lo)
-        r_px = (study.radius_nm / 60.0) * scale  # 1° lat ≈ 60 NM
+        ground_res = 156543.03392 * math.cos(math.radians(lat0)) / (2**z)  # m/px natif
+        r_px = (study.radius_nm * 1852.0) / ground_res * s
         parts.append(
-            f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r_px:.1f}" fill="none" stroke="#9aa4b0" '
-            f'stroke-width="1" stroke-dasharray="4 3"/>'
+            f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{r_px:.1f}" fill="none" stroke="#12232e" '
+            f'stroke-width="1.4" stroke-dasharray="4 3" opacity="0.7"/>'
         )
 
+    # Halo blanc sous tous les libellés : lisibles par-dessus n'importe quelle tuile.
+    halo = 'stroke="#fff" stroke-width="2.5" paint-order="stroke"'
     for f in study.fields:
         cx, cy = px(f.lat, f.lon)
         color = _VERDICT_COLOR.get(f.verdict, "#64748b")
         parts.append(
             f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="4.5" fill="{color}" stroke="#fff" '
-            f'stroke-width="1"/>'
+            f'stroke-width="1.4"/>'
             f'<text x="{cx:.1f}" y="{cy - 7:.1f}" text-anchor="middle" font-size="9" '
-            f'font-family="monospace" fill="#12232e">{f.icao}</text>'
+            f'font-family="monospace" fill="#12232e" {halo}>{f.icao}</text>'
         )
 
     for icao, la, lo in study.reference_points:
         cx, cy = px(la, lo)
         parts.append(
             f'<rect x="{cx - 4:.1f}" y="{cy - 4:.1f}" width="8" height="8" fill="#12232e" '
-            f'stroke="#fff" stroke-width="1"/>'
+            f'stroke="#fff" stroke-width="1.4"/>'
             f'<text x="{cx:.1f}" y="{cy + 15:.1f}" text-anchor="middle" font-size="9.5" '
-            f'font-family="monospace" font-weight="700" fill="#12232e">{icao}</text>'
+            f'font-family="monospace" font-weight="700" fill="#12232e" {halo}>{icao}</text>'
         )
 
-    # Flèche du nord (haut-gauche).
+    # Flèche du nord (haut-gauche) — Mercator : le nord est en haut.
     parts.append(
         '<g transform="translate(22 26)">'
         '<line x1="0" y1="10" x2="0" y2="-10" stroke="#12232e" stroke-width="1.4"/>'
         '<path d="M0,-12 L3,-6 L-3,-6 Z" fill="#12232e"/>'
-        '<text x="0" y="22" text-anchor="middle" font-size="9" fill="#12232e">N</text></g>'
+        f'<text x="0" y="22" text-anchor="middle" font-size="9" fill="#12232e" {halo}>N</text></g>'
+    )
+    # Attribution OSM — exigée par la licence (ODbL) dès qu'on affiche les tuiles.
+    parts.append(
+        f'<text x="{_MAP_W - 5}" y="{_MAP_H - 5}" text-anchor="end" font-size="7.5" '
+        f'fill="#333" {halo}>© OpenStreetMap contributors</text>'
     )
     parts.append("</svg>")
     return "".join(parts)
