@@ -337,6 +337,12 @@ def main(argv: list[str] | None = None) -> int:
         help="chemin du log de navigation PDF à produire (exige --route)",
     )
     parser.add_argument(
+        "--gpx",
+        type=Path,
+        default=None,
+        help="chemin du fichier GPX à produire (route ForeFlight/SkyDemon ; exige --route)",
+    )
+    parser.add_argument(
         "--declinaison",
         type=float,
         default=None,
@@ -440,6 +446,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         _render_navlog(context, args.navlog, magnetic_variation_deg=variation)
         print(f"  Navlog : {args.navlog}")
+
+    if args.gpx:
+        if context.route is None:
+            parser.error("--gpx exige une route : ajouter --route")
+        from .gpx import route_to_gpx
+
+        title = f"{context.origin_icao or ''} → {context.destination_icao or 'nav'}".strip()
+        args.gpx.write_text(route_to_gpx(context.route, title=title), encoding="utf-8")
+        print(f"  GPX (ForeFlight) : {args.gpx}")
 
     if args.masse_centrage:
         from .aircraft.registry import resolve as resolve_aircraft
@@ -681,6 +696,7 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
 
     from .aircraft.registry import DEFAULT_REGISTRATION
     from .aircraft.registry import resolve as resolve_aircraft
+    from .gpx import route_to_gpx
     from .navplan import load_navplan
     from .render.html import render_html
     from .render.massbalance import render_massbalance
@@ -758,6 +774,11 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
             context, out_dir / f"bilan_carburant_{label}.html", magnetic_variation_deg=variation
         )
         _render_checklist(context, out_dir / f"checklist_{label}.html", zone=plan.zone)
+        # Route exportable dans ForeFlight / SkyDemon / Garmin Pilot.
+        (out_dir / f"nav_{label}.gpx").write_text(
+            route_to_gpx(context.route, title=plan.title or slug), encoding="utf-8"
+        )
+        print(f"  GPX (ForeFlight) : nav_{label}.gpx ({len(context.route.waypoints)} points)")
 
     print(f"  → dossier complet écrit dans {out_dir}")
     return 0 if package.is_complete else 1
