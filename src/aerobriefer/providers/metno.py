@@ -15,7 +15,7 @@ aéronautiques — d'où les conversions ci-dessous ::
     air_temperature            celsius  -> temperature_c (tel quel)
     cloud_area_fraction        %        -> cloud_cover_pct (tel quel)
     precipitation_amount       mm       -> precipitation_mm (tel quel)
-    relative_humidity          %        -> sert au point de rosée estimé
+    relative_humidity          %        -> relative_humidity_pct + dewpoint_c (Magnus)
     wind_from_direction        degrees  -> wind_dir_deg (direction D'OÙ vient le vent)
     wind_speed                 m/s      -> wind_speed_kt  (× 1.943844)
 
@@ -70,7 +70,7 @@ from typing import Any, cast
 import httpx
 
 from ..domain.context import BriefingContext
-from ..domain.models import ForecastPoint
+from ..domain.models import CLOUD_BASE_FT_PER_C, ForecastPoint
 from ..domain.sourced import Provenance, Sourced
 from ..domain.window import TimeWindow, UtcDateTime, utcnow
 from . import cache
@@ -107,10 +107,12 @@ MS_TO_KT = 1.943844
 
 DEFAULT_TIMEOUT_S = 10.0
 
-_CLOUD_BASE_FT_PER_C = 400.0
+_CLOUD_BASE_FT_PER_C = CLOUD_BASE_FT_PER_C
 """Écart température/point de rosée -> hauteur de la base : ≈ 400 ft par °C.
 
-Équivalent de la forme métrique 125 m par °C. Voir `estimate_cloud_base_ft`, et
+Équivalent de la forme métrique 125 m par °C. La valeur vient du domaine
+(`domain.models.CLOUD_BASE_FT_PER_C`) : le rendu affiche le même facteur au
+pilote, et deux copies pourraient diverger. Voir `estimate_cloud_base_ft`, et
 lire l'avertissement qui s'y trouve avant d'utiliser la valeur.
 """
 
@@ -349,6 +351,14 @@ class MetNoProvider:
         temperature_c = _number(details.get("air_temperature"))
         humidity_pct = _number(details.get("relative_humidity"))
         cloud_cover_pct = _number(details.get("cloud_area_fraction"))
+        # Le point de rosée est REPORTÉ dans le domaine, pas seulement consommé
+        # au passage : c'est la seule façon pour le rendu de justifier la base
+        # estimée au lieu de la présenter comme une donnée met.no.
+        dewpoint = (
+            None
+            if temperature_c is None or humidity_pct is None
+            else dewpoint_c(temperature_c, humidity_pct)
+        )
 
         return ForecastPoint(
             valid_at=valid_at,
@@ -363,6 +373,8 @@ class MetNoProvider:
             cloud_base_ft=estimate_cloud_base_ft(temperature_c, humidity_pct, cloud_cover_pct),
             precipitation_mm=self._precipitation_mm(data),
             qnh_hpa=_number(details.get("air_pressure_at_sea_level")),
+            dewpoint_c=dewpoint,
+            relative_humidity_pct=humidity_pct,
         )
 
     @staticmethod

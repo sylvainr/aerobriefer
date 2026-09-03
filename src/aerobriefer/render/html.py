@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import base64
 import math
+import re
+import urllib.parse
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,10 +30,13 @@ from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
+from ..data import supaip
 from ..domain.context import BriefingContext
 from ..domain.freshness import describe as freshness_label
 from ..domain.freshness import max_age_minutes
-from ..domain.models import Aerodrome, Notam
+from ..domain.geo import Circle, Corridor
+from ..domain.geo import Union as GeoUnion
+from ..domain.models import CLOUD_BASE_FT_PER_C, Aerodrome, ForecastPoint, Notam
 from ..domain.package import BriefingPackage, ProviderFailure
 from ..domain.route import Route
 from ..domain.sourced import Sourced
@@ -59,7 +64,29 @@ CHART_LABELS: dict[str, str] = {
     "front": "Carte de fronts",
     "satellite": "Image satellite",
     "radar": "Image radar",
+    "arome_visi": "AROME — visibilité (maille fine)",
+    "arome_plafond": "AROME — plafond (maille fine)",
+    "arome_nebul_bas": "AROME — nébulosité basse (maille fine)",
 }
+
+#: Ordre de lecture des cartes : DU PLUS GRAND AU PLUS PETIT. On part de la
+#: situation générale (fronts, échelle continentale), on descend à l'échelle
+#: régionale prévue (TEMSI, WINTEM), puis à l'imagerie observée (radar,
+#: satellite) — après quoi le briefing enchaîne sur le terrain (TAF, METAR).
+#: Un type absent de cette liste passe en fin, dans son ordre d'apparition.
+CHART_ORDER: tuple[str, ...] = (
+    "front",
+    "temsi",
+    "wintem",
+    # AROME vient APRÈS la TEMSI : même échelle régionale, mais résolution plus
+    # fine et champ continu. On lit d'abord le zonage du prévisionniste, puis le
+    # détail du modèle — jamais l'inverse, le modèle n'est pas expertisé.
+    "arome_visi",
+    "arome_plafond",
+    "arome_nebul_bas",
+    "radar",
+    "satellite",
+)
 
 # Guide aviation Météo-France : page de LÉGENDE par type de carte. Le lien vit
 # SOUS la carte concernée, à portée de clic (PDF, nouvel onglet).
@@ -72,6 +99,259 @@ GUIDE_PAGES: dict[str, int] = {
     "radar": 17,
 }
 GUIDE_METAR_PAGE = 18  # déchiffrer un message METAR
+
+#: CADENCE DE MISE À DISPOSITION, par rubrique. Texte STATIQUE — c'est une
+#: propriété de la source, pas de ce dossier.
+#:
+#: Pourquoi l'afficher : un âge tout seul ne dit pas s'il faut rebriefer. « TAF
+#: vieux de 5 h » n'a pas le même sens pour un TAF long (renouvelé toutes les
+#: 6 h : normal) et pour un METAR (toutes les 30 min : anormal). Savoir quand
+#: tombe la prochaine fournée évite de relancer trop tôt — rien de neuf — ou
+#: trop tard, après avoir raté la mise à jour.
+#:
+#: Source : guide aviation Météo-France, page PDF citée en commentaire. Les
+#: cadences NON documentées par le guide sont marquées « constaté » : elles
+#: viennent des produits réellement reçus, et peuvent changer sans préavis.
+RELEASE_CADENCE: dict[str, str] = {
+    # Guide p.18 : « toutes les demi-heures en AUTO en France ».
+    "metar": "Toutes les 30 min en station automatique (France). "
+    "SPECI émis hors cadence dès qu'un seuil est franchi.",
+    # Guide p.22 : « Le TAF court est renouvelé toutes les 3 heures, le long,
+    # toutes les 6 heures. » Un seul type par aérodrome.
+    "taf": "TAF court : toutes les 3 h (validité 9 h). "
+    "TAF long : toutes les 6 h (validité 24 ou 30 h). Un seul type par terrain.",
+    # Guide p.25 : établi au plus 4 h avant le début de validité, validité < 4 h
+    # (6 h pour cendres volcaniques et cyclones tropicaux).
+    "sigmet": "Aucune cadence : émis à l'occurrence, au plus 4 h avant le début de "
+    "validité. Validité inférieure à 4 h (6 h : cendres volcaniques, cyclones).",
+    "notam": "Aucune cadence : publiés en continu. Un NOTAM peut paraître à tout moment.",
+    "forecast": "Prévision de modèle, réactualisée à chaque tour de modèle.",
+    # Guide p.9.
+    "temsi": "Toutes les 3 h de 06 à 00 UTC, mise à disposition 2 h avant l'échéance.",
+    # Guide p.15.
+    "wintem": "Toutes les 3 h à partir de 00 UTC.",
+    # Guide p.15 : donne les échéances (12 h et 24 h), pas la cadence d'émission.
+    "front": "Analyse, puis échéances à 12 h et 24 h.",
+    # Runs exposés par le visualiseur maille fine (cf. providers/arome.py).
+    "arome_visi": "Runs 03, 06, 12 et 18 UTC ; échéances horaires.",
+    "arome_plafond": "Runs 03, 06, 12 et 18 UTC ; échéances horaires.",
+    "arome_nebul_bas": "Runs 03, 06, 12 et 18 UTC ; échéances horaires.",
+    "radar": "Nouvelle image toutes les 15 min (constaté).",
+    "satellite": "Nouvelle image toutes les 15 min (constaté).",
+}
+
+
+#: La planche WINTEM FRANCE n'est pas une carte : elle empile TROIS panneaux —
+#: FL020 (950 hPa) en grand, puis FL050 (850 hPa) et FL100 (700 hPa) en petit.
+#: Pour un VFR à 2500 ft, seul le premier compte ; les deux autres mangent les
+#: deux tiers de la hauteur.
+#:
+#: Fraction MESURÉE sur la planche réelle (1024×1800) : le cadre du panneau
+#: FL020 se termine au pixel 1010, en-tête compris, soit 0.567 de la hauteur.
+WINTEM_TOP_PANEL_FRACTION = 0.567
+
+#: Rapport largeur/hauteur de la planche à trois panneaux. On ne découpe QUE si
+#: l'image a cette forme : si Météo-France remanie la planche, mieux vaut ne pas
+#: proposer le bouton que couper au mauvais endroit.
+_WINTEM_SHEET_RATIO = 1024 / 1800
+_SHEET_RATIO_TOLERANCE = 0.03
+
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+def png_size(data: bytes | None) -> tuple[int, int] | None:
+    """Dimensions d'un PNG, lues dans son IHDR. Stdlib seule — le rendu ne tire
+    aucune bibliothèque d'image."""
+    if data is None or len(data) < 24:
+        return None
+    if not data.startswith(_PNG_SIGNATURE) or data[12:16] != b"IHDR":
+        return None
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+
+
+def top_panel_ratio(kind: str, content: bytes | None) -> float | None:
+    """Rapport largeur/hauteur du SEUL panneau haut, ou `None` si non applicable.
+
+    Sert à recadrer en CSS (`aspect-ratio` + `object-fit: cover`) sans jamais
+    toucher à l'image : le brut reste le brut, on ne fait que masquer le bas.
+    """
+    if kind != "wintem":
+        return None
+    size = png_size(content)
+    if size is None:
+        return None
+    width, height = size
+    if height <= 0 or abs(width / height - _WINTEM_SHEET_RATIO) > _SHEET_RATIO_TOLERANCE:
+        return None
+    return width / (height * WINTEM_TOP_PANEL_FRACTION)
+
+
+#: Demi-circonférence de la Terre en Mercator sphérique — borne de l'axe X et Y
+#: d'EPSG:3857, le repère des tuiles OSM comme du WMS AROME.
+_MERC_HALF = 20037508.342789244
+
+#: Plafond du NOMBRE de tuiles du fond. On borne le compte, pas la largeur en
+#: pixels : c'est le nombre de requêtes vers OSM qu'il faut tenir. Quinze cartes
+#: AROME dans un dossier, c'est autant de grilles — à 45 tuiles pièce on tape
+#: 675 fois le serveur de tuiles pour un gain de netteté invisible à l'impression.
+_BASEMAP_MAX_TILES = 16
+
+
+def _bbox_3857(url: str) -> tuple[float, float, float, float] | None:
+    """Emprise EPSG:3857 relue dans l'URL du GetMap.
+
+    On la RELIT au lieu de la recalculer : l'image a été demandée pour cette
+    emprise-là, et un second calcul finirait par diverger du premier — le fond
+    de carte glisserait sous les nuages sans que rien ne le signale.
+    """
+    query = urllib.parse.urlparse(url).query
+    params = urllib.parse.parse_qs(query)
+    if (params.get("CRS") or params.get("SRS") or [""])[0].upper() != "EPSG:3857":
+        return None
+    raw = (params.get("BBOX") or [""])[0].split(",")
+    if len(raw) != 4:
+        return None
+    try:
+        x0, y0, x1, y1 = (float(v) for v in raw)
+    except ValueError:
+        return None
+    if x1 <= x0 or y1 <= y0:
+        return None
+    return x0, y0, x1, y1
+
+
+def _world_px(x_m: float, y_m: float, zoom: int) -> tuple[float, float]:
+    """Mètres EPSG:3857 → « pixel monde » des tuiles (256 px/tuile).
+
+    L'axe Y s'inverse : le Mercator monte vers le nord, les pixels descendent.
+    """
+    span = 256.0 * (2**zoom)
+    return (
+        (x_m + _MERC_HALF) / (2 * _MERC_HALF) * span,
+        (_MERC_HALF - y_m) / (2 * _MERC_HALF) * span,
+    )
+
+
+def arome_basemap(url: str, route: Route | None = None) -> dict[str, Any] | None:
+    """Fond OpenStreetMap et tracé de route sous une couche AROME.
+
+    Les couches AROME sont des CALQUES transparents : sans fond, on voit la
+    forme des nuages mais pas où ils sont. On pose donc dessous les tuiles OSM
+    couvrant exactement l'emprise de l'image, plus la route, tout en pourcentages
+    — le fond suit l'image quelle que soit sa taille d'affichage.
+
+    Aucun appel réseau ici : on ÉMET des URLs de tuiles, le navigateur les
+    charge. Conséquence assumée et signalée : hors ligne, le fond manque, la
+    couche AROME reste.
+    """
+    bbox = _bbox_3857(url)
+    if bbox is None:
+        return None
+    x0, y0, x1, y1 = bbox
+
+    # Zoom le plus DÉTAILLÉ dont la grille tient sous le plafond de tuiles.
+    # On descend depuis le plus fin : le premier qui tient est le meilleur.
+    zoom = 1
+    for candidate in range(14, 0, -1):
+        left, top = _world_px(x0, y1, candidate)
+        right, bottom = _world_px(x1, y0, candidate)
+        across = int(right // 256) - int(left // 256) + 1
+        down = int(bottom // 256) - int(top // 256) + 1
+        if across * down <= _BASEMAP_MAX_TILES:
+            zoom = candidate
+            break
+
+    left_px, top_px = _world_px(x0, y1, zoom)  # coin haut-gauche
+    right_px, bottom_px = _world_px(x1, y0, zoom)
+    width_px = right_px - left_px
+    height_px = bottom_px - top_px
+    if width_px <= 0 or height_px <= 0:
+        return None
+
+    span = 2**zoom
+    tiles: list[dict[str, Any]] = []
+    for tx in range(int(left_px // 256), int(right_px // 256) + 1):
+        for ty in range(int(top_px // 256), int(bottom_px // 256) + 1):
+            if not (0 <= tx < span and 0 <= ty < span):
+                continue
+            tiles.append(
+                {
+                    "url": f"https://tile.openstreetmap.org/{zoom}/{tx}/{ty}.png",
+                    "left": (tx * 256 - left_px) / width_px * 100.0,
+                    "top": (ty * 256 - top_px) / height_px * 100.0,
+                    "width": 256 / width_px * 100.0,
+                    "height": 256 / height_px * 100.0,
+                }
+            )
+
+    path: list[dict[str, float]] = []
+    if route is not None:
+        for waypoint in route.waypoints:
+            wx, wy = _to_mercator_m(waypoint.position.lat, waypoint.position.lon)
+            px, py = _world_px(wx, wy, zoom)
+            path.append(
+                {"x": (px - left_px) / width_px * 100.0, "y": (py - top_px) / height_px * 100.0}
+            )
+
+    return {
+        "tiles": tiles,
+        "route": path,
+        "aspect": width_px / height_px,
+    }
+
+
+def _to_mercator_m(lat: float, lon: float) -> tuple[float, float]:
+    """WGS84 → EPSG:3857 (mètres)."""
+    x = math.radians(lon) * 6378137.0
+    y = math.log(math.tan(math.pi / 4.0 + math.radians(lat) / 2.0)) * 6378137.0
+    return x, y
+
+
+#: LÉGENDE DES COUCHES AROME.
+#:
+#: Météo-France ne publie AUCUNE échelle pour ces couches : ni
+#: `GetLegendGraphic`, ni `GetCapabilities` (le service n'est pas un WMS
+#: complet, les deux répondent 400), ni le visualiseur — ses fichiers de
+#: localisation ne portent que les noms des paramètres, et le guide aviation
+#: ignore le produit. Sondé le 2026-08-30.
+#:
+#: Les classes ci-dessous sont donc RELEVÉES sur les images réelles, et leur
+#: ORDRE est établi par emboîtement : on compte, pour chaque classe, la part de
+#: ses voisins vides. Une classe entourée d'autres classes (0 % de voisins
+#: vides) est la plus interne, donc la plus marquée. Mesuré sur le dossier du
+#: 2026-08-31.
+#:
+#: On n'affiche AUCUNE valeur en km ni en pieds : la source ne les donne pas, et
+#: inventer un seuil sur une feuille de briefing serait pire que de se taire.
+AROME_LEGENDS: dict[str, dict[str, Any]] = {
+    "arome_visi": {
+        "definition": "Visibilité horizontale prévue près du sol.",
+        "behaviour": "La couche ne peint QUE les zones de visibilité réduite. "
+        "Pas de couleur = aucune réduction prévue à cet endroit.",
+        "classes": [("#fefe00", "réduction modérée"), ("#fea400", "réduction marquée")],
+        "ordered": True,
+    },
+    "arome_plafond": {
+        "definition": "Hauteur de la base de la première couche couvrant au moins "
+        "5/8 du ciel (BKN ou OVC), au-dessus du sol.",
+        "behaviour": "La couche ne peint QUE les zones de plafond bas. "
+        "Pas de couleur = aucun plafond sous seuil prévu à cet endroit.",
+        "classes": [("#3d7bb0", "plafond bas"), ("#180545", "plafond très bas")],
+        "ordered": False,
+    },
+    "arome_nebul_bas": {
+        "definition": "Fraction du ciel couverte par les nuages de l'étage inférieur.",
+        "behaviour": "Champ continu sur toute la zone : plus la teinte est soutenue, "
+        "plus le ciel est couvert en basses couches.",
+        "classes": [
+            ("#ebebeb", "peu couvert"),
+            ("#ddd2c7", ""),
+            ("#d5baa0", ""),
+            ("#c7a381", "très couvert"),
+        ],
+        "ordered": True,
+    },
+}
 
 
 # --------------------------------------------------------------------------
@@ -222,6 +502,11 @@ class ChartView:
     flight_level: str | None
     issued_dual: str | None
     valid_dual: str | None
+    basemap: dict[str, Any] | None
+    """Fond OSM + route sous une couche AROME (calque transparent), sinon `None`."""
+    panel_ratio: float | None
+    """Rapport L/H du panneau FL020 seul (planche WINTEM), sinon `None`.
+    Permet un recadrage CSS : l'image n'est jamais modifiée."""
     data_uri: str | None
     """`None` quand la carte n'est pas embarquée : elle est alors INUTILISABLE
     hors ligne, et le template le dit au lieu de laisser un cadre vide."""
@@ -237,9 +522,43 @@ class ChartView:
     """Échéance courte pour l'étiquette du lecteur animé (ex. « 21/07 12:00Z »)."""
 
 
+#: Référence à un SUPPLÉMENT À L'AIP dans le texte d'un NOTAM.
+#:
+#: Pourquoi ça compte : un NOTAM qui cite un SUP AIP ne CONTIENT pas
+#: l'information — il l'ANNONCE. Le détail (cartes, coordonnées des zones,
+#: conditions) vit dans un document séparé qu'il faut aller lire. Le cas le plus
+#: courant est le « TRIGGER NOTAM », dont c'est l'unique fonction. Lu vite, il
+#: ressemble à un NOTAM anodin ; c'est en réalité un renvoi à respecter.
+#:
+#: Les deux ordres existent dans le même dossier : « SUP AIP 162/26 » côté
+#: français, « AIP SUP 162/26 » côté OACI, avec un « AIRAC » parfois intercalé.
+_AIP_SUP_REF = re.compile(
+    r"\b(?:AIRAC\s+)?(?:AIP\s+SUP|SUP\s+AIP)(?:\s+AIRAC)?\s+(\d{1,4}/\d{2})\b",
+    re.IGNORECASE,
+)
+_TRIGGER = re.compile(r"\bTRIGGER\b", re.IGNORECASE)
+
+
+def _anchor(identifier: str) -> str:
+    """« R1000/26 » → « notam-R1000-26 ». Un fragment d'URL n'accepte pas « / »."""
+    return "notam-" + re.sub(r"[^0-9A-Za-z]+", "-", identifier).strip("-")
+
+
+def aip_sup_references(*texts: str | None) -> list[str]:
+    """Références de SUP AIP citées, dédoublonnées et triées (ex. `["162/26"]`)."""
+    found: set[str] = set()
+    for text in texts:
+        if text:
+            found.update(m.group(1) for m in _AIP_SUP_REF.finditer(text))
+    return sorted(found)
+
+
 @dataclass(frozen=True, slots=True)
 class NotamView:
     identifier: str
+    anchor: str
+    """Identifiant utilisable en ancre HTML : « R1000/26 » → « notam-R1000-26 ».
+    Le « / » d'un numéro de NOTAM n'est pas valide dans un fragment d'URL."""
     raw_text: str
     decoded_text: str | None
     category_label: str
@@ -257,6 +576,15 @@ class NotamView:
     q_code: str | None
     limits: str | None
     source: SourceInfo
+    aip_sup_refs: list[str]
+    """SUP AIP cités par ce NOTAM. Non vide = le texte ci-dessous ne suffit pas,
+    il faut aller lire le supplément."""
+    aip_sup_links: list[dict[str, str]]
+    """Mêmes références, résolues vers le document du SIA : `ref`, `url`,
+    `title`, `resolved`. Non résolu → `url` pointe la LISTE, jamais une URL
+    fabriquée, et `resolved` est vide."""
+    is_trigger: bool
+    """« TRIGGER NOTAM » : son seul rôle est d'annoncer un SUP AIP."""
 
 
 class HtmlRenderer:
@@ -271,9 +599,24 @@ class HtmlRenderer:
         *,
         display_timezone: str = DEFAULT_DISPLAY_TIMEZONE,
         stale_after_minutes: float = DEFAULT_STALE_AFTER_MINUTES,
+        supaip_local: dict[str, str] | None = None,
+        supaip_index: supaip.SupAipIndex | None = None,
     ) -> None:
+        self.supaip_local = dict(supaip_local or {})
+        """SUP AIP téléchargés à côté du dossier : `référence → nom de fichier`.
+        Quand une copie locale existe, c'est ELLE qu'on lie — un dossier de vol
+        doit rester consultable sans réseau."""
         self.display_timezone = display_timezone
         self.stale_after_minutes = stale_after_minutes
+        # Index des SUP AIP. Le rendu NE FAIT PAS DE RÉSEAU : soit l'appelant
+        # fournit l'index (c'est le cas du CLI, qui l'a déjà chargé pour
+        # télécharger les suppléments), soit on relit le cache disque et
+        # RIEN DE PLUS — `allow_network=False` n'est pas une option, c'est la
+        # règle du module. Sans cache, l'index est vide et les liens retombent
+        # sur la liste officielle du SIA.
+        self._supaip = (
+            supaip_index if supaip_index is not None else supaip.load_index(allow_network=False)
+        )
         self._tz = ZoneInfo(display_timezone)
         self._window: TimeWindow | None = None  # posé par build_view avant _notam_view
         self._env = Environment(
@@ -303,7 +646,11 @@ class HtmlRenderer:
         )
 
     def _chart_view(
-        self, item: Sourced[Any], now: UtcDateTime, window: TimeWindow | None = None
+        self,
+        item: Sourced[Any],
+        now: UtcDateTime,
+        window: TimeWindow | None = None,
+        route: Route | None = None,
     ) -> ChartView:
         chart = item.value
         data_uri = None
@@ -319,6 +666,8 @@ class HtmlRenderer:
             flight_level=chart.flight_level,
             issued_dual=self._dual(chart.issued_at, with_date=True) if chart.issued_at else None,
             valid_dual=self._dual(chart.valid_at, with_date=True) if chart.valid_at else None,
+            basemap=(arome_basemap(chart.url, route) if chart.kind.startswith("arome_") else None),
+            panel_ratio=top_panel_ratio(chart.kind, chart.content),
             data_uri=data_uri,
             url=chart.url,
             source=self._source_info(item, now),
@@ -330,6 +679,57 @@ class HtmlRenderer:
             valid_label=(format_local_only(chart.valid_at, self._tz) if chart.valid_at else "?"),
         )
 
+    def _aip_sup_documents(self, notams: list[NotamView]) -> list[dict[str, Any]]:
+        """Suppléments cités par le dossier, chacun avec son lien et les NOTAM
+        qui l'annoncent. Regroupés en tête : dans la masse, un TRIGGER NOTAM
+        ressemble à un NOTAM anodin alors que c'est un renvoi à respecter."""
+        by_reference: dict[str, dict[str, Any]] = {}
+        for notam in notams:
+            for link in notam.aip_sup_links:
+                doc = by_reference.setdefault(link["ref"], {**link, "notams": []})
+                doc["notams"].append({"identifier": notam.identifier, "anchor": notam.anchor})
+        return [by_reference[ref] for ref in sorted(by_reference)]
+
+    def _aip_sup_link(self, reference: str) -> dict[str, str]:
+        """Une référence de SUP AIP → le document, ou à défaut la liste.
+
+        Jamais d'URL fabriquée : un lien inventé qui tombe sur le mauvais
+        supplément est pire qu'un lien vers la liste officielle.
+        """
+        entry = self._supaip.lookup(reference)
+        local = self.supaip_local.get(supaip.normalize_reference(reference))
+        if entry is None:
+            return {
+                "ref": reference,
+                "url": local or supaip.FALLBACK_URL,
+                "title": "",
+                "validity": "",
+                "rules": "",
+                "tooltip": f"SUP AIP {reference} — non résolu. Ouvre la liste du SIA.",
+                "resolved": "",
+                "local": "1" if local else "",
+            }
+        validity = (
+            f"{entry.valid_from} → {entry.valid_to}" if entry.valid_from and entry.valid_to else ""
+        )
+        rules = " · ".join(entry.rules)
+        # L'infobulle porte TOUT : en relisant les NOTAM un par un, on ne veut
+        # pas remonter au tableau de tête pour savoir de quoi parle un renvoi.
+        tooltip = " — ".join(
+            part for part in (f"SUP AIP {reference}", entry.title, validity, rules) if part
+        )
+        return {
+            "ref": reference,
+            # La copie locale d'abord : elle marche en vol, l'URL du SIA non.
+            "url": local or entry.url,
+            "title": entry.title,
+            "validity": validity,
+            "rules": rules,
+            "tooltip": tooltip,
+            "resolved": "1",
+            "local": "1" if local else "",
+        }
+
     def _notam_view(self, item: Sourced[Any], now: UtcDateTime) -> NotamView:
         notam = item.value
         limits = None
@@ -340,6 +740,7 @@ class HtmlRenderer:
         start, end = notam.validity.start, notam.validity.end
         return NotamView(
             identifier=notam.identifier,
+            anchor=_anchor(notam.identifier),
             raw_text=notam.raw_text,
             decoded_text=notam.decoded_text,
             category_label=notam.source_category or "Non catégorisé",
@@ -354,6 +755,12 @@ class HtmlRenderer:
             affected_icao=notam.affected_icao,
             q_code=notam.q_code,
             limits=limits,
+            aip_sup_refs=aip_sup_references(notam.raw_text, notam.decoded_text),
+            aip_sup_links=[
+                self._aip_sup_link(ref)
+                for ref in aip_sup_references(notam.raw_text, notam.decoded_text)
+            ],
+            is_trigger=bool(_TRIGGER.search(notam.raw_text or "")),
             source=self._source_info(item, now),
         )
 
@@ -401,6 +808,7 @@ class HtmlRenderer:
                         "arrow": components.arrow if components else None,
                         "from_right": components.from_right if components else None,
                         "tailwind": components.is_tailwind if components else None,
+                        "base_detail": _cloud_base_detail(value),
                     }
                 )
             groups.append(
@@ -513,7 +921,10 @@ class HtmlRenderer:
             for f in sorted(package.forecasts, key=lambda f: f.value.valid_at)
         ]
         # Toutes les cartes, satellite (couverture nuageuse) compris.
-        charts = [self._chart_view(c, moment, package.context.window) for c in package.charts]
+        charts = [
+            self._chart_view(c, moment, package.context.window, package.context.route)
+            for c in package.charts
+        ]
         chart_groups = _group_charts(charts)
         sigmets = [
             {
@@ -577,9 +988,18 @@ class HtmlRenderer:
             "tafs": tafs,
             "forecasts": forecasts,
             "forecast_groups": self._forecast_groups(package, moment, window),
+            # Le facteur de la règle du pouce est EXPOSÉ à la vue plutôt que
+            # recopié dans le gabarit : l'avertissement affiché doit citer le
+            # nombre réellement employé par le calcul.
+            "cloud_base_ft_per_c": CLOUD_BASE_FT_PER_C,
             "notams": notams,
+            "search_zones": _search_zones(package.context),
+            "aip_sup_refs": sorted({r for n in notams for r in n.aip_sup_refs}),
+            "aip_sup_documents": self._aip_sup_documents(notams),
+            "aip_sup_list_url": supaip.LIST_URL,
             "charts": charts,
             "chart_groups": chart_groups,
+            "release_cadence": RELEASE_CADENCE,
             "sigmets": sigmets,
             "missing_chart_kinds": list(package.missing_chart_kinds()),
             "notam_count": len(package.notams),
@@ -606,9 +1026,16 @@ class HtmlRenderer:
         template = self._env.get_template(TEMPLATE_NAME)
         view = self.build_view(package, now=now)
         view["document_kind"] = kind
+        # Le mot DISCRIMINANT en tête du titre d'onglet : Chrome tronque par la
+        # droite, et « BRIEFING MÉTÉO » / « BRIEFING NOTAM » se ressemblaient
+        # jusqu'au dernier caractère visible. La favicon distingue en plus.
+        view["tab_label"] = {"meteo": "MÉTÉO", "notam": "NOTAM"}.get(kind, "VFR")
+        view["favicon"] = {"meteo": "🌦", "notam": "⚠"}.get(kind, "📋")
         if kind == "meteo":
             view["notams"] = []
             view["notam_count"] = 0
+            view["aip_sup_refs"] = []
+            view["aip_sup_documents"] = []
             view["doc_label"] = "BRIEFING MÉTÉO"
         elif kind == "notam":
             for empty in (
@@ -633,10 +1060,15 @@ def render_html(
     stale_after_minutes: float = DEFAULT_STALE_AFTER_MINUTES,
     now: UtcDateTime | None = None,
     kind: str = "all",
+    supaip_local: dict[str, str] | None = None,
+    supaip_index: supaip.SupAipIndex | None = None,
 ) -> str:
     """Raccourci fonctionnel pour le cas courant. `kind` : all/meteo/notam."""
     renderer = HtmlRenderer(
-        display_timezone=display_timezone, stale_after_minutes=stale_after_minutes
+        display_timezone=display_timezone,
+        stale_after_minutes=stale_after_minutes,
+        supaip_local=supaip_local,
+        supaip_index=supaip_index,
     )
     return renderer.render(package, now=now, kind=kind)
 
@@ -661,7 +1093,8 @@ def _group_charts(charts: list[ChartView]) -> list[dict[str, Any]]:
 
     Un groupe de plusieurs images devient un LECTEUR animé (slider + play) en
     HTML ; un groupe d'une seule reste une image simple. L'ordre des groupes
-    suit l'ordre d'apparition des types, pour rester stable entre deux rendus.
+    suit `CHART_ORDER` (du plus grand au plus petit) ; un type inconnu tombe en
+    fin de liste dans son ordre d'apparition, pour rester stable entre rendus.
     """
     order: list[str] = []
     by_kind: dict[str, list] = {}
@@ -670,6 +1103,11 @@ def _group_charts(charts: list[ChartView]) -> list[dict[str, Any]]:
             by_kind[chart.kind] = []
             order.append(chart.kind)
         by_kind[chart.kind].append(chart)
+
+    # Le rang est figé AVANT le tri : `order` est trié en place, l'index
+    # d'apparition d'un type inconnu ne doit pas bouger sous les pieds du tri.
+    seen = {kind: i for i, kind in enumerate(order)}
+    order.sort(key=lambda k: (0, CHART_ORDER.index(k)) if k in CHART_ORDER else (1, seen[k]))
 
     groups = []
     for kind in order:
@@ -686,9 +1124,54 @@ def _group_charts(charts: list[ChartView]) -> list[dict[str, Any]]:
                 "animated": len(items) > 1,
                 "any_covers_window": any(c.covers_window for c in items),
                 "guide_page": GUIDE_PAGES.get(kind),
+                "cadence": RELEASE_CADENCE.get(kind),
+                "panel_ratio": head.panel_ratio,
+                "basemap": head.basemap,
+                "legend": AROME_LEGENDS.get(kind),
             }
         )
     return groups
+
+
+def _search_zones(context: BriefingContext) -> list[str]:
+    """Zone(s) réellement interrogées, en clair.
+
+    Un briefing NOTAM sans ses paramètres de recherche est inauditable : « 28
+    NOTAM » ne veut rien dire si on ignore sur quelle surface ils ont été
+    cherchés. On décrit donc la géométrie telle qu'elle est, pas telle qu'on
+    l'imagine.
+    """
+    geometry = context.geometry
+    parts = list(geometry.parts) if isinstance(geometry, GeoUnion) else [geometry]
+    circles = [p for p in parts if isinstance(p, Circle)]
+    alternates = list(context.alternates_icao)
+    # Les cercles des dégagements sont AJOUTÉS EN DERNIER par `build_context`,
+    # après la géométrie du vol. On les apparie donc PAR LA FIN : sur un vol
+    # local, la géométrie du vol est elle-même un cercle, et compter depuis le
+    # début décalait tout d'un rang — les trois dégagements sortaient étiquetés
+    # du nom du terrain de départ. On ne nomme rien si le compte ne suffit pas.
+    premier_degagement = len(circles) - len(alternates)
+    names = alternates if premier_degagement >= 0 else []
+    labels: list[str] = []
+    seen_circles = 0
+    for part in parts:
+        if isinstance(part, Corridor):
+            labels.append(
+                f"Couloir de ±{part.half_width_nm:g} NM de part et d'autre de la route "
+                f"({len(part.points)} points)"
+            )
+        elif isinstance(part, Circle):
+            rang = seen_circles - premier_degagement
+            target = (
+                names[rang]
+                if names and 0 <= rang < len(names)
+                else (context.origin_icao or "le point de référence")
+            )
+            labels.append(f"Cercle de {part.radius_nm:g} NM autour de {target}")
+            seen_circles += 1
+        else:  # pragma: no cover - toute géométrie future reste nommée
+            labels.append(type(part).__name__)
+    return labels
 
 
 def _crosswind_estimate(package: BriefingPackage) -> dict[str, Any] | None:
@@ -736,6 +1219,31 @@ def _crosswind_estimate(package: BriefingPackage) -> dict[str, Any] | None:
         return None
     runways = ", ".join(r.ident for r in focus.runways)
     return {"icao": focus.icao, "runways": runways, "rows": rows}
+
+
+def _cloud_base_detail(value: ForecastPoint) -> str | None:
+    """Détail du calcul derrière la base estimée, à afficher au survol.
+
+    Le pilote doit pouvoir remonter le raisonnement d'un coup d'œil : c'est une
+    grandeur DÉRIVÉE d'un écart T/Td par une règle du pouce, pas une hauteur
+    mesurée ni fournie par la source. Sans ce détail, la colonne se lirait comme
+    un plafond prévu — la confusion exacte qu'on veut rendre impossible.
+
+    Renvoie None si l'un des ingrédients manque : on n'explique pas un calcul
+    avec des chiffres qu'on n'a pas.
+    """
+    spread = value.spread_c
+    if value.cloud_base_ft is None or spread is None:
+        return None
+    assert value.temperature_c is not None and value.dewpoint_c is not None
+    return (
+        f"ESTIMATION, pas une donnée de la source. "
+        f"T {value.temperature_c:.1f} °C − Td {value.dewpoint_c:.1f} °C "
+        f"= {spread:.1f} °C d'écart × {CLOUD_BASE_FT_PER_C:.0f} ft/°C "
+        f"≈ {round(value.cloud_base_ft)} ft. "
+        f"Règle du pouce de convection (base de cumulus) : ne vaut pas pour une "
+        f"couche stratiforme, un plafond d'advection ou une inversion."
+    )
 
 
 def airports_lookup(icao: str) -> Aerodrome | None:

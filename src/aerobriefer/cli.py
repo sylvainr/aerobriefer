@@ -9,6 +9,7 @@ dès l'entrée : au-delà de cette frontière, le domaine ne connaît plus que Z
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from dataclasses import replace
 from datetime import timedelta  # noqa: TID251 - timedelta est une durée, pas un instant
 from pathlib import Path
@@ -18,7 +19,7 @@ from zoneinfo import ZoneInfo
 from .assemble import assemble_briefing
 from .data import airports
 from .domain.context import BriefingContext
-from .domain.geo import Position, project_onto_segment
+from .domain.geo import Circle, Position, Union, project_onto_segment
 from .domain.models import Aerodrome
 from .domain.route import Route, Waypoint
 from .domain.window import TimeWindow, UtcDateTime
@@ -43,6 +44,8 @@ def build_context(
     aeronef: str | None = None,
     route: str | None = None,
     largeur_nm: float = 10.0,
+    degagements: Sequence[str] = (),
+    degagement_rayon_nm: float = 10.0,
 ) -> BriefingContext:
     aerodrome = airports.require(icao)
     hour, minute = (int(part) for part in heure.split(":"))
@@ -59,19 +62,37 @@ def build_context(
         parsed = parse_route(route, default_first=aerodrome.icao)
         last = parsed.waypoints[-1].name
         dest = airports.lookup(last)
+        alternates = [airports.require(code) for code in degagements]
         context = BriefingContext.navigation(
             route=parsed,
             window=window,
             half_width_nm=largeur_nm,
             origin_icao=aerodrome.icao,
             destination_icao=dest.icao if dest else None,
+            alternates_icao=[a.icao for a in alternates],
             aircraft_id=aeronef,
         )
+        if alternates:
+            # Un dégagement est HORS du couloir par nature : on lui ajoute son
+            # propre cercle plutôt que d'élargir le couloir, ce qui ramènerait
+            # des NOTAM sans rapport avec le vol.
+            context = replace(
+                context,
+                geometry=Union(
+                    (
+                        context.geometry,
+                        *(Circle(a.position, degagement_rayon_nm) for a in alternates),
+                    )
+                ),
+            )
         # La météo d'une nav doit couvrir TOUTE la trajectoire : on ancre sur
         # chaque terrain du vol (départ, points tournants qui sont des terrains,
         # arrivée) et on rabat le filet de stations d'observation autour de
-        # chacun — plus le milieu du couloir, pour l'en-route.
+        # chacun — plus le milieu du couloir, pour l'en-route. Les dégagements
+        # sont des terrains du vol : on s'y pose peut-être, ils sont ancrés aussi.
         anchors = _flight_aerodromes(parsed, aerodrome, dest)
+        known = {a.icao for a in anchors}
+        anchors = anchors + [a for a in alternates if a.icao not in known]
         enroute = context.geometry.bounding_circle().center
         return replace(
             context,
@@ -82,17 +103,35 @@ def build_context(
             ),
         )
 
+    alternates = [airports.require(code) for code in degagements]
     context = BriefingContext.local(
         center=aerodrome.position,
         radius_nm=rayon_nm,
         window=window,
         icao=aerodrome.icao,
+        alternates_icao=[a.icao for a in alternates],
         aircraft_id=aeronef,
     )
+    if alternates:
+        # Un dégagement HORS du cercle du vol doit quand même être couvert.
+        # Ceux qui sont déjà dedans n'élargissent rien — l'union se contente de
+        # les rendre explicites dans les paramètres de recherche.
+        context = replace(
+            context,
+            geometry=Union(
+                (
+                    context.geometry,
+                    *(Circle(a.position, degagement_rayon_nm) for a in alternates),
+                )
+            ),
+        )
+    anchors = [aerodrome, *(a for a in alternates if a.icao != aerodrome.icao)]
     return replace(
         context,
-        weather_points=((aerodrome.icao, aerodrome.position),),
-        observation_stations=_observation_stations([aerodrome.position], exclude={aerodrome.icao}),
+        weather_points=tuple((a.icao, a.position) for a in anchors),
+        observation_stations=_observation_stations(
+            [a.position for a in anchors], exclude={a.icao for a in anchors}
+        ),
     )
 
 
@@ -280,6 +319,7 @@ def default_providers() -> list[Provider]:
         ("sofia", ("SofiaProvider",)),
         ("metno", ("MetNoProvider",)),
         ("aeroweb", ("AerowebProvider",)),
+        ("arome", ("AromeProvider",)),
     ]:
         try:
             module = __import__(f"aerobriefer.providers.{module_name}", fromlist=["*"])
@@ -312,6 +352,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--heure", default="10:00", help="HH:MM locale (défaut 10:00)")
     parser.add_argument("--duree", type=float, default=3.0, help="durée en heures (défaut 3)")
     parser.add_argument("--rayon", type=float, default=20.0, help="rayon en NM (défaut 20)")
+    parser.add_argument(
+        "--degagements-icao",
+        default="",
+        help="terrains de dégagement, codes OACI séparés par des virgules (ex. LFDK,LFXB,LFDN)",
+    )
     parser.add_argument(
         "--route",
         default=None,
@@ -395,6 +440,11 @@ def main(argv: list[str] | None = None) -> int:
         aeronef=args.aeronef,
         route=args.route,
         largeur_nm=args.largeur,
+        degagements=[c.strip().upper() for c in args.degagements_icao.split(",") if c.strip()],
+        # Volontairement PAS `--rayon-degagement` : celui-ci est le rayon de
+        # RECHERCHE des terrains posables de la feuille de dégagement (30 NM),
+        # une notion sans rapport avec le rayon NOTAM autour d'un dégagement
+        # DÉCLARÉ. Les confondre demandait 30 NM de NOTAM autour de chacun.
     )
 
     package = assemble_briefing(context, default_providers())
@@ -417,9 +467,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.html:
         from .render.html import render_html
 
+        # Un vol LOCAL cite des SUP AIP comme n'importe quel autre : ses NOTAM
+        # viennent de la même source. Sans cet appel, l'index n'était jamais
+        # rafraîchi sur ce chemin et aucune copie locale n'était déposée — le
+        # briefing affichait « référence non résolue » sur TOUS les renvois.
+        supaip_local, supaip_index = _download_cited_supaip(package, args.html.parent)
         # Le HTML est AUTONOME : images embarquées en data URI, aucun lien
         # externe. Consultable et archivable tel quel, hors ligne.
-        args.html.write_text(render_html(package), encoding="utf-8")
+        args.html.write_text(
+            render_html(package, supaip_local=supaip_local, supaip_index=supaip_index),
+            encoding="utf-8",
+        )
         print(f"  HTML : {args.html}")
 
     if args.pdf:
@@ -483,6 +541,53 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  Dégagement ({aircraft.name}, {len(study.fields)} terrains) : {args.degagement}")
 
     return 0 if package.is_complete else 1
+
+
+def _download_cited_supaip(package: BriefingPackage, out_dir: Path) -> tuple[dict[str, str], Any]:
+    """Télécharge, à côté du dossier, les SUP AIP que ses NOTAM citent.
+
+    Un TRIGGER NOTAM ne porte pas l'information : elle est dans le supplément.
+    Sans copie locale, la seule chose qu'on emporte en vol est un numéro. On ne
+    prend QUE les suppléments cités — jamais la liste entière.
+
+    C'est LE point où le réseau est autorisé pour les SUP AIP : l'index est
+    chargé ici, une fois, puis passé au rendu — qui, lui, n'appelle jamais le
+    réseau. Renvoie `(référence → chemin relatif, index)`. Un échec n'est
+    jamais fatal : le lien retombe alors sur le site du SIA.
+    """
+    from .data import supaip
+
+    references: set[str] = set()
+    for item in package.notams:
+        references.update(supaip.iter_references(item.value.raw_text, item.value.decoded_text))
+    if not references:
+        return {}, supaip.SupAipIndex()
+
+    index = supaip.load_index()
+    store = supaip.store_dir()
+    directory = out_dir / "sup_aip"
+    local: dict[str, str] = {}
+    liens = copies = 0
+    for reference in sorted(references):
+        entry = index.lookup(reference)
+        if entry is None:
+            continue
+        # Le PDF est téléchargé UNE fois dans le magasin de référence ; le
+        # dossier n'en garde qu'un lien. Deux vols qui citent le même
+        # supplément ne le stockent donc pas deux fois.
+        pdf = supaip.download(entry, store)
+        if pdf is None:
+            continue
+        path, is_link = supaip.link_into(pdf, directory)
+        local[reference] = f"sup_aip/{path.name}"
+        liens += is_link
+        copies += not is_link
+    if local:
+        comment = f"{liens} lien(s)" + (f", {copies} copie(s)" if copies else "")
+        print(f"  SUP AIP : {len(local)}/{len(references)} dans sup_aip/ ({comment})")
+    elif references:
+        print(f"  SUP AIP : {len(references)} cités, aucun résolu (liens vers le SIA)")
+    return local, index
 
 
 def _render_diversion(
@@ -717,6 +822,8 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         aeronef=plan.aeronef,
         route=plan.route_spec or None,
         largeur_nm=plan.demi_couloir_nm,
+        degagements=plan.degagements,
+        degagement_rayon_nm=plan.degagement_rayon_nm,
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     package = assemble_briefing(context, default_providers())
@@ -742,9 +849,11 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
 
     # Dossier 100 % HTML (imprimable soi-même) : pas de PDF, trop de fichiers.
     # Deux dossiers distincts : météo (Météo-France) et NOTAM (SIA/SOFIA).
+    supaip_local, supaip_index = _download_cited_supaip(package, out_dir)
     for kind in ("meteo", "notam"):
         (out_dir / f"brief_{kind}_{label}.html").write_text(
-            render_html(package, kind=kind), encoding="utf-8"
+            render_html(package, kind=kind, supaip_local=supaip_local, supaip_index=supaip_index),
+            encoding="utf-8",
         )
     (out_dir / f"viewer_{label}.html").write_text(render_viewer(package), encoding="utf-8")
     registration = plan.aeronef or DEFAULT_REGISTRATION

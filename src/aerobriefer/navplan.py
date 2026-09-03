@@ -23,6 +23,8 @@ Schéma :
       "declinaison_deg": 1.0,           # ° Est positif
       "demi_couloir_nm": 10.0,
       "depart": "LFCY",                 # OACI (4 lettres)
+      "degagements": ["LFFK"],          # terrains de dégagement (OACI), hors route
+      "degagement_rayon_nm": 10.0,      # rayon de recherche autour de chacun
       "points": [                       # points APRÈS le départ (tournants + arrivée)
         {"nom": "MARENNES", "lat": 45.82, "lon": -1.10, "altitude_ft": 2000},
         {"nom": "LFBD", "altitude_ft": 2500}
@@ -83,6 +85,16 @@ class NavPlan(BaseModel):
     demi_couloir_nm: float = Field(default=10.0, gt=0.0, le=100.0)
     depart: str
     points: list[Waypoint] = Field(min_length=1)
+    degagements: list[str] = Field(default_factory=list)
+    """Terrains de dégagement choisis, en OACI (ex. `["LFFK"]`).
+
+    Ils ne sont PAS sur la route : par construction un dégagement est à l'écart
+    du couloir, sinon il ne dégagerait de rien. Ils sont donc ajoutés à la zone
+    de recherche comme cercles propres — leurs NOTAM et leur météo entrent au
+    dossier sans qu'on ait à élargir le couloir et à le noyer."""
+    degagement_rayon_nm: float = Field(default=10.0, gt=0.0, le=100.0)
+    """Rayon de recherche autour de chaque dégagement. Paramètre de recherche à
+    part entière : il est affiché dans le briefing, pas enfoui dans le code."""
 
     @model_validator(mode="after")
     def _travers_needs_two_preceding(self) -> NavPlan:
@@ -112,6 +124,18 @@ class NavPlan(BaseModel):
     def _valid_depart(cls, value: str) -> str:
         if not _ICAO.fullmatch(value):
             raise ValueError("« depart » attendu : code OACI de 4 lettres majuscules")
+        return value
+
+    @field_validator("degagements")
+    @classmethod
+    def _valid_degagements(cls, value: list[str]) -> list[str]:
+        for icao in value:
+            if not _ICAO.fullmatch(icao):
+                raise ValueError(
+                    f"« degagements » attend des codes OACI de 4 lettres majuscules : {icao!r}"
+                )
+        if len(set(value)) != len(value):
+            raise ValueError("« degagements » contient un doublon")
         return value
 
     @property

@@ -21,7 +21,7 @@ import pytest
 
 from aerobriefer.domain.context import BriefingContext
 from aerobriefer.domain.geo import Corridor, Position
-from aerobriefer.domain.models import ForecastPoint
+from aerobriefer.domain.models import CLOUD_BASE_FT_PER_C, ForecastPoint
 from aerobriefer.domain.window import TimeWindow, UtcDateTime
 from aerobriefer.providers.base import ProviderError
 from aerobriefer.providers.metno import (
@@ -694,6 +694,44 @@ def test_cloud_base_estimate_reaches_the_forecast_point():
     )
     assert at_0800.cloud_base_ft is not None
     assert at_0800.cloud_base_ft == estimate_cloud_base_ft(18.0, 80.0, 75.0)
+
+
+def test_le_point_de_rosee_est_conserve_et_non_jete_apres_le_calcul():
+    """Le point de rosee FONDE la base estimee : s'il n'atteint pas le domaine,
+    le rendu parle d'un ecart T/Td qu'aucune colonne ne peut montrer."""
+    payload = response_payload()
+    details = payload["properties"]["timeseries"][2]["data"]["instant"]["details"]
+    details["cloud_area_fraction"] = 75.0
+    details["relative_humidity"] = 80.0
+    details["air_temperature"] = 18.0
+
+    at_0800 = next(
+        s.value
+        for s in make_provider(payload=payload).fetch(context_lfcy())
+        if s.value.valid_at == UtcDateTime.parse("2026-07-21T08:00:00Z")
+    )
+    assert at_0800.relative_humidity_pct == 80.0
+    assert at_0800.dewpoint_c == dewpoint_c(18.0, 80.0)
+    # Coherence : la base affichee est bien l'ecart conserve x 400 ft/degre.
+    assert at_0800.spread_c == pytest.approx(18.0 - dewpoint_c(18.0, 80.0))
+    assert at_0800.cloud_base_ft == pytest.approx(
+        round(at_0800.spread_c * CLOUD_BASE_FT_PER_C), abs=1.0
+    )
+
+
+def test_les_seuils_dabstention_sont_des_bornes_franches():
+    """Les bornes exactes, relues dans le code : on s'abstient EN DESSOUS de 25 %
+    de nebulosite, et AU-DELA de 15 C d'ecart — les valeurs limites, elles,
+    restent calculees."""
+    # Nebulosite : 24.9 % -> rien ; 25.0 % -> estimation.
+    assert estimate_cloud_base_ft(20.0, 70.0, 24.9) is None
+    assert estimate_cloud_base_ft(20.0, 70.0, 25.0) is not None
+    # Ecart : la temperature est choisie pour encadrer les 15 C pile.
+    juste_au_seuil = estimate_cloud_base_ft(20.0, 39.6, 90.0)
+    assert juste_au_seuil is not None
+    assert 20.0 - dewpoint_c(20.0, 39.6) < 15.0
+    assert estimate_cloud_base_ft(20.0, 35.0, 90.0) is None
+    assert 20.0 - dewpoint_c(20.0, 35.0) > 15.0
 
 
 # --- Transport, en-tetes, erreurs -----------------------------------------

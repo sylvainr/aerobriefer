@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import struct
 import zlib
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -19,6 +20,7 @@ import pytest
 from aerobriefer.domain.context import BriefingContext, Purpose
 from aerobriefer.domain.geo import Circle, Position
 from aerobriefer.domain.models import (
+    CLOUD_BASE_FT_PER_C,
     Aerodrome,
     Chart,
     ForecastPoint,
@@ -305,6 +307,9 @@ def build_demo_package() -> BriefingPackage:
         ),
     )
 
+    # Le point de rosee est COHERENT avec la base annoncee : celle-ci est
+    # derivee de l'ecart T/Td par la regle du pouce, une fixture ou les deux se
+    # contrediraient ne prouverait rien sur l'infobulle qui montre le calcul.
     forecasts = tuple(
         Sourced(
             ForecastPoint(
@@ -318,6 +323,8 @@ def build_demo_package() -> BriefingPackage:
                 cloud_base_ft=3200.0 - hour * 60,
                 precipitation_mm=0.0 if hour < 12 else 0.8,
                 qnh_hpa=1014.0 - hour * 0.2,
+                dewpoint_c=(17.0 + hour * 0.5) - (3200.0 - hour * 60) / CLOUD_BASE_FT_PER_C,
+                relative_humidity_pct=70.0 + hour,
             ),
             _prov("met.no", age_minutes=35.0),
         )
@@ -666,6 +673,123 @@ def test_chaque_carte_sur_sa_page(html: str) -> None:
 
 
 # --------------------------------------------------------------------------
+# Cadence de mise à disposition des sources
+# --------------------------------------------------------------------------
+
+
+def _cadence_rendue(cle: str) -> str:
+    """La cadence telle qu'elle apparaît DANS le HTML : le template est en
+    autoescape, l'apostrophe de « qu'un » y devient `&#39;`."""
+    from markupsafe import escape
+
+    from aerobriefer.render.html import RELEASE_CADENCE
+
+    return str(escape(RELEASE_CADENCE[cle]))
+
+
+def test_chaque_rubrique_annonce_la_cadence_de_sa_source(html: str) -> None:
+    """Un âge seul ne dit pas s'il faut rebriefer : « TAF vieux de 5 h » est
+    normal (renouvelé toutes les 6 h), « METAR vieux de 5 h » ne l'est pas."""
+    for cle in ("metar", "taf", "sigmet", "notam", "forecast", "temsi", "wintem"):
+        assert _cadence_rendue(cle) in html, f"cadence absente du rendu : {cle}"
+
+
+def test_la_cadence_est_collee_sous_le_titre_de_sa_rubrique(html: str) -> None:
+    """Elle doit se lire AVEC la rubrique, pas être reléguée en pied de page."""
+    for titre, cle in (("<h2>METAR</h2>", "metar"), ("<h2>TAF</h2>", "taf")):
+        entre = html[html.index(titre) : html.index(_cadence_rendue(cle))]
+        assert entre.count("<h2>") == 1, f"{cle} : la cadence a débordé sur une autre rubrique"
+
+
+def test_une_carte_porte_la_cadence_de_son_type_pas_une_generique() -> None:
+    """TEMSI et WINTEM n'ont pas la même cadence — les confondre ferait
+    rebriefer au mauvais moment."""
+    from aerobriefer.render.html import RELEASE_CADENCE, _group_charts
+
+    view = HtmlRenderer().build_view(build_demo_package(), now=NOW)
+    cadences = {g["kind"]: g["cadence"] for g in _group_charts(view["charts"])}
+    assert cadences["temsi"] == RELEASE_CADENCE["temsi"]
+    assert cadences["wintem"] == RELEASE_CADENCE["wintem"]
+    assert cadences["temsi"] != cadences["wintem"]
+
+
+# --------------------------------------------------------------------------
+# Ordre de lecture : DU PLUS GRAND AU PLUS PETIT
+# --------------------------------------------------------------------------
+
+
+def test_le_briefing_descend_du_plus_grand_au_plus_petit(html: str) -> None:
+    """Cartes → SIGMET → TAF → prévisions horaires → METAR → NOTAM.
+
+    L'échelle ne remonte jamais : on lit la situation générale avant de
+    descendre sur le terrain. Un briefing qui ouvre sur le METAR fait raisonner
+    à l'envers, du détail vers le général. Le SIGMET ferme l'échelle « en
+    route » — il dit ce qui est dangereux dans la situation que les cartes
+    viennent de montrer — et reste donc AVANT les TAF/METAR.
+    """
+    # Le dossier de démo porte TEMSI, WINTEM et radar (pas de fronts ni de
+    # satellite) ; l'ordre des cartes ENTRE ELLES est testé juste en dessous.
+    ordre = [
+        "TEMSI — temps significatif",
+        "Image radar",
+        "<h2>SIGMET</h2>",
+        "<h2>TAF</h2>",
+        "<h2>Prévisions horaires</h2>",
+        "<h2>METAR</h2>",
+        "<h2>NOTAM (",
+    ]
+    positions = [html.index(marqueur) for marqueur in ordre]
+    assert positions == sorted(positions), f"ordre attendu : {ordre}"
+
+
+def test_les_cartes_suivent_l_ordre_canonique_pas_l_ordre_de_collecte() -> None:
+    """L'ordre des cartes est une DÉCISION (CHART_ORDER), pas un hasard de
+    récupération : fronts, TEMSI, WINTEM, radar, satellite."""
+    base = build_demo_package()
+    # Volontairement à l'envers de l'ordre voulu.
+    desordre = ("satellite", "radar", "wintem", "temsi", "front")
+    charts = tuple(
+        Sourced(
+            Chart(
+                kind=kind,
+                url=f"https://aviation.meteo.fr/{kind}.png",
+                issued_at=NOW - timedelta(minutes=30),
+                valid_at=UtcDateTime.of(datetime(2026, 7, 20, 12, 0, tzinfo=UTC)),
+                area="FRANCE",
+                media_type="image/png",
+                content=make_png(120, 80, (20, 20, 20)),
+            ),
+            _prov("aeroweb", age_minutes=30.0),
+        )
+        for kind in desordre
+    )
+    rendered = render_html(
+        BriefingPackage(
+            context=base.context,
+            assembled_at=base.assembled_at,
+            aerodromes=base.aerodromes,
+            metars=base.metars,
+            tafs=base.tafs,
+            notams=base.notams,
+            forecasts=base.forecasts,
+            charts=charts,
+            failures=base.failures,
+        ),
+        now=NOW,
+    )
+
+    attendu = [
+        "Carte de fronts",
+        "TEMSI — temps significatif",
+        "WINTEM — vent et température en altitude",
+        "Image radar",
+        "Image satellite",
+    ]
+    positions = [rendered.index(libelle) for libelle in attendu]
+    assert positions == sorted(positions), f"ordre attendu : {attendu}"
+
+
+# --------------------------------------------------------------------------
 # Règles 5 et 6 — pied de page et impression
 # --------------------------------------------------------------------------
 
@@ -717,12 +841,99 @@ def test_previsions_horaires_presentes(package: BriefingPackage, html: str) -> N
     assert html.count("<tr") >= len(package.forecasts)
 
 
+# --------------------------------------------------------------------------
+# Base des nuages : une valeur DERIVEE, qui doit se presenter comme telle
+# --------------------------------------------------------------------------
+
+
+def _bloc_previsions(html: str) -> str:
+    return html.split("Prévisions horaires")[1].split("NOTAM")[0]
+
+
+def test_la_colonne_base_sannonce_estimee(html: str) -> None:
+    """La colonne ne vient pas de la source : elle est calculee ici. La lire
+    comme un plafond prevu est l'erreur exacte qu'on veut rendre impossible."""
+    bloc = _bloc_previsions(html)
+    assert "<th>Base estimée</th>" in bloc
+    assert "<th>Base</th>" not in bloc
+
+
+def test_la_rubrique_avertit_que_la_base_nest_pas_une_donnee_de_la_source(
+    html: str,
+) -> None:
+    bloc = _bloc_previsions(html)
+    assert "AUCUNE hauteur de base" in bloc
+    assert f"{CLOUD_BASE_FT_PER_C:.0f} ft/°C" in bloc
+    # Les cas ou un plafond bas est dangereux, et qui echappent a la formule.
+    for cas in ("stratiforme", "advection", "inversion"):
+        assert cas in bloc
+    assert "ne remplace pas un plafond METAR/TAF" in bloc
+
+
+def test_infobulle_de_la_base_porte_le_detail_du_calcul(
+    package: BriefingPackage, html: str
+) -> None:
+    """Chaque valeur doit pouvoir se justifier : T, Td, ecart, facteur, resultat."""
+    from html import unescape  # l'attribut title= est echappe par le gabarit
+
+    bloc = unescape(_bloc_previsions(html))
+    assert bloc.count('class="estim"') == len(package.forecasts)
+
+    premier = min(package.forecasts, key=lambda f: f.value.valid_at).value
+    assert premier.temperature_c is not None and premier.dewpoint_c is not None
+    assert premier.spread_c is not None
+    attendu = (
+        f"T {premier.temperature_c:.1f} °C − Td {premier.dewpoint_c:.1f} °C "
+        f"= {premier.spread_c:.1f} °C d'écart × {CLOUD_BASE_FT_PER_C:.0f} ft/°C "
+        f"≈ {round(premier.cloud_base_ft)} ft"
+    )
+    assert attendu in bloc, "l'infobulle doit montrer le calcul, pas seulement le dire"
+
+
+def test_colonne_td_affichee_a_cote_de_la_temperature(package: BriefingPackage, html: str) -> None:
+    """Sans Td au tableau, l'infobulle parlerait d'un ecart T/Td invisible."""
+    bloc = _bloc_previsions(html)
+    assert "<th>T</th><th>Td</th>" in bloc
+    premier = min(package.forecasts, key=lambda f: f.value.valid_at).value
+    assert premier.dewpoint_c is not None
+    assert f"{premier.dewpoint_c:.1f} °C" in bloc
+
+
+def test_sans_point_de_rosee_la_base_reste_nue(package: BriefingPackage) -> None:
+    """Pas de soulignement survolable si on ne sait pas montrer le calcul :
+    promettre une explication absente vaudrait mieux que rien, mais mentir non."""
+    sans_td = replace(
+        package,
+        forecasts=tuple(
+            Sourced(
+                replace(f.value, dewpoint_c=None, relative_humidity_pct=None),
+                f.provenance,
+            )
+            for f in package.forecasts
+        ),
+    )
+    bloc = _bloc_previsions(render_html(sans_td, now=NOW))
+    assert 'class="estim"' not in bloc
+    # La valeur elle-meme reste affichee : on n'efface pas une donnee presente.
+    premier = min(sans_td.forecasts, key=lambda f: f.value.valid_at).value
+    assert f"{round(premier.cloud_base_ft)} ft" in bloc
+
+
 def test_html_est_autonome(html: str) -> None:
-    """Aucune ressource EXTERNE : ni CSS, ni police, ni script distant, ni image
-    liée. Le script du lecteur animé est inline (self-contained) — autorisé."""
+    """Aucune ressource EXTERNE à CHARGER : ni CSS, ni police, ni script
+    distant, ni image liée. Le script du lecteur animé est inline, et la
+    favicon est une data: URI — tous deux self-contained, donc autorisés.
+
+    Le critère est « pas de href/src qui parte sur le réseau », pas « pas de
+    balise <link> » : ce raccourci interdisait une favicon pourtant embarquée.
+    """
+    import re
+
     assert "<style>" in html
-    for forbidden in ("<link", "<script src", "@import", 'src="http', "src='http"):
+    for forbidden in ("<script src", "@import", 'src="http', "src='http"):
         assert forbidden not in html
+    for href in re.findall(r'<link[^>]*href="([^"]*)"', html):
+        assert href.startswith("data:"), f"ressource externe liée : {href[:60]}"
     # Les images sont embarquées en data URI, jamais liées en réseau.
     assert 'src="data:' in html or "briefing" in html.lower()
 
@@ -834,3 +1045,64 @@ def test_decoded_taf_table_uses_local_not_zulu_header(html: str) -> None:
 def test_forecast_table_header_is_local(html: str) -> None:
     assert "Échéance (locale)" in html
     assert "Échéance (L / Z)" not in html
+
+
+def test_le_dossier_notam_ne_parle_pas_de_meteo(package: BriefingPackage) -> None:
+    """La note sur les stations d'appoint est une note MÉTÉO.
+
+    Elle listait sept terrains voisins juste sous « BRIEFING NOTAM », ce qui se
+    lit comme « les NOTAM de ces terrains sont au dossier » — faux : la zone de
+    recherche est le couloir plus les dégagements.
+    """
+    notam_doc = render_html(package, now=NOW, kind="notam")
+    assert "Météo d'appoint" not in notam_doc
+    assert "brise de mer" not in notam_doc
+    # Et rien d'autre de météo n'a fui.
+    for absent in ("<h2>METAR</h2>", "<h2>TAF</h2>", "<h2>Prévisions horaires</h2>"):
+        assert absent not in notam_doc
+
+    # La même note reste bien présente là où elle a un sens. Il faut pour cela
+    # un terrain qui OBSERVE sans être du vol : ni départ, ni arrivée, ni
+    # dégagement — sinon il est exclu des stations d'appoint par construction.
+    base = build_demo_package()
+    voisine = Aerodrome(
+        icao="LFOP",
+        name="Rouen Vallée de Seine",
+        position=Position(49.3842, 1.1748),
+        elevation_ft=515,
+        runways=(Runway("04/22", 1700, 45, "asphalte", 40.0),),
+    )
+    observation = Sourced(
+        Metar(
+            station="LFOP",
+            raw_text="LFOP 200730Z 24006KT 9999 FEW030 18/13 Q1014",
+            observed_at=NOW - timedelta(minutes=30),
+            wind_dir_deg=240,
+            wind_speed_kt=6,
+        ),
+        _prov("noaa-awc", age_minutes=30.0),
+    )
+    avec_appoint = BriefingPackage(
+        context=replace(base.context, observation_stations=("LFOP",)),
+        assembled_at=base.assembled_at,
+        aerodromes=(*base.aerodromes, voisine),
+        metars=(*base.metars, observation),
+        tafs=base.tafs,
+        notams=base.notams,
+        forecasts=base.forecasts,
+        charts=base.charts,
+        failures=base.failures,
+    )
+    assert "Météo d'appoint" in render_html(avec_appoint, now=NOW, kind="meteo")
+    assert "Météo d'appoint" not in render_html(avec_appoint, now=NOW, kind="notam")
+
+
+def test_le_bouton_toutes_les_images_disparait_sans_image(package: BriefingPackage) -> None:
+    """Un bouton qui ne pilote rien fait douter de ce que le document contient.
+
+    On cherche le BOUTON, pas son libellé : celui-ci apparaît aussi dans des
+    commentaires du script, qui eux restent dans les deux documents.
+    """
+    bouton = 'data-mode="allimg"'
+    assert bouton not in render_html(package, now=NOW, kind="notam")
+    assert bouton in render_html(package, now=NOW, kind="meteo")

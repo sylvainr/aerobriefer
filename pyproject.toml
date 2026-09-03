@@ -8,6 +8,9 @@ dependencies = ["pydantic>=2", "pygeomag>=1.1"]
 [project.optional-dependencies]
 providers = ["httpx>=0.27"]
 render = ["jinja2>=3.1", "humanize>=4.0"]
+# Indexation du Complément aux cartes (SIA) : outillage HORS chaîne de briefing.
+# Le PDF n'est lu qu'à la construction de l'index ; le rendu ne lit que le JSON.
+reference = ["pypdf>=5"]
 dev = ["pytest>=8.0", "ruff>=0.15", "mypy>=1.11"]
 
 [build-system]

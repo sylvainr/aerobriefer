@@ -27,7 +27,8 @@ from typing import Any
 import httpx
 
 from ..domain.context import BriefingContext, Purpose
-from ..domain.geo import Position
+from ..domain.geo import Corridor, Geometry, Position
+from ..domain.geo import Union as GeoUnion
 from ..domain.models import Notam, Severity
 from ..domain.sourced import Provenance, Sourced
 from ..domain.window import TimeWindow, UtcDateTime, utcnow
@@ -446,6 +447,23 @@ def _as_float(value: Any) -> float | None:
 # ---------------------------------------------------------------------------
 
 
+def _find_corridor(geometry: Geometry) -> Corridor | None:
+    """Retrouve le couloir de route, même enfoui dans une union.
+
+    Une nav avec dégagements a pour géométrie « couloir ∪ cercles » : le couloir
+    n'est plus l'objet racine. Sans cette recherche, la largeur demandée à SOFIA
+    retombe sur le rayon englobant du vol entier.
+    """
+    if isinstance(geometry, Corridor):
+        return geometry
+    if isinstance(geometry, GeoUnion):
+        for part in geometry.parts:
+            found = _find_corridor(part)
+            if found is not None:
+                return found
+    return None
+
+
 class SofiaProvider:
     """Collecte les NOTAM SOFIA pour un `BriefingContext`.
 
@@ -637,10 +655,19 @@ class SofiaProvider:
 
         # Navigation / déroutement : couloir le long d'une route nommée.
         if origin and destination and destination != origin:
-            half_width = getattr(context.geometry, "half_width_nm", None)
+            # Le couloir peut être enfoui dans une union (route + cercles de
+            # dégagement). On va le CHERCHER : sans ça, `half_width_nm` est
+            # introuvable, on retombe sur le rayon englobant et on demande à
+            # SOFIA un couloir large de tout le vol. Les dégagements, eux, sont
+            # exprimés nativement par `alt[]` — ils n'ont pas à élargir le
+            # couloir, seulement à s'ajouter à la requête.
+            corridor = _find_corridor(context.geometry)
+            route_circle = corridor.bounding_circle() if corridor is not None else circle
             form[":operation"] = "postNarrowRoutePibRequest"
-            form["width"] = str(max(1, round(half_width)) if half_width else radius)
-            form["radiusAD"] = str(radius)
+            form["width"] = str(
+                max(1, round(corridor.half_width_nm)) if corridor is not None else radius
+            )
+            form["radiusAD"] = str(max(1, round(route_circle.radius_nm)))
             # route[] est ORDONNÉ : départ, puis destination.
             form["route[]"] = [origin, destination]
             if alternates:

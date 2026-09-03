@@ -1,5 +1,9 @@
 <meta charset="utf-8">
-<title>Prépa nav {{ origin }} → {{ destination }}</title>
+{# Favicon EMBARQUÉE en data: URI — aucune requête, donc elle marche
+   aussi en file:// et dans un dossier emporté hors ligne. Chaque document
+   a la sienne : sept onglets ouverts se distinguent à l'icône. #}
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.92em%22 font-size=%2292%22>☑</text></svg>">
+<title>CHECKLIST — {{ origin }} → {{ destination }}</title>
 <style>
   @page { size: A4 portrait; margin: 12mm 12mm 14mm 12mm;
     @bottom-left { content: "Prépa nav — {{ origin }} → {{ destination }}"; font: 7pt Arial; color: #666; }

@@ -405,6 +405,17 @@ class Taf:
         return tuple(p for p in self.periods if p.validity.overlaps(window))
 
 
+CLOUD_BASE_FT_PER_C = 400.0
+"""Règle du pouce : ≈ 400 ft de hauteur de base par °C d'écart T/Td.
+
+Le facteur vit ICI, dans le domaine, et non dans le provider qui s'en sert :
+c'est une règle météo, pas un détail de l'API met.no, et le RENDU doit pouvoir
+l'afficher au pilote sans dépendre de la couche providers (donc de httpx, qui
+est une dépendance optionnelle distincte). Une seule valeur, sinon la note
+affichée pourrait un jour mentir sur le calcul réellement fait.
+"""
+
+
 @dataclass(frozen=True, slots=True)
 class ForecastPoint:
     """Prévision ponctuelle à une échéance donnée (met.no et similaires)."""
@@ -418,6 +429,9 @@ class ForecastPoint:
     temperature_c: float | None = None
     cloud_cover_pct: float | None = None
     cloud_base_ft: float | None = None
+    """ESTIMATION dérivée, jamais une base observée : aucune source de prévision
+    de maille ne mesure de plafond. Tout rendu doit l'annoncer comme estimée et
+    pouvoir en montrer le calcul — d'où `dewpoint_c` ci-dessous."""
     precipitation_mm: float | None = None
     qnh_hpa: float | None = None
     label: str = ""
@@ -425,8 +439,31 @@ class ForecastPoint:
     dégagement…) : sur une nav, met.no est interrogé à PLUSIEURS points et le
     rendu groupe les échéances par point. Vide = point unique au centre."""
 
+    # Champs ajoutés EN FIN de liste : les positions existantes ne bougent pas,
+    # et le défaut None laisse valides toutes les constructions antérieures.
+    dewpoint_c: float | None = None
+    """Point de rosée, mesuré ou reconstruit depuis l'humidité relative.
+
+    Il est CONSERVÉ, et non consommé puis jeté, parce que c'est lui qui fonde
+    `cloud_base_ft` : sans lui le pilote lirait une base sortie de nulle part,
+    et on lui parlerait d'un écart T/Td qu'aucune colonne ne montre. Il vaut
+    aussi par lui-même (écart faible = air proche de la saturation)."""
+
+    relative_humidity_pct: float | None = None
+    """Humidité relative de la source. Gardée pour la même raison : c'est
+    l'entrée brute d'où le point de rosée a été reconstruit."""
+
     def __post_init__(self) -> None:
         object.__setattr__(self, "valid_at", UtcDateTime.of(self.valid_at, "valid_at"))
+
+    @property
+    def spread_c(self) -> float | None:
+        """Écart température / point de rosée, ou None si l'un des deux manque.
+
+        On ne complète jamais une donnée absente : pas d'écart, pas de chiffre."""
+        if self.temperature_c is None or self.dewpoint_c is None:
+            return None
+        return self.temperature_c - self.dewpoint_c
 
 
 @dataclass(frozen=True, slots=True)

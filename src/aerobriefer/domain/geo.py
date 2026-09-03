@@ -137,6 +137,37 @@ class Corridor:
         return Circle(center, reach + self.half_width_nm)
 
 
+@dataclass(frozen=True, slots=True)
+class Union:
+    """Union de zones : un point qui tombe dans l'UNE d'elles est dedans.
+
+    Motif d'usage : « couloir de la route + un cercle autour de chaque terrain
+    de dégagement ». Un dégagement est HORS du couloir par construction — s'il
+    était dessous, il ne dégagerait de rien — mais ses NOTAM doivent figurer au
+    dossier. Élargir le couloir pour l'attraper noierait le briefing sous des
+    NOTAM sans rapport ; on ajoute une zone dédiée à la place.
+    """
+
+    parts: tuple[Geometry, ...]
+
+    def __post_init__(self) -> None:
+        if not self.parts:
+            raise ValueError("une union exige au moins une zone")
+
+    def contains(self, point: Position, radius_nm: float = 0.0) -> bool:
+        return any(part.contains(point, radius_nm) for part in self.parts)
+
+    def bounding_circle(self) -> Circle:
+        """Cercle englobant TOUTES les parties. Volontairement généreux : il ne
+        sert qu'à cadrer la collecte, `contains` fait le filtrage fin."""
+        circles = [part.bounding_circle() for part in self.parts]
+        lat = sum(c.center.lat for c in circles) / len(circles)
+        lon = sum(c.center.lon for c in circles) / len(circles)
+        center = Position(lat, lon)
+        reach = max(center.distance_nm(c.center) + c.radius_nm for c in circles)
+        return Circle(center, reach)
+
+
 def _distance_to_segment_nm(p: Position, a: Position, b: Position) -> float:
     """Distance d'un point à un segment orthodromique [a, b].
 

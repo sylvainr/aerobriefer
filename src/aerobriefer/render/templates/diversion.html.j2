@@ -1,5 +1,9 @@
 <meta charset="utf-8">
-<title>{{ view.doc_label }}{% if view.reference_icaos %} — {{ view.reference_icaos | join(' / ') }}{% endif %}</title>
+{# Favicon EMBARQUÉE en data: URI — aucune requête, donc elle marche
+   aussi en file:// et dans un dossier emporté hors ligne. Chaque document
+   a la sienne : sept onglets ouverts se distinguent à l'icône. #}
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.92em%22 font-size=%2292%22>🛬</text></svg>">
+<title>DÉGAGEMENT{% if view.reference_icaos %} — {{ view.reference_icaos | join(' / ') }}{% endif %}</title>
 <style>
   :root { --ink:#12232e; --ink-soft:#425466; --line:#c9d2db; --accent:#2b6cb0; }
   * { box-sizing: border-box; }

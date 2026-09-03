@@ -86,15 +86,23 @@ class BriefingContext:
         radius_nm: float,
         window: TimeWindow,
         icao: str | None = None,
+        alternates_icao: Sequence[str] = (),
         aircraft_id: str | None = None,
     ) -> BriefingContext:
-        """Le cas courant : un vol local autour d'un terrain."""
+        """Le cas courant : un vol local autour d'un terrain.
+
+        Un vol local a des dégagements comme un autre — on ne rentre pas
+        forcément se poser d'où l'on est parti. Les déclarer les fait entrer
+        dans les points météo ET dans les paramètres de recherche affichés, même
+        quand ils tombent déjà sous le cercle du vol : sans ça, rien ne dit au
+        pilote que leurs NOTAM ont été regardés."""
         return cls(
             geometry=Circle(center, radius_nm),
             window=window,
             purpose=Purpose.LOCAL,
             origin_icao=icao,
             destination_icao=icao,
+            alternates_icao=tuple(alternates_icao),
             aircraft_id=aircraft_id,
         )
 

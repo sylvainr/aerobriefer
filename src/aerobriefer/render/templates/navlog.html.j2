@@ -1,5 +1,9 @@
 <meta charset="utf-8">
-<title>Navlog {{ origin }} → {{ destination }}</title>
+{# Favicon EMBARQUÉE en data: URI — aucune requête, donc elle marche
+   aussi en file:// et dans un dossier emporté hors ligne. Chaque document
+   a la sienne : sept onglets ouverts se distinguent à l'icône. #}
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.92em%22 font-size=%2292%22>🧭</text></svg>">
+<title>NAVLOG — {{ origin }} → {{ destination }}</title>
 <style>
   @page { size: A4 portrait; margin: 8mm 6mm 11mm 6mm;
     @bottom-left  { content: "{{ page_footer }}"; font: 6pt Arial, sans-serif; color: #555; }
@@ -34,11 +38,25 @@
     background: no-repeat center/contain url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="%2312232e" stroke-width="2.2" stroke-linecap="round"><path d="M2 9h11a2.6 2.6 0 1 0-2.6-2.6"/><path d="M2 14h15a2.6 2.6 0 1 1-2.6 2.6"/></svg>'); }
   .qfu { font-size: 7.4pt; font-weight: 700; color: #12232e; background: #d6ecd9; padding: 0.4mm 1mm; border-radius: 0.6mm; margin: 0.5mm 0; }
   .qfu b { font-size: 8.5pt; }
-  /* Colonne Branche : départ (en haut) et arrivée (en bas), en gros, centrés. */
-  .branche { text-align: center; }
-  .branche .b { font-size: 11pt; font-weight: 700; line-height: 1.15; }
+  /* Colonne Branche : la DESTINATION seule, précédée d'une flèche. Le départ
+     d'une branche est l'arrivée de la précédente — inutile de le répéter.
+     La cellule est centrée verticalement : c'est l'étiquette de la ligne, elle
+     doit tomber en face du reste, pas se coller en haut d'une case haute. */
+  .branche { text-align: center; vertical-align: middle; }
+  /* Flex plutôt que du texte en ligne : `align-items: center` aligne les
+     MILIEUX de la flèche et du nom. En ligne, la flèche s'assoirait sur la
+     ligne de base et paraîtrait basse dès qu'elle grossit. */
+  .branche .b { display: flex; align-items: center; justify-content: center; gap: 1.2mm;
+    font-size: 11pt; font-weight: 700; line-height: 1.15; }
   .branche .sub { font-size: 6.6pt; }
-  .branche .to { margin-top: 0.8mm; }
+  /* Flèche franche : elle marque le sens de la branche d'un coup d'œil.
+     `line-height: 1` l'empêche de gonfler la hauteur de la ligne. */
+  .branche .arr { font-size: 24pt; line-height: 1; font-weight: 400; color: #6b7c8a;
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    /* Correction OPTIQUE : « → » est dessiné sur l'axe mathématique, plus bas
+       que le milieu des capitales. Centrer les boîtes ne suffit pas, l'œil voit
+       la flèche basse ; on la remonte d'un cheveu. */
+    transform: translateY(-0.05em); }
   /* Radios en TABLE alignée : libellé à gauche, fréquence à droite (mono). */
   table.radiotbl { width: 100%; border-collapse: collapse; }
   table.radiotbl td { height: auto; border: 0; padding: 0 0 0.3mm 0; vertical-align: top; font-size: 6.4pt; }
@@ -146,10 +164,10 @@
   <tbody>
     {% for r in rows %}
     <tr>
+      {# Une branche se lit par sa DESTINATION : son départ est l'arrivée de la
+         ligne précédente, le répéter doublait l'information à chaque ligne. #}
       <td class="branche">
-        <div class="mono b">{% if r.from.url %}<a href="{{ r.from.url }}">{{ r.from.code }}</a>{% else %}{{ r.from.code }}{% endif %}</div>
-        {% if r.from.name %}<div class="sub">{{ r.from.name }}</div>{% endif %}
-        <div class="mono b to">{% if r.to.url %}<a href="{{ r.to.url }}">{{ r.to.code }}</a>{% else %}{{ r.to.code }}{% endif %}</div>
+        <div class="mono b"><span class="arr" aria-hidden="true">→</span>{% if r.to.url %}<a href="{{ r.to.url }}">{{ r.to.code }}</a>{% else %}{{ r.to.code }}{% endif %}</div>
         {% if r.to.name %}<div class="sub">{{ r.to.name }}</div>{% endif %}
       </td>
       <td class="c">
@@ -244,7 +262,8 @@
   <b>AIDE À LA PRÉPARATION — ne remplace pas le calcul officiel ni le jugement du commandant de bord.</b>
   HE/HR = heure estimée / réelle, à remplir. <b>RM = Rv − déclinaison</b> ({{ mag_var_label }}, à confirmer sur la carte).
   Dist : DI branche, cumul, DTG restante. Temps : avec vent (svt = sans vent).
-  Branche : départ (en haut) et arrivée (en bas). Radios (terrains + espaces traversés) regroupées UNE fois en tête, triées A→Z.
+  Branche : <b>destination</b> de la branche (→). Son départ est l'arrivée de la ligne précédente ; celui de la première est le terrain de départ, en tête de page.
+  Radios (terrains + espaces traversés) regroupées UNE fois en tête, triées A→Z.
   Déroutement = terrain le plus proche, direction RELATIVE à la route (flèche + G/D de X°),
   avec sa piste et la marge d'atterrissage DR400.
   Observations : radiale VOR en <b>QDR</b> (relèvement magnétique DEPUIS la station) — ident + fréquence + Morse · QDR · DME ;
