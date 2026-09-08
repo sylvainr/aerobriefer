@@ -1106,3 +1106,57 @@ def test_le_bouton_toutes_les_images_disparait_sans_image(package: BriefingPacka
     bouton = 'data-mode="allimg"'
     assert bouton not in render_html(package, now=NOW, kind="notam")
     assert bouton in render_html(package, now=NOW, kind="meteo")
+
+
+def _package_a(heure_debut: int, duree_h: int) -> BriefingPackage:
+    """Dossier de démo recadré sur une fenêtre horaire donnée (UTC)."""
+    base = build_demo_package()
+    start = UtcDateTime.of(datetime(2026, 7, 20, heure_debut, 0, tzinfo=UTC))
+    return BriefingPackage(
+        context=replace(
+            base.context,
+            window=TimeWindow(start, UtcDateTime.of(start + timedelta(hours=duree_h))),
+        ),
+        assembled_at=base.assembled_at,
+        aerodromes=base.aerodromes,
+        metars=base.metars,
+        tafs=base.tafs,
+        notams=base.notams,
+        forecasts=base.forecasts,
+        charts=base.charts,
+        failures=base.failures,
+    )
+
+
+def test_les_quatre_bornes_du_jour_aero_sont_toujours_affichees(html: str) -> None:
+    """Le document ne montrait que la FIN de journée. Pour un vol du matin,
+    c'est le mauvais bout : la limite qui encadre est le début du jour aéro."""
+    for libelle in (
+        "Jour aéro (SR−30)",
+        "Lever du soleil",
+        "Coucher du soleil",
+        "Nuit aéro (SS+30)",
+    ):
+        assert libelle in html, f"borne absente de l'en-tête : {libelle}"
+
+
+def test_les_bornes_sont_dans_lordre_chronologique(html: str) -> None:
+    ordre = ["Jour aéro (SR−30)", "Lever du soleil", "Coucher du soleil", "Nuit aéro (SS+30)"]
+    positions = [html.index(x) for x in ordre]
+    assert positions == sorted(positions)
+
+
+def test_un_decollage_avant_le_jour_aero_est_signale() -> None:
+    """Symétrique de l'alerte du soir, qui n'existait pas : décoller avant la
+    fin de la nuit aéronautique est aussi interdit que se poser après son début."""
+    tot = render_html(_package_a(2, 2), now=NOW)  # 02:00Z, avant le lever à Toussus
+    assert "commence AVANT la fin de la nuit aéronautique" in tot
+    assert "se termine APRÈS le début de la nuit" not in tot
+
+
+def test_un_vol_en_plein_jour_ne_declenche_aucune_alerte() -> None:
+    plein_jour = render_html(_package_a(10, 2), now=NOW)
+    assert "commence AVANT la fin de la nuit aéronautique" not in plein_jour
+    assert "se termine APRÈS le début de la nuit" not in plein_jour
+    # Les bornes restent affichées : c'est de la conscience de la situation.
+    assert "Jour aéro (SR−30)" in plein_jour

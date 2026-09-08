@@ -837,13 +837,25 @@ class HtmlRenderer:
         center = ctx.geometry.bounding_circle().center
         local_start = ctx.window.start.astimezone(self._tz)
         times = sun_times(local_start.date(), center.lat, center.lon)
-        if times.sunset is None:
+        if times.sunset is None and times.sunrise is None:
             return None
         night = times.aeronautical_night_start
+        day_start = times.aeronautical_night_end
+        # On affiche les QUATRE bornes, toujours. Le document ne montrait que la
+        # fin de journée : pour un vol de 08:00, c'est le mauvais bout — la
+        # limite qui l'encadre est le DÉBUT du jour aéronautique. Et même quand
+        # aucune borne ne mord, les avoir sous les yeux entretient la conscience
+        # de la situation : le retard qu'on peut absorber se lit d'un coup d'œil.
         return {
-            "sunset": self._dual(times.sunset),
+            "sunrise": self._dual(times.sunrise) if times.sunrise is not None else None,
+            "day_start": self._dual(day_start) if day_start is not None else None,
+            "sunset": self._dual(times.sunset) if times.sunset is not None else None,
             "night": self._dual(night) if night is not None else None,
             "lands_after_night": night is not None and ctx.window.end > night,
+            # Symétrique de l'alerte du soir, jamais posée jusqu'ici : décoller
+            # avant la fin de la nuit aéronautique est tout aussi interdit en
+            # VFR de jour que se poser après son début.
+            "departs_before_day": day_start is not None and ctx.window.start < day_start,
         }
 
     # -- API ---------------------------------------------------------------
