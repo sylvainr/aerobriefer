@@ -1110,6 +1110,7 @@ class HtmlRenderer:
             "cloud_base_ft_per_c": CLOUD_BASE_FT_PER_C,
             "notams": notams,
             "search_zones": _search_zones(package.context),
+            "zone_aerodromes": list(package.context.aerodromes_in_zone),
             "aip_sup_refs": sorted({r for n in notams for r in n.aip_sup_refs}),
             "aip_sup_documents": self._aip_sup_documents(notams),
             "aip_sup_list_url": supaip.LIST_URL,

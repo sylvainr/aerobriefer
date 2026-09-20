@@ -246,3 +246,70 @@ def test_un_vol_local_nomme_ses_degagements_pas_son_terrain() -> None:
         "Cercle de 10 NM autour de LFFK",
         "Cercle de 10 NM autour de LFBN",
     ]
+
+
+def test_closed_circuit_still_names_its_aerodrome():
+    """Une boucle LFCY → … → LFCY perdait les NOTAM d'aérodrome de LFCY.
+
+    `route[]` de SOFIA veut deux terrains DISTINCTS : sur un circuit fermé, la
+    branche « couloir » était sautée et l'on tombait dans le cylindre anonyme,
+    qui ne nomme aucun terrain. Or la source ne rend les NOTAM d'aérodrome que
+    des terrains qu'on lui cite : le dossier perdait ceux du terrain même d'où
+    l'on décolle et où l'on se pose.
+    """
+    from aerobriefer.cli import build_context
+    from aerobriefer.providers.sofia import SofiaProvider
+
+    context = build_context(
+        "LFCY",
+        date="2026-09-20",
+        heure="12:45",
+        duree_h=1.5,
+        rayon_nm=20.0,
+        route="LFCY-N:45.708889/-0.9725@2500,LFCY",
+        largeur_nm=10.0,
+    )
+    assert context.origin_icao == context.destination_icao == "LFCY"
+
+    form = SofiaProvider()._build_form(context)
+    assert form[":operation"] == "postAreaAeroPibRequest"
+    assert "LFCY" in form["aero[]"], "le terrain de départ DOIT être nommé"
+    # Le cylindre est centré sur le terrain : son rayon doit porter jusqu'au
+    # point le plus lointain de la boucle, sinon la moitié sort de la requête.
+    enclosing = context.geometry.bounding_circle()
+    anchor = context.route.waypoints[0].position
+    assert float(form["radius"]) >= anchor.distance_nm(enclosing.center) + enclosing.radius_nm - 1
+
+
+def test_overflown_aerodromes_are_named_to_the_source():
+    """Les terrains SURVOLÉS sont interrogés nominativement.
+
+    Une zone seule rapporte les zones et l'en-route, pas « piste fermée » à un
+    terrain qu'on survole. Ces terrains sont pourtant dans la zone que le
+    dossier déclare avoir interrogée : le lecteur est en droit de les y trouver.
+    """
+    from aerobriefer.cli import build_context
+    from aerobriefer.providers.sofia import SofiaProvider
+
+    context = build_context(
+        "LFCY",
+        date="2026-09-20",
+        heure="12:45",
+        duree_h=1.5,
+        rayon_nm=20.0,
+        route="OLERON:45.851621/-1.175637@2500,LFCY",
+        largeur_nm=10.0,
+    )
+    # Marennes est à 4 NM de la branche : il est DANS le couloir.
+    assert "LFJI" in context.aerodromes_in_zone
+    assert "LFCY" in context.aerodromes_in_zone
+    # Et tous se retrouvent dans la requête.
+    named = set(SofiaProvider()._build_form(context)["aero[]"])
+    assert {"LFCY", "LFJI"} <= named
+
+    # On ne nomme QUE ce que la zone contient : un terrain hors couloir ne doit
+    # pas entrer, ses NOTAM seraient de toute façon refiltrés en aval.
+    for icao in context.aerodromes_in_zone:
+        from aerobriefer.data import airports
+
+        assert context.geometry.contains(airports.require(icao).position)

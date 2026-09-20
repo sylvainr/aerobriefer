@@ -1084,6 +1084,18 @@
       <td>Zone interrogée</td>
       <td>{% for z in search_zones %}{{ z }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
     </tr>
+    {# Les terrains NOMMÉS sont un paramètre de recherche à part entière : la
+       source ne rend les NOTAM d'aérodrome que de ceux qu'on lui cite. Les
+       taire rendrait « N NOTAM » inauditable — on ne saurait pas si un terrain
+       survolé a été interrogé ou simplement oublié. #}
+    {% if zone_aerodromes %}
+    <tr>
+      <td>Terrains nommés</td>
+      <td><span class="mono">{{ zone_aerodromes | join(' · ') }}</span>
+        <span class="aptname">— tous les terrains de la zone, interrogés
+        nominativement pour leurs NOTAM d'aérodrome</span></td>
+    </tr>
+    {% endif %}
     <tr><td>Fenêtre</td><td class="mono">{{ window_start_dual }} → {{ window_end_dual }} <span class="aptname">({{ window_duration_h }} h)</span></td></tr>
     <tr><td>Source</td><td><b>SOFIA-Briefing (SIA / DGAC)</b></td></tr>
     <tr><td>Retenus</td><td><b>{{ notam_count }}</b> NOTAM recoupant cette zone ET cette fenêtre</td></tr>

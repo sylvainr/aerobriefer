@@ -34,6 +34,31 @@ if TYPE_CHECKING:
 DEFAULT_ZONE = "Europe/Paris"
 
 
+def _aerodromes_in_zone(geometry: Union | Circle | Any, limit: int = 60) -> list[str]:
+    """Terrains que la zone de recherche CONTIENT, du plus central au plus loin.
+
+    Découverts ici, à l'étape 1, et non devinés par la source : SOFIA ne rend
+    les NOTAM d'aérodrome que des terrains qu'on lui nomme. Sans cette liste,
+    une route qui survole Marennes, Oléron et Rochefort ne rapportait aucun
+    NOTAM de CES terrains — alors qu'ils sont dans la zone que le dossier
+    déclare avoir interrogée.
+
+    On balaie le cercle englobant puis on garde ce que la géométrie RÉELLE
+    contient : un couloir n'est pas son cercle englobant, et nommer des terrains
+    hors zone ne servirait à rien — leurs NOTAM seraient refiltrés en aval.
+    """
+    enclosing = geometry.bounding_circle()
+    found: list[str] = []
+    for aerodrome, _distance in airports.nearest(
+        enclosing.center, within_nm=enclosing.radius_nm, limit=limit * 4
+    ):
+        if len(found) >= limit:
+            break
+        if geometry.contains(aerodrome.position):
+            found.append(aerodrome.icao)
+    return found
+
+
 def build_context(
     icao: str,
     *,
@@ -97,6 +122,7 @@ def build_context(
         enroute = context.geometry.bounding_circle().center
         return replace(
             context,
+            aerodromes_in_zone=tuple(_aerodromes_in_zone(context.geometry)),
             weather_points=tuple((a.icao, a.position) for a in anchors),
             observation_stations=_observation_stations(
                 [a.position for a in anchors] + [enroute],
@@ -129,6 +155,7 @@ def build_context(
     anchors = [aerodrome, *(a for a in alternates if a.icao != aerodrome.icao)]
     return replace(
         context,
+        aerodromes_in_zone=tuple(_aerodromes_in_zone(context.geometry)),
         weather_points=tuple((a.icao, a.position) for a in anchors),
         observation_stations=_observation_stations(
             [a.position for a in anchors], exclude={a.icao for a in anchors}

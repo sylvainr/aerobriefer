@@ -48,6 +48,19 @@ class BriefingContext:
     """Route de navigation (points tournants + altitudes), pour une nav. La
     géométrie du contexte est alors un `Corridor` le long de cette route."""
 
+    aerodromes_in_zone: Sequence[str] = field(default_factory=tuple)
+    """Terrains CONTENUS dans la zone de recherche, à nommer explicitement auprès
+    de la source NOTAM.
+
+    SOFIA ne rend les NOTAM d'aérodrome que des terrains qu'on lui NOMME : une
+    requête par zone seule rapporte les zones et l'en-route, pas « piste 10/28
+    fermée » à un terrain qu'on survole. Or ces terrains-là sont dans la zone
+    déclarée du dossier — le lecteur est donc en droit de les y trouver.
+
+    C'est un PARAMÈTRE DE RECHERCHE, pas une commodité : il est affiché dans le
+    briefing au même titre que le rayon et la fenêtre, faute de quoi « 13 NOTAM »
+    resterait inauditable."""
+
     weather_points: Sequence[tuple[str, Position]] = field(default_factory=tuple)
     """Points nommés où échantillonner la prévision de modèle (met.no) : départ,
     arrivée, dégagements. Sur une nav, la météo doit décrire TOUTE la trajectoire,

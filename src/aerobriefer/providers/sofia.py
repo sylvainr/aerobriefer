@@ -26,7 +26,7 @@ from typing import Any
 
 import httpx
 
-from ..domain.context import BriefingContext, Purpose
+from ..domain.context import BriefingContext
 from ..domain.geo import Corridor, Geometry, Position
 from ..domain.geo import Union as GeoUnion
 from ..domain.models import Notam, Severity
@@ -447,6 +447,19 @@ def _as_float(value: Any) -> float | None:
 # ---------------------------------------------------------------------------
 
 
+def _dedupe_icaos(icaos: Sequence[str]) -> list[str]:
+    """Codes OACI non vides, sans doublon, dans l'ordre d'apparition.
+
+    Sur un circuit fermé, départ et arrivée sont le MÊME terrain : l'envoyer
+    deux fois à SOFIA n'ajoute rien et brouille la lecture de la requête.
+    """
+    seen: dict[str, None] = {}
+    for icao in icaos:
+        if icao:
+            seen.setdefault(icao.upper(), None)
+    return list(seen)
+
+
 def _find_corridor(geometry: Geometry) -> Corridor | None:
     """Retrouve le couloir de route, même enfoui dans une union.
 
@@ -642,17 +655,6 @@ class SofiaProvider:
         destination = (context.destination_icao or "").upper()
         alternates = [icao.upper() for icao in context.alternates_icao if icao]
 
-        # Vol local autour d'un terrain : cylindre centré sur l'AD.
-        if context.purpose is Purpose.LOCAL and origin:
-            form[":operation"] = "postAreaAeroPibRequest"
-            form["radius"] = str(radius)
-            form["adep"] = origin
-            form["width"] = str(radius)
-            form["aero[]"] = [origin]
-            if alternates:
-                form["alt[]"] = alternates
-            return form
-
         # Navigation / déroutement : couloir le long d'une route nommée.
         if origin and destination and destination != origin:
             # Le couloir peut être enfoui dans une union (route + cercles de
@@ -672,6 +674,45 @@ class SofiaProvider:
             form["route[]"] = [origin, destination]
             if alternates:
                 form["alt[]"] = alternates
+            # Les terrains SURVOLÉS doivent être nommés eux aussi : sans ça, une
+            # route qui passe au-dessus de Marennes et d'Oléron ne rapporte
+            # aucun NOTAM de ces terrains, alors qu'ils sont dans le couloir
+            # déclaré.
+            overflown = _dedupe_icaos(
+                [i for i in context.aerodromes_in_zone if i.upper() not in {origin, destination}]
+            )
+            if overflown:
+                form["aero[]"] = overflown
+            return form
+
+        # Un terrain, mais pas de route exprimable : cylindre centré sur l'AD,
+        # QUI NOMME LE TERRAIN. Deux cas y tombent :
+        #
+        # - le vol LOCAL autour d'un terrain ;
+        # - le CIRCUIT FERMÉ (départ = arrivée). SOFIA ne sait pas exprimer une
+        #   route dont les deux bouts sont le même terrain : `route[]` veut deux
+        #   terrains distincts. Ce cas tombait auparavant dans le cylindre
+        #   ANONYME ci-dessous, et les NOTAM d'aérodrome du départ — donc de
+        #   l'arrivée, le même terrain — ne revenaient pas. Une boucle
+        #   LFCY → … → LFCY perdait ainsi les NOTAM de LFCY : exactement le
+        #   terrain sur lequel on décolle et on se pose.
+        if origin:
+            form[":operation"] = "postAreaAeroPibRequest"
+            # Ce cylindre est centré sur l'AD, pas sur la géométrie : son rayon
+            # doit porter jusqu'au point le plus lointain de celle-ci, sinon le
+            # bout de boucle opposé au terrain sort de la requête. Sur un vol
+            # local, le centre EST le terrain et l'on retrouve le rayon du vol.
+            reach = max(1, round(self._reach_from_aerodrome(context)))
+            form["radius"] = str(reach)
+            form["adep"] = origin
+            form["width"] = str(reach)
+            # Les terrains du VOL, pas seulement le départ : sur un circuit
+            # fermé, destination == origin et le dédoublonnage s'en charge.
+            form["aero[]"] = _dedupe_icaos(
+                [origin, destination, *alternates, *context.aerodromes_in_zone]
+            )
+            if alternates:
+                form["alt[]"] = alternates
             return form
 
         # Aucun terrain exploitable : cylindre pur, en coordonnées SOFIA.
@@ -680,6 +721,24 @@ class SofiaProvider:
         form["lat"] = format_latitude(circle.center.lat)
         form["long"] = format_longitude(circle.center.lon)
         return form
+
+    @staticmethod
+    def _reach_from_aerodrome(context: BriefingContext) -> float:
+        """Rayon, DEPUIS le terrain de départ, couvrant toute la géométrie.
+
+        Majorant simple et sûr : distance du terrain au centre de la géométrie,
+        plus le rayon de celle-ci. Sur un vol local les deux coïncident et l'on
+        retombe exactement sur le rayon demandé — on n'élargit donc rien là où
+        il n'y avait rien à corriger. Sur un circuit fermé, c'est ce qui évite de
+        demander un cylindre qui ne contient pas la moitié de la boucle.
+
+        Sur-couvrir est sans danger : la zone RÉELLEMENT retenue reste celle que
+        le dossier déclare, le filtre géométrique s'en charge en aval.
+        """
+        enclosing = context.geometry.bounding_circle()
+        route = context.route
+        anchor = route.waypoints[0].position if route is not None else enclosing.center
+        return anchor.distance_nm(enclosing.center) + enclosing.radius_nm
 
     @staticmethod
     def _format_instant(instant: UtcDateTime) -> str:
