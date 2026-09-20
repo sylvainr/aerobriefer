@@ -174,6 +174,37 @@
   .aromaleg .ramp { display: flex; flex-wrap: wrap; gap: 0 3mm; margin: 1mm 0 0; }
   .aromaleg .sw { display: inline-flex; align-items: center; gap: 1mm; }
   .aromaleg .chip { width: 7mm; height: 3.4mm; border: .5pt solid #666; display: inline-block; }
+  /* Bandeau de sélection des couches AROME : un seul viewport pour les trois. */
+  .aromebar { display: flex; flex-wrap: wrap; align-items: center; gap: 1.5mm 3mm;
+    border: .6pt solid #999; border-bottom: 0; background: #f0f4f8;
+    padding: 1.5mm 2mm; margin-top: 3mm; }
+  .aromebar .ab-btns { display: flex; flex-wrap: wrap; gap: 1mm; }
+  .aromebar button { font: inherit; font-size: 7.6pt; padding: .4mm 2mm;
+    border: .6pt solid #9bb; background: #fff; border-radius: 1mm; cursor: pointer; }
+  .aromebar button.is-on { background: #1a4a7a; border-color: #1a4a7a; color: #fff;
+    font-weight: 600; }
+  .aromebar .ab-note { margin-left: auto; }
+  /* Masquage par le bandeau. `display:none` et non `visibility`, pour que la
+     page se recompose : le but est de ne PAS faire défiler trois grandes
+     cartes. L'impression suit l'écran, comme pour le repli de section. */
+  .arome-layer.is-hidden { display: none; }
+
+  /* Table de sondage : la couche LUE au droit de chaque terrain. Elle est au
+     même niveau de sobriété que la légende — c'est une lecture d'appoint, pas
+     un verdict. Les lignes touchées ressortent, le reste s'efface. */
+  .probe { border: .6pt solid #999; padding: 1.5mm 2mm; margin-top: 1.5mm;
+    background: #fafafa; font-size: 8pt; break-inside: avoid; }
+  .probe-scroll { overflow-x: auto; margin-top: 1mm; }
+  .probe-t { border-collapse: collapse; font-size: 7.6pt; }
+  .probe-t th, .probe-t td { border: .4pt solid #c9c9c9; padding: .6mm 1.4mm;
+    text-align: left; white-space: nowrap; }
+  .probe-t thead th { background: #f0f0f0; font-weight: 600; font-size: 7.2pt; }
+  .probe-t tbody th { font-family: var(--mono, monospace); font-weight: 700; }
+  .probe-t td.clear, .probe-t td.out { color: #999; text-align: center; }
+  .probe-t tr.hit tbody th, .probe-t tr.hit th { background: #fff3e6; }
+  .probe-t td.on { font-weight: 600; }
+  .probe-t .chip { width: 4mm; height: 2.6mm; border: .5pt solid #666;
+    display: inline-block; vertical-align: -.3mm; margin-right: 1mm; }
   .raw-fr { border-left: 2pt solid var(--c-info); }
   /* Bascule de langue des NOTAM. Le texte OACI FAIT FOI : masquer l'anglais est
      un confort de lecture, jamais un défaut — d'où l'avertissement affiché
@@ -598,7 +629,26 @@
    le JS ne pilote rien : @media print réaffiche toutes les images empilées, une
    par page. #}
 {% for g in chart_groups %}
-<section class="chart-page chart-group" data-animated="{{ 'true' if g.animated else 'false' }}">
+{# BANDEAU AROME — les trois couches AROME regardent la même région à la même
+   heure ; empilées, elles font défiler trois grandes cartes là où on veut en
+   comparer une. Le bandeau les ramène dans UN viewport : une couche à la fois,
+   ou toutes. Comme pour le repli de section, l'impression sort ce qui est
+   affiché — c'est dit dans le bandeau. #}
+{% if g.arome_bar %}
+<div class="aromebar no-print" data-arome-bar>
+  <b class="small">Couches AROME</b>
+  <span class="ab-btns">
+    {% for kind, label in g.arome_bar %}
+    <button type="button" class="ab-one" data-arome-pick="{{ kind }}">{{ label | replace('AROME — ', '') }}</button>
+    {% endfor %}
+    <button type="button" class="ab-all" data-arome-pick="*">Toutes</button>
+  </span>
+  <span class="small muted ab-note"></span>
+</div>
+{% endif %}
+<section class="chart-page chart-group{% if g.is_arome %} arome-layer{% endif %}"
+         {% if g.is_arome %}data-arome-kind="{{ g.kind }}"{% endif %}
+         data-animated="{{ 'true' if g.animated else 'false' }}">
   <h2>{{ g.kind_label }}{% if g.area %} — {{ g.area }}{% endif %}{% if g.flight_level %} — {{ g.flight_level }}{% endif %}
     {% if g.animated %}<span class="frame-count">{{ g.frames | length }} échéances</span>{% endif %}</h2>
   {% if g.cadence %}<p class="cadence"><b>Mise à disposition</b> — {{ g.cadence }}</p>{% endif %}
@@ -675,6 +725,54 @@
     <p class="small mono" style="margin-top:2mm">{{ c.url }}</p></div>
   {% endif %}
   <p class="prov">Source <b>{{ c.source.source }}</b> · récupérée {{ c.source.retrieved_dual }}</p>
+  {% endif %}
+{# TABLE DE SONDAGE — la couche LUE au droit de chaque terrain, échéance par
+   échéance. Elle remplace un geste qu'un dossier de vol ne devrait pas demander :
+   chercher un terrain à l'œil sur un aplat sans contour et décider si « ça le
+   touche ». Position calculée, couleur lue, classe de la légende. Rien d'estimé.
+   Voir render/arome_probe.py — et la note de bas de table, qui dit ce qu'une
+   case vide veut dire ET ce qu'elle ne veut pas dire. #}
+  {% if g.probe_table %}
+  <div class="probe">
+    <b class="small">Au droit de chaque terrain</b>
+    <div class="probe-scroll">
+    <table class="probe-t">
+      <thead>
+        <tr><th>Terrain</th>{% for col in g.probe_table.columns %}<th>{{ col }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in g.probe_table.rows %}
+        <tr{% if row.any_painted %} class="hit"{% endif %}>
+          <th title="{{ row.name }}">{{ row.icao }}</th>
+          {% for cell in row.cells %}
+          {% if cell is none %}
+          <td class="out" title="hors de l'emprise de cette carte">·</td>
+          {% elif not cell.painted %}
+          <td class="clear" title="la couche ne peint pas cette maille">—</td>
+          {% elif cell.class_label %}
+          <td class="on"><span class="chip" style="background:{{ cell.colour }}"></span>{{ cell.class_label }}</td>
+          {% else %}
+          <td class="on" title="teinte {{ cell.colour }} absente de la légende relevée"><span class="chip" style="background:{{ cell.colour }}"></span>hors légende</td>
+          {% endif %}
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <p class="small muted" style="margin:1.4mm 0 0">
+      Lecture <b>mesurée</b>, pas appréciée à l'œil : la position du terrain est calculée dans
+      l'emprise de l'image, la couleur de ce pixel est lue, la classe est celle de la légende
+      relevée ci-dessous. <b>«&nbsp;—&nbsp;» veut dire que la couche ne peint pas cette maille,
+      c'est-à-dire sous le seuil qu'elle représente — pas «&nbsp;garanti clair&nbsp;».</b>
+      «&nbsp;·&nbsp;» = terrain hors de l'emprise de la carte. C'est un point de grille de
+      <b>modèle</b>, pas une observation : METAR et TAF restent la référence.
+      {% if g.probe_table.omitted %}
+      <br><b>Dans la zone mais hors de cette table</b> (plafond de lisibilité) :
+      {{ g.probe_table.omitted | join(', ') }} — visibles sur la carte ci-dessus.
+      {% endif %}
+    </p>
+  </div>
   {% endif %}
   {% if g.legend %}
   <div class="aromaleg">
@@ -1116,6 +1214,40 @@
 {# Lecteur animé des cartes multi-échéances. Progressive enhancement : sans JS
    (ou à l'impression), toutes les frames restent affichées via @media print. #}
 <script>
+/* Bandeau AROME : une couche à la fois, ou toutes.
+   Les trois couches AROME décrivent la même région à la même heure. Empilées,
+   elles obligent à faire défiler trois grandes cartes pour en comparer une ;
+   réunies dans un viewport, on bascule sur place.
+   L'impression suit l'écran — même contrat que le repli de section — donc le
+   bandeau le DIT plutôt que de laisser découvrir un dossier amputé au papier. */
+(function () {
+  var bar = document.querySelector('[data-arome-bar]');
+  if (!bar) return;
+  var layers = Array.prototype.slice.call(document.querySelectorAll('.arome-layer'));
+  if (layers.length < 2) return;
+  var buttons = Array.prototype.slice.call(bar.querySelectorAll('[data-arome-pick]'));
+  var note = bar.querySelector('.ab-note');
+
+  function apply(pick) {
+    layers.forEach(function (layer) {
+      var shown = pick === '*' || layer.getAttribute('data-arome-kind') === pick;
+      layer.classList.toggle('is-hidden', !shown);
+    });
+    buttons.forEach(function (b) {
+      b.classList.toggle('is-on', b.getAttribute('data-arome-pick') === pick);
+    });
+    note.textContent = pick === '*'
+      ? 'Les ' + layers.length + ' couches sont affichées — et imprimées.'
+      : 'Une seule couche affichée : l\u2019impression ne sortira que celle-ci.';
+  }
+
+  buttons.forEach(function (b) {
+    b.addEventListener('click', function () { apply(b.getAttribute('data-arome-pick')); });
+  });
+  // Ouverture sur la PREMIÈRE couche : c'est le but du bandeau — ne pas
+  // dérouler trois cartes d'affilée. Le bouton « Toutes » est à côté, visible.
+  apply(layers[0].getAttribute('data-arome-kind'));
+})();
 (function () {
   document.querySelectorAll('.chart-group[data-animated="true"]').forEach(function (group) {
     var frames = Array.prototype.slice.call(group.querySelectorAll('.frame'));

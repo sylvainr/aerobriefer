@@ -51,6 +51,28 @@ NOW = UtcDateTime.of(datetime(2026, 7, 20, 8, 0, tzinfo=UTC))
 # --------------------------------------------------------------------------
 
 
+def make_rgba_png(width: int, height: int, rgba: tuple[int, int, int, int]) -> bytes:
+    """PNG RGBA uni — les couches AROME sont des CALQUES : leur transparence
+    porte du sens (« la couche ne peint pas ici »), un PNG opaque ne testerait
+    pas le bon objet."""
+
+    def chunk(tag: bytes, payload: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(payload))
+            + tag
+            + payload
+            + struct.pack(">I", zlib.crc32(tag + payload) & 0xFFFFFFFF)
+        )
+
+    raw = b"".join(b"\x00" + bytes(rgba) * width for _ in range(height))
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(raw))
+        + chunk(b"IEND", b"")
+    )
+
+
 def make_png(
     width: int = 320, height: int = 200, rgb: tuple[int, int, int] = (30, 30, 30)
 ) -> bytes:
@@ -1233,3 +1255,90 @@ def test_arome_basemap_without_registry_has_no_tiles() -> None:
 def test_rendered_page_never_points_at_the_tile_server() -> None:
     html = render_html(build_demo_package(), now=NOW)
     assert "tile.openstreetmap.org" not in html
+
+
+# --- table de sondage AROME + viewport des couches ---------------------------
+
+
+def _arome_package(painted: bool) -> BriefingPackage:
+    """Dossier local LFCY avec les trois couches AROME, une échéance chacune.
+
+    L'image est FABRIQUÉE : on sait quelle couleur tombe où, donc ce que la
+    table doit dire. On peint tout le cadre ou rien — la position exacte est
+    testée dans `test_arome_probe`, ici on vérifie la mise en table.
+    """
+    from aerobriefer.render.arome_probe import _mercator
+
+    bbox = (-302467.9, 5575293.9, 85951.5, 5866608.4)
+    colour = (0xFE, 0xA4, 0x00, 255) if painted else (0, 0, 0, 0)
+    charts = tuple(
+        Sourced(
+            Chart(
+                kind=kind,
+                url=(
+                    "https://example.invalid/wms?SERVICE=WMS&REQUEST=GetMap&CRS=EPSG:3857"
+                    f"&BBOX={','.join(str(v) for v in bbox)}&WIDTH=32&HEIGHT=32"
+                ),
+                valid_at=UtcDateTime.of(datetime(2026, 7, 20, 12, 0, tzinfo=UTC)),
+                area="FRANCE",
+                media_type="image/png",
+                content=make_rgba_png(32, 32, colour),
+            ),
+            _prov("aeroweb-arome", age_minutes=20.0),
+        )
+        for kind in ("arome_visi", "arome_plafond", "arome_nebul_bas")
+    )
+    assert _mercator(45.628101, -0.9725)  # garde : LFCY est bien projetable
+    context = BriefingContext.local(
+        center=Position(45.628101, -0.9725),
+        radius_nm=40.0,
+        window=TimeWindow(
+            UtcDateTime.of(datetime(2026, 7, 20, 10, 0, tzinfo=UTC)),
+            UtcDateTime.of(datetime(2026, 7, 20, 13, 0, tzinfo=UTC)),
+        ),
+        icao="LFCY",
+    )
+    return BriefingPackage(context=context, charts=charts)
+
+
+def test_probe_table_names_the_class_at_each_aerodrome() -> None:
+    html = render_html(_arome_package(painted=True), now=NOW)
+    assert "Au droit de chaque terrain" in html
+    assert "réduction marquée" in html
+    # La table sert à décider : elle dit d'où vient la lecture, et ses limites.
+    assert "pas appréciée à l" in html
+    assert "METAR et TAF restent la référence" in html
+
+
+def test_probe_table_never_says_clear_for_an_unpainted_cell() -> None:
+    """« — » veut dire « la couche ne peint pas », pas « garanti clair »."""
+    html = render_html(_arome_package(painted=False), now=NOW)
+    assert "la couche ne peint pas cette maille" in html
+    assert "garanti clair" in html  # l'avertissement est présent, pas sous-entendu
+
+
+def test_probe_table_names_the_aerodromes_the_cap_leaves_out() -> None:
+    from aerobriefer.render.html import _PROBE_SITES_MAX, _probe_sites
+
+    context = _arome_package(painted=True).context
+    sites, omitted = _probe_sites(context)
+    assert len(sites) <= _PROBE_SITES_MAX
+    assert "LFCY" == sites[0][0], "le terrain du vol passe toujours en tête"
+    if omitted:
+        html = render_html(_arome_package(painted=True), now=NOW)
+        assert "hors de cette table" in html
+        for icao in omitted:
+            assert icao in html
+
+
+def test_arome_layers_share_one_viewport() -> None:
+    """Les trois couches AROME se pilotent depuis un bandeau, pas en déroulant."""
+    html = render_html(_arome_package(painted=True), now=NOW)
+    # Le sélecteur JS porte le même nom : on compte la BALISE, pas la chaîne.
+    assert html.count('<div class="aromebar') == 1, "un seul bandeau pour le bloc AROME"
+    for kind in ("arome_visi", "arome_plafond", "arome_nebul_bas"):
+        assert f'data-arome-kind="{kind}"' in html
+        assert f'data-arome-pick="{kind}"' in html
+    assert 'data-arome-pick="*"' in html  # « Toutes » reste à un clic
+    # L'impression suit l'écran : le bandeau doit le dire, pas le laisser découvrir.
+    assert "impression" in html

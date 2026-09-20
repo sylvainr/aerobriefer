@@ -42,6 +42,7 @@ from ..domain.package import BriefingPackage, ProviderFailure
 from ..domain.route import Route
 from ..domain.sourced import Sourced
 from ..domain.window import TimeWindow, UtcDateTime, utcnow
+from .arome_probe import Probe, probe_chart
 
 DEFAULT_DISPLAY_TIMEZONE = "Europe/Paris"
 """Le fuseau d'affichage est un PARAMÈTRE du renderer, jamais une constante
@@ -370,7 +371,17 @@ def _to_mercator_m(lat: float, lon: float) -> tuple[float, float]:
 #: ORDRE est établi par emboîtement : on compte, pour chaque classe, la part de
 #: ses voisins vides. Une classe entourée d'autres classes (0 % de voisins
 #: vides) est la plus interne, donc la plus marquée. Mesuré sur le dossier du
-#: 2026-08-31.
+#: 2026-08-31, repris et ÉLARGI le 2026-09-20 (mesure ci-dessous).
+#:
+#: Relevé du 2026-09-20 sur quinze images (histogramme des pixels opaques, puis
+#: emboîtement) — la table de sondage `arome_probe` rendait « hors légende » une
+#: teinte qui couvrait un TIERS de la surface peinte, ce qui a mis le trou en
+#: évidence :
+#:   visibilité — #fefe00 (17,7 %, 4,0 % de voisins vides)
+#:              < #fea400 (41,8 %, 0,8 %)
+#:              < #fe0000 (35,2 %, 0,3 %)   ← manquait
+#:   plafond    — #3d7bb0 (0,2 %, 7,1 %) < #180545 (99,5 %, 0,5 %)
+#: Les ~200 autres teintes sont des bords d'aplat anti-aliasés (< 0,2 % chacune).
 #:
 #: On n'affiche AUCUNE valeur en km ni en pieds : la source ne les donne pas, et
 #: inventer un seuil sur une feuille de briefing serait pire que de se taire.
@@ -379,7 +390,11 @@ AROME_LEGENDS: dict[str, dict[str, Any]] = {
         "definition": "Visibilité horizontale prévue près du sol.",
         "behaviour": "La couche ne peint QUE les zones de visibilité réduite. "
         "Pas de couleur = aucune réduction prévue à cet endroit.",
-        "classes": [("#fefe00", "réduction modérée"), ("#fea400", "réduction marquée")],
+        "classes": [
+            ("#fefe00", "réduction modérée"),
+            ("#fea400", "réduction marquée"),
+            ("#fe0000", "réduction sévère"),
+        ],
         "ordered": True,
     },
     "arome_plafond": {
@@ -388,12 +403,22 @@ AROME_LEGENDS: dict[str, dict[str, Any]] = {
         "behaviour": "La couche ne peint QUE les zones de plafond bas. "
         "Pas de couleur = aucun plafond sous seuil prévu à cet endroit.",
         "classes": [("#3d7bb0", "plafond bas"), ("#180545", "plafond très bas")],
-        "ordered": False,
+        # Les libellés affirmaient déjà un ordre ; l'emboîtement le MESURE
+        # désormais (2026-09-20), la page peut donc le justifier au lieu de le
+        # poser. Réserve honnête : la classe « plafond bas » est rare (0,2 % des
+        # pixels ce jour-là), la mesure repose sur peu de contours.
+        "ordered": True,
     },
     "arome_nebul_bas": {
         "definition": "Fraction du ciel couverte par les nuages de l'étage inférieur.",
-        "behaviour": "Champ continu sur toute la zone : plus la teinte est soutenue, "
-        "plus le ciel est couvert en basses couches.",
+        # Corrigé le 2026-09-20 : la couche était décrite comme un « champ continu
+        # sur toute la zone », or la mesure montre qu'elle laisse transparent
+        # partout où aucun nuage bas n'est prévu (90 % du domaine ce jour-là).
+        # La table de sondage rendait « — » en face d'une description qui
+        # promettait une valeur partout : l'une des deux mentait.
+        "behaviour": "La couche peint les zones où des nuages bas sont prévus, "
+        "du peu couvert au très couvert. Pas de couleur = aucun nuage bas prévu "
+        "à cet endroit.",
         "classes": [
             ("#ebebeb", "peu couvert"),
             ("#ddd2c7", ""),
@@ -571,6 +596,9 @@ class ChartView:
     — la tendance reste utile — mais jamais sans le dire."""
     valid_label: str
     """Échéance courte pour l'étiquette du lecteur animé (ex. « 21/07 12:00Z »)."""
+    probes: dict[str, Probe]
+    """Ce que la couche dit AU DROIT de chaque terrain (clé = OACI), mesuré et
+    non apprécié à l'œil — cf. `arome_probe`. Vide hors couches AROME."""
 
 
 #: Référence à un SUPPLÉMENT À L'AIP dans le texte d'un NOTAM.
@@ -708,6 +736,7 @@ class HtmlRenderer:
         now: UtcDateTime,
         window: TimeWindow | None = None,
         route: Route | None = None,
+        sites: Sequence[tuple[str, str, float, float]] = (),
     ) -> ChartView:
         chart = item.value
         data_uri = None
@@ -727,6 +756,19 @@ class HtmlRenderer:
                 arome_basemap(chart.url, route, self._tiles)
                 if chart.kind.startswith("arome_")
                 else None
+            ),
+            # Sondé À LA COORDONNÉE de chaque terrain, pas lu sur l'image à
+            # l'œil. Hors AROME, il n'y a pas de légende de classes : on ne
+            # sonde pas (une carte de fronts ne se lit pas pixel par pixel).
+            probes=(
+                probe_chart(
+                    chart.content,
+                    chart.url,
+                    AROME_LEGENDS.get(chart.kind),
+                    [(icao, lat, lon) for icao, _name, lat, lon in sites],
+                )
+                if sites and chart.kind.startswith("arome_")
+                else {}
             ),
             panel_ratio=top_panel_ratio(chart.kind, chart.content),
             data_uri=data_uri,
@@ -994,11 +1036,12 @@ class HtmlRenderer:
             for f in sorted(package.forecasts, key=lambda f: f.value.valid_at)
         ]
         # Toutes les cartes, satellite (couverture nuageuse) compris.
+        probe_sites, probe_omitted = _probe_sites(package.context)
         charts = [
-            self._chart_view(c, moment, package.context.window, package.context.route)
+            self._chart_view(c, moment, package.context.window, package.context.route, probe_sites)
             for c in package.charts
         ]
-        chart_groups = _group_charts(charts)
+        chart_groups = _group_charts(charts, probe_sites, probe_omitted)
         sigmets = [
             {
                 "value": s.value,
@@ -1167,7 +1210,11 @@ __all__ = [
 ]
 
 
-def _group_charts(charts: list[ChartView]) -> list[dict[str, Any]]:
+def _group_charts(
+    charts: list[ChartView],
+    probe_sites: Sequence[tuple[str, str, float, float]] = (),
+    probe_omitted: Sequence[str] = (),
+) -> list[dict[str, Any]]:
     """Regroupe les cartes par type, chaque groupe trié par échéance.
 
     Un groupe de plusieurs images devient un LECTEUR animé (slider + play) en
@@ -1207,9 +1254,120 @@ def _group_charts(charts: list[ChartView]) -> list[dict[str, Any]]:
                 "panel_ratio": head.panel_ratio,
                 "basemap": head.basemap,
                 "legend": AROME_LEGENDS.get(kind),
+                "probe_table": _probe_table(items, probe_sites, probe_omitted),
+                "is_arome": kind.startswith("arome_"),
+                # Bandeau de sélection posé sur le PREMIER groupe AROME
+                # seulement : les couches AROME sont contiguës dans
+                # `CHART_ORDER`, elles forment donc un bloc, et un bandeau par
+                # couche n'aurait aucun sens.
+                "arome_bar": None,
             }
         )
+    arome = [g for g in groups if g["is_arome"]]
+    if len(arome) > 1:
+        arome[0]["arome_bar"] = [(g["kind"], g["kind_label"]) for g in arome]
     return groups
+
+
+def _probe_table(
+    frames: list[ChartView],
+    sites: Sequence[tuple[str, str, float, float]],
+    omitted: Sequence[str] = (),
+) -> dict[str, Any] | None:
+    """Table « couche au droit de chaque terrain », une colonne par échéance.
+
+    Elle existe pour remplacer un geste : chercher un terrain à l'œil sur un
+    aplat de couleur et décider si « ça le touche ». Ici la position est
+    calculée, la couleur est lue, la classe est celle de la légende. Rien n'est
+    estimé.
+
+    Rend `None` quand aucune échéance n'a pu être sondée — une table vide
+    laisserait croire que tout est clair, alors qu'elle ne saurait rien.
+    """
+    if not sites or not any(f.probes for f in frames):
+        return None
+    rows = []
+    for icao, name, _lat, _lon in sites:
+        cells = [f.probes.get(icao) for f in frames]
+        if all(cell is None for cell in cells):
+            continue  # terrain hors de l'emprise de la carte : absent, pas « clair »
+        rows.append(
+            {
+                "icao": icao,
+                "name": name,
+                "cells": cells,
+                # Un terrain que la couche peint au moins une fois passe en
+                # tête de lecture : c'est celui qui demande une décision.
+                "any_painted": any(c is not None and c.painted for c in cells),
+            }
+        )
+    if not rows:
+        return None
+    return {
+        "columns": [f.valid_label for f in frames],
+        "rows": rows,
+        "omitted": list(omitted),
+    }
+
+
+#: Nombre maximum de terrains dans la table de sondage. Au-delà, la table cesse
+#: d'être lisible d'un coup d'œil et devient un listing — or elle sert à trancher
+#: vite. Les terrains du VOL y sont toujours, quel que soit le plafond, et ce que
+#: le plafond écarte est NOMMÉ sous la table (cf. `_probe_sites`).
+#:
+#: Seize et pas douze : un cercle de 40 NM sur la côte charentaise en contient
+#: quatorze, et couper à douze laissait dehors La Rochelle — le terrain le plus
+#: loin, donc le premier coupé, et souvent celui qu'on regarde.
+_PROBE_SITES_MAX = 16
+
+
+def _probe_sites(
+    context: BriefingContext,
+) -> tuple[list[tuple[str, str, float, float]], list[str]]:
+    """Terrains à sonder : ceux du vol d'abord, puis les voisins de la zone.
+
+    On ne sonde que des terrains — des endroits où l'on se pose. Sonder des
+    points quelconques du couloir donnerait une table plus fournie et moins
+    utile : la question que pose le pilote est « est-ce que je peux aller là ? ».
+
+    Rend `(terrains, écartés)`. Le plafond de lisibilité ne doit JAMAIS couper en
+    silence : sur un cercle de 40 NM autour de Royan, le treizième terrain est La
+    Rochelle, et une table qui ne le montre pas sans le dire laisse croire qu'il
+    n'y avait rien de plus à regarder.
+    """
+    from ..data import airports
+
+    sites: list[tuple[str, str, float, float]] = []
+    seen: set[str] = set()
+
+    def add(aerodrome: Aerodrome) -> None:
+        if aerodrome.icao in seen:
+            return
+        seen.add(aerodrome.icao)
+        sites.append(
+            (aerodrome.icao, aerodrome.name, aerodrome.position.lat, aerodrome.position.lon)
+        )
+
+    for icao in context.flight_aerodromes:
+        aerodrome = airports.lookup(icao)
+        if aerodrome is not None:
+            add(aerodrome)
+
+    # Puis le voisinage, par distance croissante au centre de la zone cherchée,
+    # en ne gardant que ce que cette zone contient RÉELLEMENT (un couloir n'est
+    # pas son cercle englobant).
+    circle = context.geometry.bounding_circle()
+    omitted: list[str] = []
+    for aerodrome, _distance in airports.nearest(
+        circle.center, within_nm=circle.radius_nm, limit=_PROBE_SITES_MAX * 8
+    ):
+        if not context.geometry.contains(aerodrome.position) or aerodrome.icao in seen:
+            continue
+        if len(sites) >= _PROBE_SITES_MAX:
+            omitted.append(aerodrome.icao)  # dans la zone, hors de la table : on le DIT
+            continue
+        add(aerodrome)
+    return sites, omitted
 
 
 def _search_zones(context: BriefingContext) -> list[str]:
