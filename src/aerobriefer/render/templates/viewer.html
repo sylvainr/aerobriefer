@@ -25,6 +25,33 @@
   #app { position: fixed; inset: 0; }
   canvas { display: block; }
 
+  /* Panneau d'ÉCHEC WebGL. Sans lui, un navigateur sans accélération
+     graphique laissait un cadre blanc muet : les panneaux de réglage
+     s'affichaient, la scène jamais, et rien ne disait pourquoi. Une page vide
+     qui a l'air normale est le pire résultat possible — même règle que pour un
+     briefing amputé. */
+  #webglfail {
+    display: none; position: fixed; inset: 0; z-index: 100; overflow: auto;
+    background: var(--bg); padding: 8vh 6vw;
+  }
+  #webglfail .box {
+    max-width: 640px; margin: 0 auto; background: var(--panel);
+    border: 1px solid var(--panel-border); border-left: 4px solid #b3261e;
+    border-radius: 10px; padding: 22px 26px; box-shadow: var(--shadow);
+  }
+  #webglfail h1 { font-size: 17px; margin: 0 0 10px; color: #b3261e; }
+  #webglfail p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.5; }
+  #webglfail ol { margin: 0 0 10px; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
+  #webglfail code {
+    background: #eef1f4; border: 1px solid var(--panel-border); border-radius: 4px;
+    padding: 1px 5px; font-size: 12.5px;
+  }
+  #webglfail pre {
+    background: #eef1f4; border: 1px solid var(--panel-border); border-radius: 6px;
+    padding: 10px 12px; font-size: 11.5px; white-space: pre-wrap; word-break: break-word;
+    margin: 0; color: var(--ink-soft);
+  }
+
   /* Titre */
   #titlebar {
     position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
@@ -222,6 +249,24 @@
 </head>
 <body>
 <div id="app"></div>
+<div id="webglfail" role="alert">
+  <div class="box">
+    <h1>Le viewer 3D ne peut pas démarrer</h1>
+    <p>Ce navigateur ne fournit pas de contexte <b>WebGL</b> — la 3D est
+      indisponible. <b>Le reste du dossier de vol n'est pas concerné</b> :
+      briefing, navlog, dégagement et masse &amp; centrage s'ouvrent normalement.</p>
+    <p>Sur Chrome, dans l'ordre :</p>
+    <ol>
+      <li>ouvrir <code>chrome://gpu</code> et regarder la ligne <b>WebGL</b> ;</li>
+      <li>si elle est désactivée : <code>chrome://settings/system</code> →
+        activer <b>« Utiliser l'accélération graphique si disponible »</b>,
+        puis <b>relancer Chrome</b> ;</li>
+      <li>si elle reste désactivée, essayer un autre navigateur (Safari, Firefox).</li>
+    </ol>
+    <p>Message exact du navigateur, utile pour chercher :</p>
+    <pre id="webglfailmsg"></pre>
+  </div>
+</div>
 
 <div id="titlebar">Espaces aériens<span class="sub" id="titlesub"></span></div>
 
@@ -393,7 +438,26 @@ const appEl = document.getElementById('app');
 // (~430 000:1) épuise la précision au loin et le z-fighting fait « disparaître »
 // les objets, de plus en plus au dézoom. Le buffer log répartit la précision
 // de façon logarithmique et corrige ça à toutes les distances.
-const renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+// La création du contexte WebGL est le SEUL point où ce viewer peut échouer
+// pour une raison extérieure aux données (accélération graphique coupée, pilote
+// sur liste noire, machine virtuelle). Sans ce filet, l'exception remontait non
+// rattrapée : les panneaux de réglage restaient affichés sur un cadre blanc, et
+// seule la console disait pourquoi. On le DIT à l'écran, avec quoi faire.
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, logarithmicDepthBuffer: true });
+} catch (err) {
+  const panel = document.getElementById('webglfail');
+  document.getElementById('webglfailmsg').textContent = String((err && err.message) || err);
+  panel.style.display = 'block';
+  // Les panneaux de réglage pilotent une scène qui n'existe pas : les laisser
+  // visibles laisserait croire que l'outil fonctionne à moitié.
+  ['legend', 'controls', 'titlebar'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  throw err;   // rien de ce qui suit n'a de sens sans contexte de rendu
+}
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setClearColor(0xeef1f4, 1);

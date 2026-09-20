@@ -101,3 +101,31 @@ def test_viewer_data_route_when_navigation():
 
 def test_viewer_data_no_route_for_local():
     assert viewer_data(_package())["route"] is None
+
+
+def test_viewer_says_why_it_cannot_start_without_webgl() -> None:
+    """Sans contexte WebGL, la page doit le DIRE — pas rester blanche.
+
+    L'exception remontait non rattrapée : les panneaux de réglage s'affichaient
+    sur un cadre vide et seule la console du navigateur disait pourquoi. Une
+    page qui a l'air de marcher à moitié est le pire résultat possible.
+    """
+    html = render_viewer(_package())
+
+    # La création du contexte est gardée, et l'échec est montré à l'écran.
+    assert "new THREE.WebGLRenderer(" in html
+    assert "try {" in html
+    assert "getElementById('webglfail')" in html
+    assert 'id="webglfail"' in html
+    assert "Le viewer 3D ne peut pas démarrer" in html
+
+    # Le message exact du navigateur est repris : c'est lui qui se cherche.
+    assert 'id="webglfailmsg"' in html
+    assert "webglfailmsg" in html.split("<script")[-1]
+
+    # Les réglages d'une scène inexistante sont masqués, pas laissés en place.
+    for panel in ("legend", "controls", "titlebar"):
+        assert f"'{panel}'" in html
+
+    # Et on dit que le reste du dossier, lui, n'est pas concerné.
+    assert "dossier de vol n'est pas concerné" in html
