@@ -7,15 +7,16 @@
    href="{{ l.url }}" target="_blank" rel="noopener" title="{{ l.tooltip }}">SUP AIP {{ l.ref }} ↗</a>
 {%- endmacro %}
 
-{# Fond de carte sous un calque AROME. Le fond vient de tuiles OSM chargées par
-   le navigateur : le renderer n'appelle JAMAIS le réseau. Hors ligne, le fond
-   manque et le calque reste — c'est dit sous la carte. #}
+{# Fond de carte sous un calque AROME. Les tuiles OSM sont EMBARQUÉES en data:
+   URI (téléchargées à la génération, cf. data/tiles.py) : la page n'émet aucune
+   requête à l'ouverture et le fond est là hors ligne, en vol. Si une tuile n'a
+   pas pu être obtenue, elle est absente — c'est dit sous la carte. #}
 {% macro geomap(bm, src, alt) %}
 <div class="geomap" style="aspect-ratio: {{ '%.4f' | format(bm.aspect) }}" tabindex="0">
   <div class="geo-inner">
   {% for t in bm.tiles %}
-  <img class="tile" src="{{ t.url }}" alt=""
-       style="left:{{ '%.4f' | format(t.left) }}%;top:{{ '%.4f' | format(t.top) }}%;width:{{ '%.4f' | format(t.width) }}%;height:{{ '%.4f' | format(t.height) }}%">
+  <div class="tile {{ t.cls }}"
+       style="left:{{ '%.4f' | format(t.left) }}%;top:{{ '%.4f' | format(t.top) }}%;width:{{ '%.4f' | format(t.width) }}%;height:{{ '%.4f' | format(t.height) }}%"></div>
   {% endfor %}
   <img class="layer" src="{{ src }}" alt="{{ alt }}">
   {% if bm.route | length > 1 %}
@@ -32,7 +33,7 @@
     <button type="button" data-geo="out" title="Dézoomer">−</button>
     <button type="button" data-geo="reset" title="Recadrer">⤢</button>
   </div>
-  <span class="osm">© OpenStreetMap contributors</span>
+  {% if bm.tiles %}<span class="osm">© OpenStreetMap contributors</span>{% endif %}
 </div>
 {% endmacro %}
 
@@ -143,10 +144,17 @@
   /* `.chart-page img` impose max-height + object-fit: contain à toutes les
      images de carte. Ici l'image EST le calque : elle doit remplir exactement
      l'emprise, sinon elle se recentre et glisse par rapport au fond. */
-  .geomap .tile, .geomap .layer {
+  .geomap .layer {
     max-height: none; object-fit: fill; border: 0; display: block;
   }
-  .geomap .tile { position: absolute; }
+  /* La tuile est un DIV à fond image, pas un <img> : c'est ce qui permet à
+     quinze cartes de partager UN SEUL encodage base64 (cf. TileRegistry).
+     `print-color-adjust` rétablit ce que ce choix coûterait sinon — un fond de
+     carte qui ne s'imprime pas n'a aucun intérêt dans un dossier de vol. */
+  .geomap .tile {
+    position: absolute; background-size: 100% 100%; background-repeat: no-repeat;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   .geomap .layer { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .78; }
   .geomap .track { position: absolute; inset: 0; width: 100%; height: 100%; }
   .geomap .osm { font-size: 6.5pt; color: #333; background: rgba(255,255,255,.75);
@@ -404,6 +412,15 @@
     font-size: 8pt; break-inside: avoid;
   }
   .foot .disclaimer { font-weight: 700; }
+
+  /* -- tuiles du fond de carte ---------------------------------------
+     Une règle par tuile DISTINCTE du document, partagée par toutes les cartes
+     qui la montrent. Répéter le base64 dans chaque carte faisait un briefing
+     de 10 Mo là où 4 suffisent, pour exactement les mêmes pixels. */
+{%- for cls, uri in tile_styles %}
+  .geomap .{{ cls }} { background-image: url({{ uri }}); }
+{%- endfor %}
+
 </style>
 
 {# =================== EN-TÊTE =================== #}
@@ -678,8 +695,13 @@
   </div>
   {% endif %}
   {% if g.basemap %}
-  <p class="raw-note">Fond <b>OpenStreetMap</b> chargé par le navigateur : <b>hors ligne il
-    manque</b>, la couche AROME reste. Le trait rouge est la route du vol.</p>
+  {% if g.basemap.tiles %}
+  <p class="raw-note">Fond <b>OpenStreetMap</b> <b>embarqué</b> dans ce fichier : il s'affiche
+    <b>hors ligne</b>. Le trait rouge est la route du vol.</p>
+  {% else %}
+  <p class="raw-note"><b>Fond OpenStreetMap indisponible</b> à la génération : seule la couche
+    AROME est affichée, sans repère géographique. Le trait rouge est la route du vol.</p>
+  {% endif %}
   {% endif %}
   {% if g.guide_page %}
   <p class="chart-legend"><a href="{{ guide_url }}#page={{ g.guide_page }}" target="_blank" rel="noopener">Légende — guide aviation Météo-France (p.{{ g.guide_page }}) ↗</a></p>

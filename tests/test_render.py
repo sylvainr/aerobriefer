@@ -1160,3 +1160,76 @@ def test_un_vol_en_plein_jour_ne_declenche_aucune_alerte() -> None:
     assert "se termine APRÈS le début de la nuit" not in plein_jour
     # Les bornes restent affichées : c'est de la conscience de la situation.
     assert "Jour aéro (SR−30)" in plein_jour
+
+
+# --- fond de carte OSM sous les couches AROME --------------------------------
+#
+# Le fond était tiré par le NAVIGATEUR à l'ouverture de la page. OpenStreetMap
+# répond alors, à la volumétrie d'un dossier, une tuile « Access blocked » en
+# HTTP 200 : le briefing s'affichait barré de rouge. Les tuiles sont désormais
+# embarquées à la génération, et le rendu ne doit plus JAMAIS émettre d'URL
+# distante — sans quoi on retomberait dans le même piège sans s'en apercevoir.
+
+_AROME_URL = (
+    "https://example.invalid/wms?SERVICE=WMS&REQUEST=GetMap&CRS=EPSG:3857"
+    "&BBOX=-200000,5600000,100000,5800000&WIDTH=600&HEIGHT=400"
+)
+
+
+def test_arome_basemap_names_registered_tiles() -> None:
+    from aerobriefer.render.html import TileRegistry, arome_basemap
+
+    asked: list[str] = []
+
+    def resolve(url: str) -> str:
+        asked.append(url)
+        return f"data:image/png;base64,{url[-12:]}"
+
+    basemap = arome_basemap(_AROME_URL, None, TileRegistry(resolve))
+    assert basemap is not None
+    assert basemap["tiles"], "l'emprise couvre des tuiles : le fond ne peut pas être vide"
+    assert all(t["cls"].startswith("t") for t in basemap["tiles"])
+    # Ce sont bien des tuiles OSM qui ont été demandées au magasin.
+    assert all(u.startswith("https://tile.openstreetmap.org/") for u in asked)
+
+
+def test_same_tile_is_encoded_once_for_the_whole_document() -> None:
+    """Quinze cartes AROME regardent la même région : un seul encodage.
+
+    Répéter le base64 par carte faisait passer le briefing de 4 à 10 Mo pour
+    exactement les mêmes pixels.
+    """
+    from aerobriefer.render.html import TileRegistry, arome_basemap
+
+    registry = TileRegistry(lambda _url: "data:image/png;base64,AAAA")
+    premiere = arome_basemap(_AROME_URL, None, registry)
+    seconde = arome_basemap(_AROME_URL, None, registry)
+    assert premiere is not None and seconde is not None
+    assert [t["cls"] for t in premiere["tiles"]] == [t["cls"] for t in seconde["tiles"]]
+    # Toutes ces tuiles ont le même contenu : une seule règle CSS les porte.
+    assert registry.css() == [("t0", "data:image/png;base64,AAAA")]
+
+
+def test_arome_basemap_omits_tiles_it_could_not_get() -> None:
+    from aerobriefer.render.html import TileRegistry, arome_basemap
+
+    # Magasin qui n'a rien : pas de fond, mais surtout pas d'URL distante en
+    # repli — le navigateur ne doit rien avoir à aller chercher.
+    basemap = arome_basemap(_AROME_URL, None, TileRegistry(lambda _url: None))
+    assert basemap is not None
+    assert basemap["tiles"] == []
+
+
+def test_arome_basemap_without_registry_has_no_tiles() -> None:
+    from aerobriefer.render.html import arome_basemap
+
+    basemap = arome_basemap(_AROME_URL, None)
+    assert basemap is not None
+    assert basemap["tiles"] == []
+    # L'emprise reste calculée : la couche AROME et la route se posent dessus.
+    assert basemap["aspect"] > 0
+
+
+def test_rendered_page_never_points_at_the_tile_server() -> None:
+    html = render_html(build_demo_package(), now=NOW)
+    assert "tile.openstreetmap.org" not in html

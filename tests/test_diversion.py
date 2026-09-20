@@ -185,3 +185,63 @@ def test_render_diversion_html_smoke():
     assert 'class="tcon"' in html
     assert study.fields[0].icao in html
     assert "Carte VAC" in html
+
+
+def test_diversion_map_embeds_tiles_and_never_links_the_tile_server():
+    """La carte de situation ne doit rien faire charger au navigateur.
+
+    OpenStreetMap sert une tuile « Access blocked » (en HTTP 200) aux pages qui
+    tirent ses tuiles en rafale : un dossier de vol lié au serveur de tuiles est
+    un dossier qui peut s'ouvrir barré de rouge, et vide hors ligne.
+    """
+    from aerobriefer.render.diversion import render_diversion_html
+
+    study = build_diversion_study(BriefingPackage(context=_ctx()), AC, radius_nm=30, limit=6)
+
+    embedded = render_diversion_html(
+        study, now=T0, resolve_tile=lambda _url: "data:image/png;base64,AAAA"
+    )
+    assert "tile.openstreetmap.org" not in embedded
+    assert 'href="data:image/png;base64,AAAA"' in embedded
+    # L'attribution ODbL reste due dès lors que le fond est affiché.
+    assert "© OpenStreetMap contributors" in embedded
+
+    # Sans magasin de tuiles : pas de fond, et surtout aucun repli distant.
+    bare = render_diversion_html(study, now=T0)
+    assert "tile.openstreetmap.org" not in bare
+    assert "<image " not in bare
+
+
+def test_cap_never_drops_a_field_in_silence():
+    """Le plafond d'affichage ne doit JAMAIS faire disparaître un terrain sans trace.
+
+    On demande un rayon ; le rayon est la question posée. Rendre douze terrains
+    quand il y en a treize, sans le dire, fait croire que le treizième n'existe
+    pas — alors que c'est peut-être celui qu'on cherchait.
+    """
+    package = BriefingPackage(context=_ctx())
+    complet = build_diversion_study(package, AC, radius_nm=40, limit=100)
+    assert complet.omitted == (), "sans plafond effectif, rien n'est écarté"
+    assert len(complet.fields) > 3
+
+    coupe = build_diversion_study(package, AC, radius_nm=40, limit=3)
+    assert len(coupe.fields) == 3
+    # Ce qui manque est nommé, et les deux ensembles recouvrent exactement le rayon.
+    assert len(coupe.omitted) == len(complet.fields) - 3
+    assert {f.icao for f in coupe.fields} | {icao for icao, _ in coupe.omitted} == {
+        f.icao for f in complet.fields
+    }
+    # Le plafond garde les PLUS PROCHES : tout omis est plus loin que tout gardé.
+    assert min(d for _, d in coupe.omitted) >= max(f.distance_nm for f in coupe.fields)
+
+
+def test_omitted_fields_are_named_in_the_page():
+    from aerobriefer.render.diversion import render_diversion_html
+
+    study = build_diversion_study(BriefingPackage(context=_ctx()), AC, radius_nm=40, limit=3)
+    html = render_diversion_html(study, now=T0)
+    assert "ne sont PAS détaillés ici" in html
+    for icao, _ in study.omitted:
+        assert icao in html
+    # La page dit COMMENT les obtenir, pas seulement qu'ils manquent.
+    assert "--nombre-degagement" in html

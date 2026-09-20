@@ -9,7 +9,7 @@ dès l'entrée : au-delà de cette frontière, le domaine ne connaît plus que Z
 from __future__ import annotations
 
 import argparse
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import replace
 from datetime import timedelta  # noqa: TID251 - timedelta est une durée, pas un instant
 from pathlib import Path
@@ -27,6 +27,7 @@ from .providers.base import Provider
 
 if TYPE_CHECKING:
     from .aircraft.model import AircraftSpec
+    from .data.tiles import TileStore
     from .diversion import DiversionStudy
     from .domain.package import BriefingPackage
 
@@ -419,6 +420,14 @@ def main(argv: list[str] | None = None) -> int:
         dest="rayon_degagement",
         help="rayon de recherche des terrains de dégagement en NM (défaut 30)",
     )
+    parser.add_argument(
+        "--nombre-degagement",
+        type=int,
+        default=12,
+        dest="nombre_degagement",
+        help="nombre maximum de terrains DÉTAILLÉS dans la feuille de dégagement "
+        "(défaut 12) ; ceux que le plafond écarte sont nommés dans la page",
+    )
     args = parser.parse_args(argv)
 
     # Mode « fichier de navigation » : lit le JSON et génère TOUT le dossier.
@@ -448,6 +457,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     package = assemble_briefing(context, default_providers())
+    tiles = _tile_store()
 
     print(
         f"Briefing {args.icao} — {context.window.start:%d/%m/%Y %H:%MZ}"
@@ -475,7 +485,12 @@ def main(argv: list[str] | None = None) -> int:
         # Le HTML est AUTONOME : images embarquées en data URI, aucun lien
         # externe. Consultable et archivable tel quel, hors ligne.
         args.html.write_text(
-            render_html(package, supaip_local=supaip_local, supaip_index=supaip_index),
+            render_html(
+                package,
+                supaip_local=supaip_local,
+                supaip_index=supaip_index,
+                resolve_tile=tiles.data_uri,
+            ),
             encoding="utf-8",
         )
         print(f"  HTML : {args.html}")
@@ -536,11 +551,48 @@ def main(argv: list[str] | None = None) -> int:
             args.degagement,
             aeronef=args.aeronef,
             radius_nm=args.rayon_degagement,
+            limit=args.nombre_degagement,
             declinaison=args.declinaison,
+            resolve_tile=tiles.data_uri,
         )
         print(f"  Dégagement ({aircraft.name}, {len(study.fields)} terrains) : {args.degagement}")
+        if study.omitted:
+            names = ", ".join(f"{icao} ({d:.0f} NM)" for icao, d in study.omitted)
+            print(
+                f"    plafond {args.nombre_degagement} atteint — NON détaillés : {names}"
+                f" (--nombre-degagement pour les inclure)"
+            )
 
+    _report_tiles(tiles)
     return 0 if package.is_complete else 1
+
+
+def _tile_store() -> TileStore:
+    """Magasin de tuiles OSM du run, partagé par tous les documents produits.
+
+    UN seul magasin : les cartes AROME et la carte de dégagement d'un même
+    dossier regardent la même région, donc les mêmes tuiles. Le partager, c'est
+    la différence entre télécharger neuf tuiles et les télécharger quinze fois —
+    ce qu'OpenStreetMap appelle, à raison, ne pas respecter sa politique d'usage.
+    """
+    from .data.tiles import TileStore
+
+    return TileStore()
+
+
+def _report_tiles(store: TileStore) -> None:
+    """Dit ce que le fond de carte a coûté, et surtout ce qui lui MANQUE.
+
+    Un fond incomplet ne casse pas un dossier, mais il ne doit pas passer
+    inaperçu : c'est une carte avec des trous.
+    """
+    if store.missing:
+        print(
+            f"  ATTENTION : fond de carte incomplet — {store.missing} tuile(s) OSM "
+            f"non obtenue(s) ; les cartes concernées s'affichent sans fond"
+        )
+    elif store.downloaded:
+        print(f"  Fond de carte : {store.downloaded} tuile(s) OSM téléchargée(s) et embarquée(s)")
 
 
 def _download_cited_supaip(package: BriefingPackage, out_dir: Path) -> tuple[dict[str, str], Any]:
@@ -598,6 +650,8 @@ def _render_diversion(
     aeronef: str | None,
     radius_nm: float,
     declinaison: float | None,
+    limit: int = 12,
+    resolve_tile: Callable[[str], str | None] | None = None,
 ) -> tuple[AircraftSpec, DiversionStudy]:
     """Écrit le briefing de dégagement. Retourne (avion, étude) pour le log."""
     from .aircraft.registry import resolve as resolve_aircraft
@@ -614,9 +668,10 @@ def _render_diversion(
         package,
         aircraft,
         radius_nm=radius_nm,
+        limit=limit,
         variation_deg=variation,
     )
-    output.write_text(render_diversion_html(study), encoding="utf-8")
+    output.write_text(render_diversion_html(study, resolve_tile=resolve_tile), encoding="utf-8")
     return aircraft, study
 
 
@@ -827,6 +882,7 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     package = assemble_briefing(context, default_providers())
+    tiles = _tile_store()
     origin = context.origin_icao or plan.depart
     dest = context.destination_icao or "nav"
     slug = f"{origin}_{dest}"
@@ -852,7 +908,13 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
     supaip_local, supaip_index = _download_cited_supaip(package, out_dir)
     for kind in ("meteo", "notam"):
         (out_dir / f"brief_{kind}_{label}.html").write_text(
-            render_html(package, kind=kind, supaip_local=supaip_local, supaip_index=supaip_index),
+            render_html(
+                package,
+                kind=kind,
+                supaip_local=supaip_local,
+                supaip_index=supaip_index,
+                resolve_tile=tiles.data_uri,
+            ),
             encoding="utf-8",
         )
     (out_dir / f"viewer_{label}.html").write_text(render_viewer(package), encoding="utf-8")
@@ -868,6 +930,7 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         aeronef=plan.aeronef,
         radius_nm=30.0,
         declinaison=plan.declinaison_deg,
+        resolve_tile=tiles.data_uri,
     )
     if context.route is not None:
         variation = _declination(
@@ -889,6 +952,7 @@ def _run_navplan(nav_path: Path, out_dir: Path) -> int:
         )
         print(f"  GPX (ForeFlight) : nav_{label}.gpx ({len(context.route.waypoints)} points)")
 
+    _report_tiles(tiles)
     print(f"  → dossier complet écrit dans {out_dir}")
     return 0 if package.is_complete else 1
 

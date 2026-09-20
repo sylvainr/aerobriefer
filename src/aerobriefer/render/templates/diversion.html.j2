@@ -37,6 +37,11 @@
   .hyp ul { margin: 0; padding-left: 5mm; }
   .hyp li { margin: 0 0 .8mm; font-size: 8.7pt; color: var(--ink-soft); }
   .hyp li.warn { color: #8a4b0f; font-weight: 600; }
+  .hyp.warn-box { background: #fff7ed; border-color: #e6b98a; }
+  .hyp.warn-box b { color: #8a4b0f; }
+  .hyp p.small { margin: 1mm 0 0; font-size: 8.7pt; color: var(--ink-soft); }
+  .hyp code { font-size: 8.4pt; background: #fff; border: 1pt solid var(--line);
+    border-radius: 3px; padding: 0 1mm; }
 
   table { width: 100%; border-collapse: collapse; }
   th, td { text-align: left; padding: 2.2mm 2mm; border-bottom: 1pt solid #e5e9ee; vertical-align: top; }
@@ -170,6 +175,18 @@
     </div>
   </div>
 </section>
+{% endif %}
+
+{# Plafond d'affichage atteint : on NOMME ce qu'on n'a pas détaillé. Un rayon
+   demandé qui rend une liste tronquée sans le dire ferait croire qu'il n'y a
+   rien d'autre — exactement l'inverse du service rendu. #}
+{% if view.omitted %}
+<div class="hyp warn-box">
+  <b class="small">{{ view.omitted | length }} terrain(s) dans le rayon ne sont PAS détaillés ici</b>
+  <p class="small">Le plafond d'affichage a retenu les <b>{{ view.shown_count }}</b> plus proches. Écartés, du plus proche au plus lointain :
+    {% for icao, d in view.omitted %}<b>{{ icao }}</b> ({{ d }} NM){% if not loop.last %} · {% endif %}{% endfor %}.
+    Pour les inclure, relancer avec <code>--nombre-degagement {{ view.omitted | length + view.shown_count }}</code>.</p>
+</div>
 {% endif %}
 
 <div class="hyp">

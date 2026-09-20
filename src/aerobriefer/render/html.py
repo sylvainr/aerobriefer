@@ -22,7 +22,7 @@ import base64
 import math
 import re
 import urllib.parse
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -31,6 +31,7 @@ from zoneinfo import ZoneInfo
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from ..data import supaip
+from ..data import tiles as tiles_mod
 from ..domain.context import BriefingContext
 from ..domain.freshness import describe as freshness_label
 from ..domain.freshness import max_age_minutes
@@ -232,7 +233,48 @@ def _world_px(x_m: float, y_m: float, zoom: int) -> tuple[float, float]:
     )
 
 
-def arome_basemap(url: str, route: Route | None = None) -> dict[str, Any] | None:
+class TileRegistry:
+    """Tuiles du document : chaque tuile n'est encodée QU'UNE FOIS.
+
+    Un dossier contient une quinzaine de cartes AROME qui regardent la même
+    région : sans registre, les mêmes neuf tuiles étaient ré-encodées en base64
+    quinze fois et le briefing passait de 4 à 10 Mo — pour les mêmes pixels.
+    On émet donc une règle CSS par tuile distincte et chaque carte s'y réfère
+    par sa classe.
+
+    `background-image` plutôt qu'un `<img>` : c'est le seul moyen de partager un
+    encodage entre plusieurs emplacements. La contrepartie — les fonds ne
+    s'impriment pas par défaut — est levée explicitement par
+    `print-color-adjust: exact` sur la tuile ; un dossier de vol s'imprime.
+    """
+
+    def __init__(self, resolve: Callable[[str], str | None] | None = None) -> None:
+        self._resolve = resolve
+        self._classes: dict[str, str] = {}  # data: URI → nom de classe
+
+    def register(self, url: str) -> str | None:
+        """Nom de classe CSS de la tuile, ou `None` si on ne l'a pas."""
+        if self._resolve is None:
+            return None
+        data_uri = self._resolve(url)
+        if data_uri is None:
+            return None
+        known = self._classes.get(data_uri)
+        if known is None:
+            known = f"t{len(self._classes)}"
+            self._classes[data_uri] = known
+        return known
+
+    def css(self) -> list[tuple[str, str]]:
+        """(classe, data: URI) à écrire dans la feuille de style du document."""
+        return [(cls, uri) for uri, cls in self._classes.items()]
+
+
+def arome_basemap(
+    url: str,
+    route: Route | None = None,
+    tiles: TileRegistry | None = None,
+) -> dict[str, Any] | None:
     """Fond OpenStreetMap et tracé de route sous une couche AROME.
 
     Les couches AROME sont des CALQUES transparents : sans fond, on voit la
@@ -240,9 +282,15 @@ def arome_basemap(url: str, route: Route | None = None) -> dict[str, Any] | None
     couvrant exactement l'emprise de l'image, plus la route, tout en pourcentages
     — le fond suit l'image quelle que soit sa taille d'affichage.
 
-    Aucun appel réseau ici : on ÉMET des URLs de tuiles, le navigateur les
-    charge. Conséquence assumée et signalée : hors ligne, le fond manque, la
-    couche AROME reste.
+    Aucun appel réseau ICI : le rendu ne connaît pas le réseau. Le `TileRegistry`
+    est alimenté par l'appelant (le CLI lui branche un `data.tiles.TileStore`) et
+    rend le nom de classe CSS d'une tuile déjà encodée, ou `None` s'il ne l'a
+    pas. Une tuile non résolue est simplement ABSENTE du fond : jamais une URL
+    distante, que le navigateur irait chercher pour se faire servir « Access
+    blocked ».
+
+    Sans registre, le fond n'a aucune tuile — la couche AROME et la route
+    restent, et le rendu le dit sous la carte.
     """
     bbox = _bbox_3857(url)
     if bbox is None:
@@ -269,14 +317,17 @@ def arome_basemap(url: str, route: Route | None = None) -> dict[str, Any] | None
         return None
 
     span = 2**zoom
-    tiles: list[dict[str, Any]] = []
+    found: list[dict[str, Any]] = []
     for tx in range(int(left_px // 256), int(right_px // 256) + 1):
         for ty in range(int(top_px // 256), int(bottom_px // 256) + 1):
             if not (0 <= tx < span and 0 <= ty < span):
                 continue
-            tiles.append(
+            css_class = tiles.register(tiles_mod.tile_url(zoom, tx, ty)) if tiles else None
+            if css_class is None:
+                continue
+            found.append(
                 {
-                    "url": f"https://tile.openstreetmap.org/{zoom}/{tx}/{ty}.png",
+                    "cls": css_class,
                     "left": (tx * 256 - left_px) / width_px * 100.0,
                     "top": (ty * 256 - top_px) / height_px * 100.0,
                     "width": 256 / width_px * 100.0,
@@ -294,7 +345,7 @@ def arome_basemap(url: str, route: Route | None = None) -> dict[str, Any] | None
             )
 
     return {
-        "tiles": tiles,
+        "tiles": found,
         "route": path,
         "aspect": width_px / height_px,
     }
@@ -601,6 +652,7 @@ class HtmlRenderer:
         stale_after_minutes: float = DEFAULT_STALE_AFTER_MINUTES,
         supaip_local: dict[str, str] | None = None,
         supaip_index: supaip.SupAipIndex | None = None,
+        resolve_tile: Callable[[str], str | None] | None = None,
     ) -> None:
         self.supaip_local = dict(supaip_local or {})
         """SUP AIP téléchargés à côté du dossier : `référence → nom de fichier`.
@@ -608,6 +660,11 @@ class HtmlRenderer:
         doit rester consultable sans réseau."""
         self.display_timezone = display_timezone
         self.stale_after_minutes = stale_after_minutes
+        self._tiles = TileRegistry(resolve_tile)
+        """Registre des tuiles du fond de carte. L'appelant fournit de quoi les
+        obtenir (le CLI : un `data.tiles.TileStore`) ; le rendu, lui, n'appelle
+        jamais le réseau, et n'émet jamais d'URL distante à charger à
+        l'ouverture de la page."""
         # Index des SUP AIP. Le rendu NE FAIT PAS DE RÉSEAU : soit l'appelant
         # fournit l'index (c'est le cas du CLI, qui l'a déjà chargé pour
         # télécharger les suppléments), soit on relit le cache disque et
@@ -666,7 +723,11 @@ class HtmlRenderer:
             flight_level=chart.flight_level,
             issued_dual=self._dual(chart.issued_at, with_date=True) if chart.issued_at else None,
             valid_dual=self._dual(chart.valid_at, with_date=True) if chart.valid_at else None,
-            basemap=(arome_basemap(chart.url, route) if chart.kind.startswith("arome_") else None),
+            basemap=(
+                arome_basemap(chart.url, route, self._tiles)
+                if chart.kind.startswith("arome_")
+                else None
+            ),
             panel_ratio=top_panel_ratio(chart.kind, chart.content),
             data_uri=data_uri,
             url=chart.url,
@@ -1062,6 +1123,10 @@ class HtmlRenderer:
                 view[empty] = []
             view["sun"] = None
             view["doc_label"] = "BRIEFING NOTAM"
+        # Les règles de tuiles sont écrites APRÈS le filtrage par `kind` : le
+        # dossier NOTAM n'a plus de carte, il n'a donc pas à porter des mégaoctets
+        # de fond de carte que rien n'affiche.
+        view["tile_styles"] = [] if kind == "notam" else self._tiles.css()
         return template.render(**view)
 
 
@@ -1074,6 +1139,7 @@ def render_html(
     kind: str = "all",
     supaip_local: dict[str, str] | None = None,
     supaip_index: supaip.SupAipIndex | None = None,
+    resolve_tile: Callable[[str], str | None] | None = None,
 ) -> str:
     """Raccourci fonctionnel pour le cas courant. `kind` : all/meteo/notam."""
     renderer = HtmlRenderer(
@@ -1081,6 +1147,7 @@ def render_html(
         stale_after_minutes=stale_after_minutes,
         supaip_local=supaip_local,
         supaip_index=supaip_index,
+        resolve_tile=resolve_tile,
     )
     return renderer.render(package, now=now, kind=kind)
 

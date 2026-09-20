@@ -9,6 +9,7 @@ de la piste, météo, radios, lien VAC. On CHOISIT son dégagement d'un coup d'�
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -16,6 +17,7 @@ from zoneinfo import ZoneInfo
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from ..aircraft.runway import RunwayAssessment
+from ..data import tiles as tiles_mod
 from ..diversion import DiversionField, DiversionStudy, RunwayPerf
 from ..domain.window import UtcDateTime, utcnow
 from .html import format_age, format_dual
@@ -125,7 +127,10 @@ def _merc_world_px(lat: float, lon: float, z: int) -> tuple[float, float]:
     return x, y
 
 
-def _map_svg(study: DiversionStudy) -> str:
+def _map_svg(
+    study: DiversionStudy,
+    resolve_tile: Callable[[str], str | None] | None = None,
+) -> str:
     points: list[tuple[float, float]] = [(la, lo) for _, la, lo in study.reference_points]
     points += list(study.route_path)
     points += [(f.lat, f.lon) for f in study.fields]
@@ -179,8 +184,10 @@ def _map_svg(study: DiversionStudy) -> str:
         f'<rect x="0" y="0" width="{_MAP_W}" height="{_MAP_H}" fill="#eef1f4" rx="6"/>',
     ]
 
-    # Fond OSM : tuiles chargées EN DIRECT depuis le serveur (léger, mais vide hors
-    # ligne). Attribution « © OpenStreetMap » obligatoire (voir plus bas).
+    # Fond OSM : les tuiles sont EMBARQUÉES (data: URI) par l'appelant, jamais
+    # tirées par le navigateur — voir `data/tiles.py`. Une tuile non résolue est
+    # omise : le fond gris clair reste dessous, la carte reste lisible.
+    # Attribution « © OpenStreetMap » obligatoire (voir plus bas).
     tile_parts: list[str] = ['<g clip-path="url(#mapclip)">']
     n_tiles = 2**z
     tsz = 256.0 * s
@@ -193,10 +200,13 @@ def _map_svg(study: DiversionStudy) -> str:
         for ty in range(ty0, ty1 + 1):
             if not (0 <= tx < n_tiles and 0 <= ty < n_tiles):
                 continue
+            source = resolve_tile(tiles_mod.tile_url(z, tx, ty)) if resolve_tile else None
+            if source is None:
+                continue
             sx = off_x + (tx * 256 - cminx) * s
             sy = off_y + (ty * 256 - cminy) * s
             tile_parts.append(
-                f'<image href="https://tile.openstreetmap.org/{z}/{tx}/{ty}.png" '
+                f'<image href="{source}" '
                 f'x="{sx:.1f}" y="{sy:.1f}" width="{tsz:.1f}" height="{tsz:.1f}"/>'
             )
     tile_parts.append("</g>")
@@ -367,7 +377,13 @@ def _scale_for(study: DiversionStudy) -> float:
     return _BAR_MAX_PX / longest
 
 
-def _view(study: DiversionStudy, now: UtcDateTime, tz: ZoneInfo, tz_name: str) -> dict[str, Any]:
+def _view(
+    study: DiversionStudy,
+    now: UtcDateTime,
+    tz: ZoneInfo,
+    tz_name: str,
+    resolve_tile: Callable[[str], str | None] | None = None,
+) -> dict[str, Any]:
     counts: dict[str, int] = {}
     for f in study.fields:
         counts[f.verdict] = counts.get(f.verdict, 0) + 1
@@ -389,7 +405,11 @@ def _view(study: DiversionStudy, now: UtcDateTime, tz: ZoneInfo, tz_name: str) -
         "display_timezone": tz_name,
         "notes": list(study.notes),
         "counts": counts,
-        "map_svg": _map_svg(study),
+        "shown_count": len(study.fields),
+        # (OACI, distance arrondie) — la distance dit tout de suite si le terrain
+        # écarté était juste derrière les autres ou au bord du rayon.
+        "omitted": [(icao, round(d)) for icao, d in study.omitted],
+        "map_svg": _map_svg(study, resolve_tile),
         "fields": [_field_view(f, scale) for f in study.fields],
     }
 
@@ -399,6 +419,7 @@ def render_diversion_html(
     *,
     now: UtcDateTime | None = None,
     display_timezone: str = DEFAULT_ZONE,
+    resolve_tile: Callable[[str], str | None] | None = None,
 ) -> str:
     """Étude de dégagement → page HTML autonome et imprimable."""
     now = now or utcnow()
@@ -409,4 +430,4 @@ def render_diversion_html(
         undefined=StrictUndefined,
     )
     template = env.get_template(TEMPLATE_NAME)
-    return template.render(view=_view(study, now, tz, display_timezone))
+    return template.render(view=_view(study, now, tz, display_timezone, resolve_tile))

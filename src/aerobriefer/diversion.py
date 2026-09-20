@@ -127,6 +127,10 @@ class DiversionStudy:
     variation_deg: float
     demonstrated_crosswind_kt: float | None
     fields: tuple[DiversionField, ...]
+    omitted: tuple[tuple[str, float], ...]
+    """Terrains DANS le rayon que le plafond d'affichage a écartés : (OACI,
+    distance NM). Une liste tronquée en silence est un piège — on a demandé un
+    rayon, on doit savoir ce qu'il contenait et qui n'est pas détaillé ici."""
     notes: tuple[str, ...]
 
 
@@ -185,24 +189,33 @@ def _verdict(best_landing: RunwayAssessment | None) -> str:
     return "OK"
 
 
-def _candidates_around(
-    references: list[Aerodrome], radius_nm: float, limit: int
-) -> list[_Candidate]:
-    """Vol local : voisins de chaque terrain de référence, triés par distance."""
+#: Garde-fou de la recherche brute de voisins : borne le travail, pas le
+#: résultat. Le rayon demandé reste le critère ; ce plafond n'est là que pour ne
+#: pas balayer la base entière si on lui passait un rayon absurde.
+_SEARCH_CAP = 400
+
+
+def _candidates_around(references: list[Aerodrome], radius_nm: float) -> list[_Candidate]:
+    """Vol local : voisins de chaque terrain de référence, triés par distance.
+
+    Rend TOUT ce que le rayon contient. Le plafond d'affichage est appliqué par
+    l'appelant, qui est aussi celui qui sait le dire — couper ici reviendrait à
+    perdre sans trace un terrain que l'utilisateur a demandé en donnant son rayon.
+    """
     flight_set = {a.icao for a in references}
     best_by_icao: dict[str, _Candidate] = {}
     for ref in references:
-        for aero, dist in airports.nearest(ref.position, within_nm=radius_nm, limit=limit * 4):
+        for aero, dist in airports.nearest(ref.position, within_nm=radius_nm, limit=_SEARCH_CAP):
             if aero.icao in flight_set:
                 continue
             current = best_by_icao.get(aero.icao)
             if current is None or dist < current[1]:
                 best_by_icao[aero.icao] = (aero, dist, None, ref.position, ref.icao)
-    return sorted(best_by_icao.values(), key=lambda c: c[1])[:limit]
+    return sorted(best_by_icao.values(), key=lambda c: c[1])
 
 
 def _candidates_along_route(
-    route: Route, radius_nm: float, flight_set: set[str], limit: int
+    route: Route, radius_nm: float, flight_set: set[str]
 ) -> list[_Candidate]:
     """Navigation : terrains dans le couloir de la route, triés LE LONG de la route.
 
@@ -236,16 +249,14 @@ def _candidates_along_route(
         if best is not None and best[0] <= radius_nm:
             near = min(wps, key=lambda w: w.position.distance_nm(aero.position))
             out.append((aero, best[0], best[1], best[2], near.name))
-    # Le plafond doit garder les terrains les PLUS ATTEIGNABLES (écart le plus
-    # faible à la route), pas seulement le début du vol : trier d'abord le long
-    # de la route puis couper laissait tout le quota au voisinage du départ et
-    # amputait le bout de route (côté destination). On sélectionne donc les
-    # `limit` plus proches de la route, PUIS on les remet dans l'ordre de la
-    # route pour l'affichage.
-    out.sort(key=lambda c: c[1])  # écart perpendiculaire croissant
-    kept = out[:limit]
-    kept.sort(key=lambda c: c[2] if c[2] is not None else 0.0)  # affichage le long de la route
-    return kept
+    # Tri par écart perpendiculaire CROISSANT : c'est l'ordre de priorité quand
+    # le plafond d'affichage coupe (appliqué par l'appelant). Il doit garder les
+    # terrains les PLUS ATTEIGNABLES, pas seulement le début du vol — trier le
+    # long de la route puis couper donnait tout le quota au voisinage du départ
+    # et amputait le bout de route. La remise dans l'ordre de la route, elle, a
+    # lieu APRÈS la coupe, pour l'affichage.
+    out.sort(key=lambda c: c[1])
+    return out
 
 
 def _study_field(
@@ -432,9 +443,18 @@ def build_diversion_study(
     route = package.context.route
     is_route = route is not None and len(route.waypoints) >= 2
     if is_route and route is not None:
-        candidates = _candidates_along_route(route, radius_nm, flight_set, limit)
+        found = _candidates_along_route(route, radius_nm, flight_set)
     else:
-        candidates = _candidates_around(references, radius_nm, limit)
+        found = _candidates_around(references, radius_nm)
+
+    # Le plafond est appliqué ICI, en un seul endroit, et ce qu'il écarte est
+    # CONSERVÉ pour être dit. Les candidats arrivent triés par priorité (distance
+    # au terrain, ou écart à la route) : couper prend bien les moins atteignables.
+    candidates, dropped = found[:limit], found[limit:]
+    omitted = tuple(sorted(((aero.icao, dist) for aero, dist, *_ in dropped), key=lambda o: o[1]))
+    if is_route:
+        # Affichage le long de la route — remis en ordre APRÈS la coupe.
+        candidates = sorted(candidates, key=lambda c: c[2] if c[2] is not None else 0.0)
 
     fields = tuple(
         _study_field(
@@ -491,5 +511,6 @@ def build_diversion_study(
         variation_deg=variation_deg,
         demonstrated_crosswind_kt=aircraft.demonstrated_crosswind_kt,
         fields=fields,
+        omitted=omitted,
         notes=notes,
     )
